@@ -1,0 +1,19 @@
+{
+  "name": "@privacy-attribute/audit-runner",
+  "version": "0.1.0",
+  "description": "Deterministic differential runner for the capture SDK privacy audit: records fixture pages twice with different hidden values under each config and writes the differences.",
+  "license": "MIT",
+  "author": "rrweb B.V.",
+  "type": "module",
+  "bin": {
+    "privacy-audit": "cli.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "esbuild": "0.28.2",
+    "js-yaml": "4.3.2",
+    "puppeteer-core": "24.43.1"
+  }
+}

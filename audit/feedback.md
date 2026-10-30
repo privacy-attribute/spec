@@ -12,7 +12,7 @@ gh issue list --repo privacy-attribute/spec --label audit-feedback --label accep
 
 Without the `gh` CLI, fetch `https://api.github.com/repos/privacy-attribute/spec/issues?labels=audit-feedback,accepted&state=all&per_page=100`.
 
-For each accepted issue whose `fixed-in` label is missing or names an audit version newer than the one you are running:
+For each accepted issue whose `fixed-in` label is missing or names an audit version newer than the one you are running (when the issue holds a runner fixture, save it to a file and pass it to the runner with `--fixtures`):
 
 1. Read the pattern, the leak class and the test page from the issue body.
 2. Add the test page to your differential track as an extra pattern with the id `FB-<issue number>`, and run it like every other pattern.
@@ -34,6 +34,8 @@ Gap reports are mandatory. You MUST send one report for each `missed-leak`, `fal
 | `impractical-step` | A step could not be done as written in your environment. Say what you did instead. |
 | `ranking` | A pattern's `rank` or `tier` in `patterns.yaml` looks wrong. Give evidence: prevalence data, or examples of real sites. |
 | `worked-well` | A pattern or rule found something you would otherwise have missed. These keep useful rules from being cut. |
+
+For `missed-leak` and `false-positive`, write a runner fixture for the case (see `runner/README.md`) and run `node runner/cli.mjs report <fixture>`. It runs the fixture, writes the issue body with the recorded evidence, and prints a link to a pre-filled issue form. A runnable fixture is what lets maintainers accept a report and lets every later audit test it.
 
 File each one as an issue:
 

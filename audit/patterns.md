@@ -52,7 +52,7 @@ Likelihood is separate from severity. A rare pattern that holds a secret (`P-pin
 
 ## Test pages
 
-Label every element of every test page with its data category. Every page includes the `shell` baseline, so the fidelity check has public content next to each private widget.
+Label every element of every test page with its data category (`data-audit-category`). Only labelled elements are checked, and an unlabelled wrapper is neither public nor private. Every page includes the `shell` baseline, so the fidelity check has public content next to each private widget.
 
 ## Adding a pattern
 

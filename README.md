@@ -14,7 +14,7 @@ Authored by rrweb B.V. MIT licensed.
 
 ## Auditing capture SDKs
 
-[`audit/`](audit/AGENTS.md) holds instructions for an agent to audit a session-capture SDK for privacy leaks and for fidelity lost to masking: an objective, data categories, a threat model, high-risk UI patterns, a leak taxonomy and a findings format. Point the agent at `audit/AGENTS.md`, pinned to an `audit-v*` tag for reproducible results.
+[`audit/`](audit/AGENTS.md) holds instructions for an agent to audit a session-capture SDK for privacy leaks and for fidelity lost to masking: an objective, data categories, a threat model, high-risk UI patterns, a leak taxonomy and a findings format. Point the agent at `audit/AGENTS.md`, pinned to an `audit-v*` tag for reproducible results. The [runner](audit/runner/README.md) does the differential test without a model: one command records every pattern under every config and writes a single table.
 
 Found a leak the audit missed? [Open an audit feedback issue](https://github.com/privacy-attribute/spec/issues/new?template=audit-feedback.yml). Accepted reports are tested by every later audit run. Reporting gaps is required for anyone using the audit.
 

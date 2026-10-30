@@ -25,6 +25,7 @@ Check:
 - how the mask function builds its output; a mask that repeats a character `value.length` times leaks exact length
 - for `number` and `range`, length is the order of magnitude (`99` versus `100000`), which is often the sensitive part (salary, age, balance). Report number and range magnitude as a separate finding from password length: the fix differs, and integrators who mask all inputs believe numbers are covered
 - run the per-type matrix (`P-input-types` in `patterns.yaml`) and list the masked output for each type
+- whether a masked field's own scroll offset (a long value scrolls the input) is recorded, which gives the length
 - whether text masking (class 8) does the same for text nodes
 - whether width, `size`, or `maxlength` attributes, or layout events, reveal length indirectly
 

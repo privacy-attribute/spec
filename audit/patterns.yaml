@@ -145,7 +145,7 @@ patterns:
     special_category: false
     page: shell
     channels: [hover-state, click-target, scroll]
-    what: "Hover menus, accordions of public FAQ, tabs, carousels, scrolling, public search for catalogue items"
+    what: "Hover menus, accordions of public FAQ, tabs, carousels, scrolling, and the results of a catalogue search (the query the person types is personal)"
     where: "every page with menus, tabs, carousels or scrolling"
     test: "Must survive under targeted: every interaction and the state it produces"
   - id: P-pii-text
