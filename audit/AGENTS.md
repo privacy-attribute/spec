@@ -201,6 +201,8 @@ Grade a privacy finding by the category of the data and by what the attacker lea
 | `third-party` | `critical` under `targeted` or stricter; `high` under defaults | `medium` |
 | `personal` | `high` under `targeted` or stricter or under defaults | `medium` under `targeted` or stricter; `low` under defaults |
 
+Accepted residual: the time a person spends in a field (from focus, or the first input event, to the next event) cannot be hidden without destroying the recording. Report it once per audit as `low`, under leak class `keystroke-dynamics`. Timing or counts per keystroke are graded normally.
+
 Lower any grade to `low` when the leak needs an opt-in setting whose docs say it captures that data. Raise it one step when the docs claim the leaking config protects that data. When both apply, lower first, then raise.
 
 ### Fidelity findings
