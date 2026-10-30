@@ -37,7 +37,7 @@ export const RULES = [
   { id: 'attribute-expr', render: true, re: /\b(title|aria-label|aria-description|alt|href|src|data-(?!audit|privacy|testid|state|slot|side|align|orientation|variant|size)[\w-]+)=\{(?!\s*["'`])[^}]*\b(row|item|session|recording|meta|metadata|user|member|customer|value|label|title|name|q|query|search)\b/, pattern: 'P-pii-text', category: 'personal?', note: 'Attributes are recorded even inside masked elements in most recorders.' },
   { id: 'set-attribute', re: /\.setAttribute\(\s*["'`](href|src|title|aria-label|alt|value|data-[\w-]+)["'`]/, pattern: 'P-pii-text', category: 'personal?' },
   { id: 'metadata-render', render: true, re: /\{[^}]*\b(metadata|meta|attributes|properties|traits|tags|customData)\b[^}]*\}/, pattern: 'P-crm-record', category: 'third-party?' },
-  { id: 'echo-search', render: true, re: /\{[^}]*\b(q|query|search|searchTerm|filter|filters|term)\b[^}]*\}/, pattern: 'P-search-as-you-type', category: 'personal?' },
+  { id: 'echo-search', render: true, re: /\{[^}]*\b(q|query|searchQuery|searchTerm|searchText)\b[^}]*\}/, pattern: 'P-search-as-you-type', category: 'personal?' },
   { id: 'style-from-data', re: /style=\{\{[^}]*(width|left|height|transform)\s*:\s*`?[^}]*\$\{|content:\s*attr\(/, pattern: 'P-strength-meter', category: 'personal?' },
 
   // Inputs and widgets that collect personal data
