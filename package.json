@@ -1,0 +1,30 @@
+{
+  "name": "@privacy-attribute/spec",
+  "version": "0.0.1",
+  "description": "Privacy Attribute Standard (PAS): the page-owned data-privacy attribute and capture policy for session recorders and other capture SDKs. Placeholder release; the proposal is under review.",
+  "license": "MIT",
+  "author": "rrweb B.V.",
+  "homepage": "https://github.com/privacy-attribute/spec",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/privacy-attribute/spec"
+  },
+  "keywords": [
+    "privacy",
+    "data-privacy",
+    "masking",
+    "redaction",
+    "session-replay",
+    "capture",
+    "rrweb",
+    "privacy-attribute",
+    "pas"
+  ],
+  "files": [
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

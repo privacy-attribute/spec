@@ -1,0 +1,56 @@
+name: Audit feedback
+description: Report a privacy leak the audit missed, a false positive, or a problem with the audit instructions.
+title: "<kind>: "
+labels: ["audit-feedback"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [missed-leak, false-positive, unclear-instruction, impractical-step, worked-well]
+    validations: { required: true }
+  - type: dropdown
+    id: actor
+    attributes:
+      label: Actor
+      options: [human, agent]
+    validations: { required: true }
+  - type: input
+    id: audit-version
+    attributes:
+      label: Audit version
+      placeholder: "1.0.0"
+    validations: { required: true }
+  - type: input
+    id: target
+    attributes:
+      label: Target
+      placeholder: "rrweb-io/rrweb@<commit SHA>, rrweb@2.2.0"
+  - type: input
+    id: pattern
+    attributes:
+      label: Pattern / leak class
+      placeholder: "P-pin-pad / pointer-position"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What was tried, what went wrong or right, and where the agent guessed.
+    validations: { required: true }
+  - type: textarea
+    id: page
+    attributes:
+      label: Test page
+      description: A minimal synthetic HTML page and journey. Made-up values only.
+      render: html
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Recorded evidence
+      description: The emitted event or diff, trimmed. Made-up values only.
+      render: json
+  - type: textarea
+    id: change
+    attributes:
+      label: Proposed change
+      description: The rule, pattern row or grep to add or change.
