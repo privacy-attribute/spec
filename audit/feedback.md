@@ -24,7 +24,7 @@ If the fetch fails, say so in `method_note` and continue the audit without it.
 
 ## Send feedback after you finish
 
-Send one report for each of these:
+Gap reports are mandatory. You MUST send one report for each `missed-leak`, `false-positive`, `unclear-instruction` and `impractical-step` you have, and you should send `worked-well` reports. Send one report for each of these:
 
 | Kind | When |
 |------|------|
@@ -32,6 +32,7 @@ Send one report for each of these:
 | `false-positive` | A rule or pattern made you report something that turned out not to leak. |
 | `unclear-instruction` | You had to guess what an instruction meant, or two instructions conflicted. Say what you chose. |
 | `impractical-step` | A step could not be done as written in your environment. Say what you did instead. |
+| `ranking` | A pattern's `rank` or `tier` in `patterns.yaml` looks wrong. Give evidence: prevalence data, or examples of real sites. |
 | `worked-well` | A pattern or rule found something you would otherwise have missed. These keep useful rules from being cut. |
 
 File each one as an issue:
@@ -72,8 +73,8 @@ Rules:
 - Never include data from a real session, a real page, a customer or a user. Rebuild the case with made-up values before you file it.
 - Search first (`gh issue list --repo privacy-attribute/spec --label audit-feedback --search "<pattern or class>"`) and add a comment when an issue already covers it. File a new issue only when none does. A comment is a send like an issue, so the rules below apply to it too.
 - Print the issue URL for the user, and list every report in `feedback_sent` in your output.
-- Before filing, check the target's visibility (`gh repo view <owner/repo> --json visibility`, or ask the user if it is not on GitHub). If it is private, ask the user before filing: file names, function names and evidence can reveal it.
-- Write the report to `feedback/` next to your findings file instead of filing it when filing fails, when you have no permission, when the user declines, or when you were asked for a dry run. Never fail or stall the audit over feedback. Tell the user where the files are.
+- Before filing, check the target's visibility (`gh repo view <owner/repo> --json visibility`, or ask the user if it is not on GitHub). If it is private, ask the user before filing, because file names, function names and evidence can reveal it. If they decline, the gap still MUST be reported: rewrite the report so it names no private file, function, product or customer (describe the mechanism and rebuild the test page from scratch), show it to the user, and file that version once they agree.
+- When you cannot file (filing fails, you have no permission, the user has not agreed yet, or you were asked for a dry run), write the report to `feedback/` next to your findings file and tell the user, in the summary, that the implementer is responsible for filing these reports at https://github.com/privacy-attribute/spec/issues. List the files. Never fail or stall the audit over feedback.
 
 ## For maintainers
 

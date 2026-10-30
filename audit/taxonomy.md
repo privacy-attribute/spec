@@ -24,7 +24,7 @@ What leaks: the length of a hidden value, through a mask that preserves length (
 Check:
 - how the mask function builds its output; a mask that repeats a character `value.length` times leaks exact length
 - for `number` and `range`, length is the order of magnitude (`99` versus `100000`), which is often the sensitive part (salary, age, balance). Report number and range magnitude as a separate finding from password length: the fix differs, and integrators who mask all inputs believe numbers are covered
-- run the per-type matrix in `patterns.md` (`P-input-types`) and list the masked output for each type
+- run the per-type matrix (`P-input-types` in `patterns.yaml`) and list the masked output for each type
 - whether text masking (class 8) does the same for text nodes
 - whether width, `size`, or `maxlength` attributes, or layout events, reveal length indirectly
 
@@ -244,6 +244,46 @@ Check: whether copy, cut, paste and composition events are recorded, and whether
 
 Grep: `paste`, `copy`, `clipboardData`, `compositionstart`, `compositionupdate`
 
-## 24. `data-privacy-conformance`
+## 24. `third-party-content`: other people's data shown on the page
+
+What leaks: data about people other than the one being recorded: customer records in a back office, user tables in an admin panel, chat messages and comments from others, contact lists, shared documents. Input masking does not touch any of it, because it is page text, attributes and images.
+
+Check:
+- under each default config, whether any page text is masked at all
+- whether text masking can target a container (a table, a chat pane) without masking the public chrome around it
+- whether row and list structure (row count, item order, avatar image URLs, initials) reveals who is in the data when text is masked
+- lazy-loaded and virtualised lists, where rows arrive through mutations after the snapshot
+
+Grep: the text-node and attribute masking functions from classes 6 and 7, `maskTextClass`, `maskTextSelector`, plus `img` and `src` handling for avatars
+
+## 25. `data-privacy-conformance`
 
 Use this class only when the audit includes the `data-privacy` conformance check described in `AGENTS.md`.
+
+## Fidelity classes
+
+Fidelity findings use these ids in `leak_class`. Find them through the fidelity check in step 6b of `AGENTS.md`.
+
+### `over-masking`
+
+Public content masked or blocked because the SDK's options cannot target narrowly enough: a mask option that applies to all text on the page, a block that hides a whole form to protect one field, a mask that does not stop at a nested `unmask` or public label.
+
+Check: the finest grain each option supports (whole page, selector, class, element, attribute), whether options can be nested, and what `targeted` has to mask to stop each privacy finding.
+
+### `global-switch`
+
+A privacy leak that only a page-wide switch stops: turning off mouse moves everywhere to protect one keypad, turning off canvas, CSS inlining, or network capture for the whole page.
+
+Check: for each privacy finding that leaks under `targeted`, the narrowest option that stops it and its scope.
+
+### `replay-distortion`
+
+The recording replays differently from the page even for public content: masked text that changes width and reflows public layout, placeholders with the wrong size, lost styles, missing hover or animation states, fonts or images that fail to load in replay.
+
+Check: compare the rebuilt DOM and layout with the live page under `targeted`, and list each difference on a `public` element.
+
+### `lost-interaction`
+
+Public interactions dropped as a side effect of a privacy option: clicks, scrolls or focus on public controls suppressed because they sit inside a masked or blocked ancestor, or because an ignore option matches too broadly.
+
+Check: under `targeted`, every interaction with a `public` element in the journey appears in the recording.

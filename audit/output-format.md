@@ -1,11 +1,12 @@
 # Output format
 
-Write one JSON file, `privacy-audit.json`, in your scratch directory, and print its path when you finish. Then write a short summary in prose: counts by severity and verdict, and the findings that leak under `strictest`.
+Write one JSON file, `privacy-audit.json`, in your scratch directory, and print its path when you finish. Then write a short summary in prose. It starts with the disclaimer from the Responsibility section of `AGENTS.md`, word for word, then gives counts by kind, severity and verdict, the privacy findings that leak under `targeted` or `strictest`, and the gap reports from step 9 with their issue URLs or, for unfiled reports, their paths and a note that the implementer must file them.
 
 ## Top level
 
 ```json
 {
+  "disclaimer": "These instructions and every audit produced with them are provided as is, ...",
   "audit_version": "1.0.0",
   "audit_source": "https://github.com/privacy-attribute/spec/blob/audit-v1.0.0/audit/AGENTS.md",
   "target": {
@@ -54,8 +55,12 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory, and print 
 {
   "id": "F1",
   "fingerprint": "attribute:processAttributeMutation:title",
+  "kind": "privacy",
   "leak_class": "attribute",
+  "data_category": "third-party",
+  "special_category": false,
   "pattern": null,
+  "pattern_rank": null,
   "title": "title attribute of masked elements is recorded in the clear",
   "sink": { "id": "S2", "file": "src/record/mutations.ts", "line": 214 },
   "additional_sinks": [],
@@ -79,7 +84,8 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory, and print 
     "config": "strictest",
     "event": { "type": 3, "data": { "source": 0, "attributes": [{ "id": 7, "attributes": { "title": "jane@example.com" } }] } }
   },
-  "fix": "In src/record/mutations.ts:205, run maskAttribute for every attribute on the privacy-relevant list in taxonomy.md class 7 when the element is masked."
+  "fix": "In src/record/mutations.ts:205, run maskAttribute for every attribute on the privacy-relevant list in taxonomy.md class 7 when the element is masked.",
+  "fidelity_cost": "None for public content: only attributes of masked elements change. Without this fix the integrator must block the element, which loses its box styling and hover state."
 }
 ```
 
@@ -93,17 +99,23 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory, and print 
 | `affected_since`, `affected_since_exact` | Oldest release tag that has the leak, found as described in `AGENTS.md` under "Affected releases". |
 | `status`, `status_note` | `new`, `unchanged` or `changed` against `previous_audit`. Use `new` for every finding when there is no previous audit. `status_note` is required for `changed`. |
 | `resolved` | Earlier fingerprints that no longer leak, each with `removed_in` and `now_stopped_at`. Empty when there is no previous audit. |
-| `pattern` | The `patterns.md` id whose test page found this, or `null` if the code track found it. |
+| `pattern_rank` | The `rank` of `pattern` in `patterns.yaml`, or `null`. |
+| `kind` | `privacy` or `fidelity`. |
+| `data_category` | `secret`, `personal`, `third-party` or `public`, from the Data categories table in `AGENTS.md`. Fidelity findings use `public`. |
+| `special_category` | `true` for `personal` or `third-party` data in a special category (health, sex life or orientation, religion, political views, ethnicity, biometrics, union membership, criminal records). |
+| `fidelity_cost` | For privacy findings: what public content or behaviour the proposed fix removes, and what the cheapest working config today removes. For fidelity findings: what is lost and on which pages it would show. Required. |
+| `pattern` | The `patterns.yaml` id whose test page found this, or `null` if the code track found it. |
 | `recoverable` | `true` if the attacker can reconstruct the full value from one recording, in at least one of your runs. Give the success rate across runs in `reproduction` when it is below all of them. Show the reconstruction in `reproduction`. `false` for partial leaks (length, range, which of a few options). |
-| `leak_class` | One id from `taxonomy.md`. Make one finding per leak class. When one event shows two classes (an echo element whose text length also leaks), report it under each class and cite the same evidence; merge only findings of the same class. |
+| `leak_class` | One id from `taxonomy.md` (a fidelity class id for fidelity findings). Make one finding per leak class. When one event shows two classes (an echo element whose text length also leaks), report it under each class and cite the same evidence; merge only findings of the same class. |
 | `sink` | The `file:line` where the data is placed into an emitted structure. When one leaking behaviour reaches several sinks (for example a URL in the meta event and in iframe attributes), keep one finding, put the main sink here and the others in `additional_sinks`. |
 | `path` | Ordered steps from the source (DOM read, attribute read, event) to the sink. Each step has a `file:line` and says what happens to the value there. At least two steps. |
 | `masking_checked` | The masking or blocking function on this path and why it does not stop the leak. Write `none` if no check runs. |
 | `leaks_under` / `safe_under` / `not_evaluated` | Config ids from `configs`. Together the three lists cover every config in `configs`. Use `not_evaluated` for configs that did not apply to this finding's pages. |
+| `disclaimer` | Required. The full disclaimer text from the Responsibility section of `AGENTS.md`, word for word. |
 | `audit_source` | The link or path you read the instructions from. |
 | `feedback_applied` | One row per accepted feedback issue you tested, with its `FB-` pattern id and the finding ids or `no finding`. Empty if there was none or the fetch failed (say which in `method_note`). |
 | `feedback_sent` | One row per report from step 9. `filed` is `true` with the issue or comment `url`, or `false` with the local `path` and the `reason` (failed, no permission, user declined, dry run). |
-| `method_note`, `pattern_coverage` | Required. `pattern_coverage` has one row per `patterns.md` id with the configs run and the finding ids or `no finding`. |
+| `method_note`, `pattern_coverage` | Required. `pattern_coverage` has one row per `patterns.yaml` id with the configs run and the finding ids or `no finding`. |
 | `coverage[].table` | Optional. Put per-type or per-config result tables (such as the `P-input-types` matrix) on the coverage row of their leak class. |
 | `severity` | `critical`, `high`, `medium` or `low`, per the table in `AGENTS.md`. |
 | `verdict` | `CONFIRMED` when `reproduction.event` was copied from output you ran. `PLAUSIBLE` otherwise. |

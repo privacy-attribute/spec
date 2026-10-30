@@ -1,15 +1,32 @@
 # Capture SDK privacy audit
 
-You are auditing a session-capture SDK (a session recorder, product analytics snippet, or any library that serialises a web page and sends it somewhere). Your job is to find every way a person who holds the recording can learn something the page meant to hide, and to back each finding with evidence.
+You are auditing a session-capture SDK (a session recorder, product analytics snippet, or any library that serialises a web page and sends it somewhere).
 
 Read these files before you start:
 
-- [`patterns.md`](patterns.md): high-risk UI patterns you must build test pages for, such as PIN pads, one-time-code inputs and password reveal toggles.
+- [`patterns.md`](patterns.md) and [`patterns.yaml`](patterns.yaml): high-risk UI patterns you must test, such as PIN pads, one-time-code inputs and password reveal toggles, with the channels they leak through and the composite pages that hold them. Query the YAML; do not read it end to end.
 - [`taxonomy.md`](taxonomy.md): the leak classes you must cover, with what to grep for in each.
 - [`output-format.md`](output-format.md): the exact shape of your findings file.
 - [`feedback.md`](feedback.md): how to pull in reports of leaks earlier audits missed, and how to report what these instructions missed.
 
 If you were given a link to these files, read every file from the same tag or commit as this one, so the set is consistent. Record the link in `audit_source` in your output.
+
+## Responsibility
+
+These instructions and every audit produced with them are provided as is, without warranty. An audit can miss leaks and can misjudge fidelity. Its findings are not legal advice and not a certification of compliance with any privacy law. The implementer (whoever integrates, configures or ships the recorder) is responsible for the final output: what their recordings contain, how the recorder is configured, and whether that meets their legal and contractual obligations.
+
+Any gap you find in these instructions MUST be reported back to [`privacy-attribute/spec`](https://github.com/privacy-attribute/spec/issues): a leak or fidelity loss they did not lead you to, a false positive they caused, or a step that was unclear or impractical. Step 9 and `feedback.md` say how. An audit without its gap reports is incomplete.
+
+Start the prose summary of every audit with the disclaimer above, word for word, and copy it into the `disclaimer` field of the findings file.
+
+## Objective
+
+A recorder should produce the highest-fidelity recording it can while keeping the people on the page private. Both halves count. Your job is to find:
+
+- every way a person who holds the recording can learn data the page should keep from them (privacy findings), and
+- every place where the SDK, or the only configuration that stops a leak, removes content or behaviour that carried no private data (fidelity findings).
+
+Back each finding with evidence. The best fix for a privacy finding is the one that removes the least fidelity, so every fix you propose states its fidelity cost.
 
 ## Threat model
 
@@ -22,18 +39,36 @@ Assume the attacker:
 
 A value is protected only when the recording looks the same whatever the value is. Masking that replaces characters is one channel out of many. Which element was clicked, where the pointer went, how many events fired, when they fired, what else on the page changed in response, and how big things became can each reveal the value. Treat every one of these as a leak until a test shows otherwise.
 
+## Data categories
+
+Everything on a page falls into one of four categories, and each gets different treatment. Label every element on your test pages with its category before you record. The labels are your ground truth for both privacy and fidelity.
+
+| Category | What it is | Examples | What may reach the recording |
+|----------|------------|----------|-------------------------------|
+| `secret` | Credentials and authenticators: anything that grants access or moves money if someone else learns it | password, PIN, one-time code, card number, CVV, security answer, recovery phrase, API key, session token in a URL | Nothing that depends on the value: no content, length, magnitude, timing, key count, clicked key, pointer position inside the widget, or echo. The widget's existence, its outer box, and focus entering or leaving it as a whole may be recorded. |
+| `personal` | Data about the person being recorded, whether they type it or the page shows it to them | their name, email, address, date of birth, account balance, order history, form answers, consent choices | No content. Structure, layout and interactions may be recorded as long as they do not reveal the value (see partial leaks under Severity). Special categories (health, sex life or orientation, religion, political views, ethnicity, biometrics, union membership, criminal records) get the same rules as `secret` for partial leaks. |
+| `third-party` | Personal data about other people, shown to the person being recorded: the site's other users or customers | a support agent's CRM view of customers, an admin user table, chat messages from others, contact lists, comments with names, shared documents | Same rules as `personal`. These people never interacted with the recorder and cannot consent, so input masking never protects them: their data is page text, attributes and images. Treat a leak under the default config as at least `high`. |
+| `public` | Content that is the same for every visitor and identifies nobody | navigation, labels, headings, marketing copy, product names and prices, help text, icons, layout, styles, animations | Everything, exactly. Masking, blocking or dropping public content is a fidelity finding. |
+
+Rules for applying the categories:
+
+1. Category follows the data. The element type does not decide it: a text node can be `third-party`, a `select` of countries holds `personal` data once chosen, and the label next to a secret field is `public`.
+2. When content mixes categories (a heading "Orders for Jane Doe"), the whole node takes the most private category in it. Report a fidelity finding only when the SDK cannot mask such a node at a finer grain than the page allows.
+3. Free-text input the person types is `personal` at minimum, even in a field meant for public data, because people type personal data anywhere.
+4. Interactions take the category of what they reveal. A click on a public "Next" button is `public`. A click on a PIN key is `secret`. A click on one answer of a health questionnaire is `personal`, special category.
+
 ## Ground rules
 
 1. Work read-only in the target repository. Do not commit, switch branches, stash, or edit tracked files. If you need to build or run code, copy the source you need into a scratch directory and work there.
 2. Audit the revision you were asked to audit. If the working tree has uncommitted changes or is on a feature branch, extract the requested ref (for example `git archive <ref> | tar -x -C <scratch>`) and audit that copy.
 3. Every finding needs a source-to-sink path through real code with `file:line` references. A difference found by the differential test (step 6) counts once you trace the differing field back to the code that emits it. Drop any finding without a path.
-4. Cover every leak class in `taxonomy.md` and every pattern in `patterns.md`. For a class or pattern with no finding, say so in the coverage section of your output and name the code or test that cleared it.
+4. Cover every leak class and fidelity class in `taxonomy.md` and every pattern in `patterns.yaml`. For a class or pattern with no finding, say so in the coverage section of your output and name the code or test that cleared it.
 5. Record your uncertainty in the verdict field. Do not soften or hedge findings in prose.
 6. Run code. A read-only code review misses most inference leaks. If your environment cannot run a headless browser, say so at the top of the report, because every finding will then be `PLAUSIBLE`.
 
 ## Method
 
-The audit has two tracks and you run both. The code track starts from the places where data leaves the page and works backwards (steps 1 to 5). Do not read the codebase top to bottom: the masking logic is usually small and central, and the leaks live on the paths that bypass it. The differential track records real pages twice with different hidden values and diffs the output (step 6). It finds the inference leaks the code track does not show.
+The audit has two tracks and you run both. The code track starts from the places where data leaves the page and works backwards (steps 1 to 5). Do not read the codebase top to bottom: the masking logic is usually small and central, and the leaks live on the paths that bypass it. The differential track records real pages twice with different hidden values and diffs the output (step 6). It finds the inference leaks the code track does not show. The fidelity check (step 6b) compares the same recordings with the live page to find what was lost.
 
 ### Step 0. Pin the version
 
@@ -88,27 +123,38 @@ Evaluate each finding under at least these configurations:
 
 | Config id | Meaning |
 |-----------|---------|
+| `targeted` | The configuration a careful integrator would write to get maximum fidelity with full privacy, using the SDK's most specific documented options: mask or block exactly the elements labelled `secret`, `personal` and `third-party`, and nothing labelled `public`. Use block for `secret` widgets when the SDK has no finer option. Write down the exact options object. This is the most important config: privacy leaks under it are leaks the integrator cannot fix, and fidelity losses under it are losses the integrator cannot avoid. |
 | `default-core` | Core recorder with no options passed. |
 | `default-<wrapper>` | Each wrapper or hosted client with no options passed (one row per wrapper that changes defaults). |
 | `strictest` | Every built-in masking, blocking and ignore option set to its most private value: mask all inputs, mask all text, block all media and canvas, strip URLs, disable console and network capture or set them to their most redacted mode. Use no custom mask functions: this is what an integrator gets from documented switches alone. Leave sampling and event-type switches (such as turning off mouse moves) at their defaults, and mention in the finding's `fix` when one of them would stop the leak. Write down the exact options object you used. |
 | `strictest-custom` | `strictest` plus every custom mask hook the SDK offers (for rrweb, `maskInputFn` and `maskTextFn`) set to return a constant such as `*`. This shows what the hooks can fix. |
 | `custom-nonconstant` | `strictest` without the ignore options (ignored inputs emit no input events, so the channel would never show), plus custom mask hooks that return a value derived from the input but coarser than it: a length bucket (`"*".repeat(Math.ceil(len / 8) * 8)`), a hash, or a type label. Used for timing and deduplication channels (taxonomy class 3), since hooks like these are what integrators and proposed SDK changes use. |
-| `strictest-block` | `strictest` plus the container of the widget under test added to the block option. Used for patterns in `patterns.md`: blocking is what a careful integrator does for a PIN pad, so it must hold. |
+| `strictest-block` | `strictest` plus the container of the widget under test added to the block option. Used for patterns in `patterns.yaml`: blocking is what a careful integrator does for a PIN pad, so it must hold. |
 | `opt-in:<option>` | Default config plus the one non-default option the leak depends on (for example enabling a plugin or `recordCanvas`). One config per option. Run it only on the pages that exercise that option. |
 
-A finding leaks under `strictest` when no combination of documented options stops it. Those are the most important findings in the report.
+A finding that leaks under `targeted` and `strictest` cannot be stopped by any documented option. A finding that leaks under `targeted` but not `strictest` can only be stopped by giving up fidelity on public content. Report the fidelity cost of that trade in the finding.
 
 ### Step 6. Differential test
 
-This step is mandatory. Build one test page per pattern in `patterns.md`, plus one per leak class whose code track left open questions. For each page:
+This step is mandatory. Build the composite test pages listed under `pages:` in `patterns.yaml` as `patterns.md` describes, plus one page per leak class whose code track left open questions. For each page:
 
 1. Pick two hidden values that differ in every property an attacker could care about: content, length, magnitude, and position on any keypad or list (for a PIN pad, `1397` and `8240`; for a name, `Al` and `Bartholomew`).
 2. Script the same user journey for both values with realistic input: real pointer movement with intermediate steps (puppeteer `page.mouse.move(x, y, { steps: 10 })`), real clicks, real key presses with a fixed delay between them, focus moves, and touch where the pattern is touch-first. Scripted `element.click()` or setting `.value` skips the pointer and keyboard paths and will miss leaks. Launch the browser with a fixed locale and time zone (for example `--lang=en-US` and `TZ=UTC`) so date and number fields parse the same way in every run. Where the automation cannot drive a control with real input (native `select` popups, colour pickers), set it through the automation API and say so in `method_note`.
-3. Record both runs under `strictest`, `strictest-block`, `strictest-custom` and each default config, plus `custom-nonconstant` for typed fields.
+3. Record both runs under `targeted`, `strictest`, `strictest-block`, `strictest-custom` and each default config, plus `custom-nonconstant` for typed fields.
 4. Normalise the two event streams: drop absolute timestamps, keep the gaps between events, keep node ids, coordinates, event types, mutation contents and event counts.
 5. Diff them. Every remaining difference is a leak of the hidden value until you explain it. For each difference, name the event field and trace it to the code that emits it. That trace is the finding's `path`.
 6. Write one driver script that takes a page, a journey per hidden value and a list of configs, runs every combination, and writes the normalised diff to a file. Read the diffs, and open raw event streams only to trace a difference. Group related patterns on one page where they do not interfere.
 7. Then ask whether the attacker can recover the value from one recording alone, using knowledge of the page layout. Map node ids to DOM positions, coordinates to element boxes, and event counts to lengths. If you can recover the value, say so in the finding and show the recovery.
+
+### Step 6b. Fidelity check
+
+Use the `targeted` recordings from step 6 and one unrecorded load of each page.
+
+1. Replay each recording, or rebuild the DOM from its full snapshot and mutations, and compare it with the live page element by element.
+2. Every element labelled `public` must match: text, attributes, styles, images, size and position, and its interactions (hover, click, scroll, animation). Each mismatch is a fidelity finding: name what was lost and the option or code that removed it.
+3. Every element labelled `secret`, `personal` or `third-party` must keep its box and position, so the replay keeps its layout. A placeholder that changes the layout of public content around it is a fidelity finding.
+4. Repeat for `strictest` and note what extra fidelity it costs compared with `targeted`. That difference is the price of the SDK's coarse options, and it belongs in the `fix` of every privacy finding that only `strictest` stops.
+5. Note any global switch (such as turning off all mouse moves, all canvas, all CSS inlining) that is the only way to stop a leak. These switches remove public fidelity across the whole page and are fidelity findings in their own right.
 
 ### Step 7. Reproduce
 
@@ -131,24 +177,34 @@ For timing side channels, the reproduction is a sequence of events with their ti
 
 ### Step 8. Write the report
 
-Write the findings file in the format of `output-format.md`. Order findings by severity, then secrets before other data, then recoverable before partial, then by the most private config they leak under (`strictest-block`, then `strictest`, then defaults, then opt-ins). Put the sink list and the coverage table in the same file.
+Write the findings file in the format of `output-format.md`. Order privacy findings before fidelity findings. Within privacy, order by severity, then by category (`secret`, then special-category `personal`, then `third-party`, then `personal`), then recoverable before partial, then by the most private config they leak under (`strictest-block`, then `strictest`, then `targeted`, then defaults, then opt-ins). Put the sink list and the coverage table in the same file.
 
-### Step 9. Send feedback
+### Step 9. Report gaps
 
-Follow "Send feedback after you finish" in `feedback.md`. Every finding with `pattern: null` whose leak class greps did not lead you to it is a `missed-leak` report, because these instructions should have found it. So is every leak a person tells you about that the report does not contain.
+This step is mandatory. Follow "Send feedback after you finish" in `feedback.md`. Every finding with `pattern: null` whose leak class greps did not lead you to it is a `missed-leak` report, because these instructions should have found it. So is every leak a person tells you about that the report does not contain.
 
 ## Severity
 
-Grade by what the pattern holds on real pages. A security question field is graded as a secret whatever test value you typed into it, and a generic text field is graded as user data even if you typed a password into it.
+Grade a privacy finding by the category of the data and by what the attacker learns, using the category the data has on real pages. A security question field is `secret` whatever test value you typed into it. "Recoverable" means the attacker can reconstruct the value from one recording. "Partial" means they learn something about it (length, range, first digit, which of a few options, that a box was ticked).
 
-Judge severity by what the attacker learns and under which config. "Recoverable" means the attacker can reconstruct the value from one recording; "partial" means they learn something about it (length, range, first digit, which of a few options).
+### Privacy findings
+
+| Data category | Recoverable | Partial |
+|---------------|-------------|---------|
+| `secret` | `critical` under any config | `critical` under any config |
+| `personal`, special category | `critical` under `targeted` or stricter; `high` under defaults | `high` under `targeted` or stricter; `medium` under defaults |
+| `third-party` | `critical` under `targeted` or stricter; `high` under defaults | `medium` |
+| `personal` | `high` under `targeted` or stricter or under defaults | `medium` under `targeted` or stricter; `low` under defaults |
+
+Lower any grade to `low` when the leak needs an opt-in setting whose docs say it captures that data. Raise it one step when the docs claim the leaking config protects that data.
+
+### Fidelity findings
 
 | Severity | Use when |
 |----------|----------|
-| `critical` | Any information about a secret (PIN, password, one-time code, card number, CVV, security answer, government ID, API key, recovery phrase) leaks under any config except an opt-in documented as capturing it, including partial leaks. Any recoverable user-entered value leaks under `strictest-block`. |
-| `high` | A recoverable value leaks under `strictest`, or under the default config of any shipped package. Partial information about health, financial, identity, location or consent data leaks under `strictest`. |
-| `medium` | Partial information about other user data leaks under `strictest`. Raw content leaks only under an opt-in setting whose docs claim it is safe. |
-| `low` | Leaks only under an opt-in setting documented as capturing that data, or leaks metadata with little linkage to a person. |
+| `high` | Under `targeted`, public content is lost or altered with no option to keep it, or the only way to stop a privacy leak is a global switch that removes public content across the page. |
+| `medium` | Under `targeted`, public content is lost or altered unless the integrator adds a workaround the docs do not describe, or a placeholder shifts public layout. |
+| `low` | Fidelity is lost only under `strictest` and `targeted` keeps it. |
 
 ## Checking a recorder against the `data-privacy` standard
 

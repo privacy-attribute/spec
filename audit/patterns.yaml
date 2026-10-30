@@ -1,0 +1,740 @@
+# High-risk UI patterns as data. Read patterns.md for how to use this file.
+# Each record is on consecutive lines, so `grep -A9 'id: P-pin-pad'` returns one pattern
+# and `grep -B1 -A8 'tier: L1'` returns a tier.
+
+channels:
+  - id: input-value
+    compare: "the value of a form field"
+    find_in_sdk: "input and change listeners; value serialisation in the full snapshot; hooks on the value property setter"
+  - id: value-length
+    compare: "the length or magnitude of a masked value"
+    find_in_sdk: "the mask functions for inputs and text"
+  - id: emit-timing
+    compare: "whether events fire only when a masked value changes"
+    find_in_sdk: "deduplication, last-value caches, throttles on the input path"
+  - id: key-count
+    compare: "how many input, key or mutation events fire"
+    find_in_sdk: "input and keyboard listeners; mutation batching"
+  - id: key-timing
+    compare: "gaps between events (keystroke dynamics)"
+    find_in_sdk: "event timestamping; any batching or coarsening"
+  - id: checked-state
+    compare: "checked, selected and similar state"
+    find_in_sdk: "input observer; snapshot handling of checkbox, radio and option"
+  - id: select-state
+    compare: "the chosen option of a select"
+    find_in_sdk: "snapshot and input handling of select and option"
+  - id: focus
+    compare: "order and count of focus and blur events"
+    find_in_sdk: "focus and blur listeners"
+  - id: click-target
+    compare: "node id and DOM position of clicked, touched or focused elements"
+    find_in_sdk: "mouse interaction, touch and focus observers"
+  - id: pointer-path
+    compare: "coordinates and node ids in mouse and pointer moves, including over blocked and masked elements"
+    find_in_sdk: "mouse move observer and its sampling"
+  - id: touch-path
+    compare: "coordinates in touch events"
+    find_in_sdk: "touch move handling in the pointer observers"
+  - id: hover-state
+    compare: "class, style and attribute changes caused by hover, active or focus"
+    find_in_sdk: "attribute mutation recording"
+  - id: attribute
+    compare: "attribute values: aria-*, data-*, class, style, type, title, alt, href, src"
+    find_in_sdk: "attribute serialisation in the snapshot and in attribute mutations"
+  - id: text
+    compare: "text content and its changes, including masked text"
+    find_in_sdk: "text node serialisation; character data and child list mutations"
+  - id: title-meta
+    compare: "document title, favicon, meta tags"
+    find_in_sdk: "meta event; head serialisation; title mutations"
+  - id: url
+    compare: "page URL, history URLs, link and frame URLs"
+    find_in_sdk: "meta and navigation events; URL attribute handling"
+  - id: stylesheet
+    compare: "CSS text, rules and inline styles"
+    find_in_sdk: "stylesheet inlining and rule observers"
+  - id: canvas
+    compare: "canvas draw calls and pixels"
+    find_in_sdk: "canvas recording"
+  - id: image
+    compare: "image src, srcset, data and blob URLs, inlined pixels"
+    find_in_sdk: "image inlining; src attribute handling"
+  - id: iframe
+    compare: "content and URLs of iframes"
+    find_in_sdk: "iframe recording and cross-origin handling"
+  - id: shadow-dom
+    compare: "content inside shadow roots"
+    find_in_sdk: "shadow DOM recording and the mask ancestor walk"
+  - id: network
+    compare: "request and response URLs, headers and bodies"
+    find_in_sdk: "network capture plugin"
+  - id: clipboard
+    compare: "copy and paste payloads"
+    find_in_sdk: "clipboard listeners"
+  - id: selection
+    compare: "selection ranges and caret position"
+    find_in_sdk: "selection observer"
+  - id: scroll
+    compare: "scroll positions inside masked or blocked containers"
+    find_in_sdk: "scroll observer"
+  - id: viewport
+    compare: "viewport size changes"
+    find_in_sdk: "viewport resize observer"
+  - id: layout-size
+    compare: "element dimensions that track hidden content"
+    find_in_sdk: "block placeholders; masked text replacement"
+
+pages:
+  - id: shell
+    holds: "Public baseline present on every page: navigation, headings, styles, fonts, images, hover menus, a public link next to each private widget."
+  - id: login
+    holds: "Sign-in, sign-up and verification."
+  - id: profile-form
+    holds: "Profile and onboarding form with every input type."
+  - id: checkout
+    holds: "Cart and payment."
+  - id: account
+    holds: "Logged-in account overview."
+  - id: questionnaire
+    holds: "Health and consent questionnaire built from native and custom controls."
+  - id: search-and-compose
+    holds: "Search, messaging and location input."
+  - id: back-office
+    holds: "Support agent and admin views of other people's data."
+  - id: secure-entry
+    holds: "Pointer and touch secret entry."
+  - id: components
+    holds: "Web components with open and closed shadow roots."
+
+patterns:
+  - id: P-public-text
+    rank: 1
+    tier: L1
+    category: public
+    special_category: false
+    page: shell
+    channels: [text, layout-size]
+    what: "Navigation, headings, labels, help text, marketing copy, product names and prices"
+    where: "every page"
+    test: "Must survive under targeted: exact text and layout"
+  - id: P-public-style
+    rank: 2
+    tier: L1
+    category: public
+    special_category: false
+    page: shell
+    channels: [stylesheet]
+    what: "External and inline stylesheets, CSS-in-JS, custom properties, web fonts, animations and transitions"
+    where: "every page"
+    test: "Must survive under targeted: styles, fonts and animation states"
+  - id: P-public-media
+    rank: 3
+    tier: L1
+    category: public
+    special_category: false
+    page: shell
+    channels: [image, canvas]
+    what: "Logos, product images, icons, icon fonts, SVG illustrations, background images"
+    where: "every page"
+    test: "Must survive under targeted: images and SVG as shown"
+  - id: P-public-interaction
+    rank: 4
+    tier: L1
+    category: public
+    special_category: false
+    page: shell
+    channels: [hover-state, click-target, scroll]
+    what: "Hover menus, accordions of public FAQ, tabs, carousels, scrolling, public search for catalogue items"
+    where: "every page with menus, tabs, carousels or scrolling"
+    test: "Must survive under targeted: every interaction and the state it produces"
+  - id: P-pii-text
+    rank: 5
+    tier: L1
+    category: personal
+    special_category: false
+    page: account
+    channels: [text, title-meta, attribute]
+    what: "Names, emails, addresses, account numbers rendered as page text"
+    where: "any logged-in page: the account name or email in the header, profile and order pages"
+    test: "Account page with personal details as plain text. Under the default config, record whether any of it is masked."
+  - id: P-input-types
+    rank: 6
+    tier: L1
+    category: personal
+    special_category: false
+    page: profile-form
+    channels: [input-value, value-length, emit-timing]
+    what: "One field of every input type: `text`, `password`, `email`, `tel`, `number`, `range`, `date`, `time`, `datetime-local`, `month`, `week`, `color`, `search`, `url`, `hidden`, `file`, plus `textarea`, `select` and `contenteditable`"
+    where: "every form: sign-up, checkout, contact, settings"
+    test: "Fill each with two values of different length (for `number`: `42` and `125000`). Record the masked output per type and per config in a table in `coverage`."
+  - id: P-password
+    rank: 7
+    tier: L1
+    category: secret
+    special_category: false
+    page: login
+    channels: [value-length, key-count, key-timing, emit-timing]
+    what: "Password field"
+    where: "every site with a login"
+    test: "`input type=password`. Type `abc` and `correct horse battery`."
+  - id: P-validation
+    rank: 8
+    tier: L1
+    category: personal
+    special_category: false
+    page: login
+    channels: [text, attribute, key-timing]
+    what: "Inline validation and error messages (\"must contain a digit\", \"email already registered\", \"card declined\")"
+    where: "nearly every form library validates inline"
+    test: "Field with live and on-submit validation."
+  - id: P-checkbox-radio
+    rank: 9
+    tier: L1
+    category: personal
+    special_category: true
+    page: questionnaire
+    channels: [checked-state, focus]
+    what: "Native checkboxes and radios"
+    where: "terms and marketing consent, settings, questionnaires"
+    test: "Health questionnaire with yes/no radios."
+  - id: P-custom-toggle
+    rank: 10
+    tier: L1
+    category: personal
+    special_category: false
+    page: questionnaire
+    channels: [attribute, click-target]
+    what: "Switches, toggles and segmented controls built from divs"
+    where: "cookie consent banners and settings pages built from design-system switches"
+    test: "Div switch that flips class `on`."
+  - id: P-password-reveal
+    rank: 11
+    tier: L1
+    category: secret
+    special_category: false
+    page: login
+    channels: [attribute, input-value]
+    what: "Show/hide toggle that switches `type=\"password\"` to `type=\"text\"`"
+    where: "the show/hide eye is standard on current login forms"
+    test: "Type a password, click the eye button, type more, click again."
+  - id: P-autofill
+    rank: 12
+    tier: L1
+    category: personal
+    special_category: false
+    page: login
+    channels: [input-value, attribute]
+    what: "Browser or password-manager autofill"
+    where: "browsers and password managers fill most login, address and card forms"
+    test: ""
+  - id: P-native-select
+    rank: 13
+    tier: L1
+    category: personal
+    special_category: false
+    page: profile-form
+    channels: [select-state, text]
+    what: "`select` with sensitive options"
+    where: "country, title and quantity selects on most forms"
+    test: "Select for gender or diagnosis."
+  - id: P-custom-select
+    rank: 14
+    tier: L1
+    category: personal
+    special_category: false
+    page: profile-form
+    channels: [attribute, click-target, text]
+    what: "Listbox or combobox built from divs"
+    where: "design-system comboboxes replace native selects in most SPAs"
+    test: "ARIA listbox."
+  - id: P-prefilled
+    rank: 15
+    tier: L1
+    category: secret
+    special_category: false
+    page: login
+    channels: [input-value, text]
+    what: "Fields that load with a value (saved password, prefilled profile), which the user then edits or clears"
+    where: "profile and settings forms, checkout with saved details"
+    test: "`input type=password value=\"...\"` and a prefilled `textarea`. Clear both, then force a new full snapshot."
+  - id: P-search-as-you-type
+    rank: 16
+    tier: L1
+    category: personal
+    special_category: false
+    page: search-and-compose
+    channels: [text, url, title-meta, network]
+    what: "Search or filter box whose results update live"
+    where: "site search, filters, command palettes"
+    test: "Filter a list of names as you type."
+  - id: P-echo-greeting
+    rank: 17
+    tier: L1
+    category: personal
+    special_category: false
+    page: profile-form
+    channels: [text, title-meta]
+    what: "Typed value repeated in other text (\"Hi Jane\", live preview, summary step)"
+    where: "\"Hi Jane\", order and form summaries, review steps"
+    test: "Name field that updates a heading as you type."
+  - id: P-embedded-iframe
+    rank: 18
+    tier: L1
+    category: secret
+    special_category: false
+    page: checkout
+    channels: [iframe, url, network]
+    what: "Payment, chat or identity widgets in iframes"
+    where: "hosted payment fields, chat widgets, CAPTCHAs, identity providers"
+    test: "Same-origin iframe with a card form; cross-origin iframe URL with a token in the query."
+  - id: P-masked-width
+    rank: 19
+    tier: L1
+    category: personal
+    special_category: false
+    page: account
+    channels: [value-length, layout-size]
+    what: "Masked text whose replacement keeps the length, so the element width tracks the original"
+    where: "every masked text node on a page"
+    test: "Masked balance `€12,480.30` versus `€9`."
+  - id: P-public-next-to-private
+    rank: 20
+    tier: L1
+    category: public
+    special_category: false
+    page: shell
+    channels: [text, attribute, layout-size]
+    what: "Public labels, buttons and headings directly next to or inside a masked or blocked widget (the PIN pad's \"Forgot PIN?\" link, a form's section headings)"
+    where: "every masked or blocked widget has public labels and buttons around it"
+    test: "Must survive under targeted: the public parts exactly, with the private parts masked"
+  - id: P-toast
+    rank: 21
+    tier: L1
+    category: personal
+    special_category: false
+    page: account
+    channels: [text, title-meta]
+    what: "Notifications, toasts, unread counts in title and favicon"
+    where: "notifications, unread counts in titles, save confirmations"
+    test: ""
+  - id: P-viewport-keyboard
+    rank: 22
+    tier: L1
+    category: personal
+    special_category: false
+    page: login
+    channels: [viewport, key-timing]
+    what: "Mobile viewport resizing when the soft keyboard opens"
+    where: "every mobile session that types into a field"
+    test: ""
+  - id: P-tabs
+    rank: 23
+    tier: L2
+    category: personal
+    special_category: false
+    page: account
+    channels: [attribute, click-target]
+    what: "Which tab is active (account type, plan)"
+    where: "dashboards, settings, product pages"
+    test: ""
+  - id: P-accordion
+    rank: 24
+    tier: L2
+    category: personal
+    special_category: true
+    page: account
+    channels: [attribute, scroll]
+    what: "Which sensitive section the user opens"
+    where: "FAQs, settings, long forms"
+    test: "Medical FAQ with `details` elements."
+  - id: P-autocomplete
+    rank: 25
+    tier: L2
+    category: personal
+    special_category: false
+    page: profile-form
+    channels: [text, click-target, network]
+    what: "Address, email or name suggestions dropdown"
+    where: "address lookup at checkout, email and people pickers"
+    test: "Address field with a suggestion list."
+  - id: P-date-picker
+    rank: 26
+    tier: L2
+    category: personal
+    special_category: false
+    page: profile-form
+    channels: [click-target, text, attribute]
+    what: "Date of birth or appointment picked from a calendar"
+    where: "booking, date of birth, scheduling"
+    test: "Calendar widget for date of birth."
+  - id: P-otp-single
+    rank: 27
+    tier: L2
+    category: secret
+    special_category: false
+    page: login
+    channels: [value-length, key-count, key-timing, emit-timing]
+    what: "One-time code in one field with `autocomplete=one-time-code`"
+    where: "email and SMS verification, two-factor login"
+    test: "Single numeric input."
+  - id: P-otp-split
+    rank: 28
+    tier: L2
+    category: secret
+    special_category: false
+    page: login
+    channels: [focus, input-value, value-length, key-count, clipboard]
+    what: "One-time code split into one input per digit with auto-advance"
+    where: "the most common verification-code UI in current sign-up flows"
+    test: "Six `maxlength=1` inputs. Type `123456` and `900000`. Also paste the code."
+  - id: P-computed-total
+    rank: 29
+    tier: L2
+    category: personal
+    special_category: false
+    page: checkout
+    channels: [text, canvas, network]
+    what: "Totals, taxes, loan or insurance quotes computed from inputs"
+    where: "carts, pricing and loan calculators, quotes"
+    test: "Salary field that updates a computed tax figure."
+  - id: P-blocked-size
+    rank: 30
+    tier: L2
+    category: personal
+    special_category: false
+    page: account
+    channels: [layout-size]
+    what: "Blocked element whose size depends on its content"
+    where: "every page where an integrator uses block"
+    test: "Blocked `div` whose height grows with a list of diagnoses."
+  - id: P-chat-composer
+    rank: 31
+    tier: L2
+    category: personal
+    special_category: false
+    page: search-and-compose
+    channels: [text, key-count, key-timing, selection]
+    what: "Chat input, `contenteditable` rich text editors"
+    where: "support widgets, messaging, comment boxes, rich text editors"
+    test: "`contenteditable` div and a rich editor."
+  - id: P-file-upload
+    rank: 32
+    tier: L2
+    category: personal
+    special_category: false
+    page: profile-form
+    channels: [input-value, image, text]
+    what: "File inputs and drag-and-drop"
+    where: "document upload, avatars, attachments"
+    test: "`input type=file` with a name preview."
+  - id: P-card-number
+    rank: 33
+    tier: L2
+    category: secret
+    special_category: false
+    page: checkout
+    channels: [value-length, attribute, text]
+    what: "Card number field with live formatting and brand detection"
+    where: "checkouts that host their own card fields"
+    test: "Field that formats as `4111 1111 ...` and swaps a Visa or Mastercard icon. Type a Visa and an Amex number."
+  - id: P-cvv-expiry
+    rank: 34
+    tier: L2
+    category: secret
+    special_category: false
+    page: checkout
+    channels: [value-length, select-state]
+    what: "CVV and expiry fields"
+    where: "checkouts that host their own card fields"
+    test: ""
+  - id: P-choice-buttons
+    rank: 35
+    tier: L2
+    category: personal
+    special_category: true
+    page: questionnaire
+    channels: [click-target, hover-state, attribute]
+    what: "Answer chosen by clicking one of several buttons or cards"
+    where: "onboarding surveys, plan pickers, quizzes"
+    test: "Survey with four answer cards."
+  - id: P-rating
+    rank: 36
+    tier: L2
+    category: personal
+    special_category: true
+    page: questionnaire
+    channels: [click-target, attribute, hover-state]
+    what: "Star ratings, pain scales, NPS"
+    where: "NPS and feedback widgets, reviews"
+    test: "Ten-point pain scale."
+  - id: P-strength-meter
+    rank: 37
+    tier: L2
+    category: secret
+    special_category: false
+    page: login
+    channels: [attribute, text]
+    what: "Password strength bar or label"
+    where: "sign-up and password change pages"
+    test: "Meter that changes with length and character classes."
+  - id: P-char-counter
+    rank: 38
+    tier: L2
+    category: personal
+    special_category: false
+    page: search-and-compose
+    channels: [text]
+    what: "\"12 / 140\" counters and remaining-character hints"
+    where: "bios, reviews, messages, social posts"
+    test: "Textarea with a live counter."
+  - id: P-admin-table
+    rank: 39
+    tier: L2
+    category: third-party
+    special_category: false
+    page: back-office
+    channels: [text, url, image]
+    what: "Admin user table: names, emails, roles, last login"
+    where: "B2B SaaS and back offices, where recorders are widely deployed"
+    test: "Table of ten users with search and sort."
+  - id: P-crm-record
+    rank: 40
+    tier: L2
+    category: third-party
+    special_category: false
+    page: back-office
+    channels: [text, attribute, image, title-meta, url]
+    what: "Support or sales tool showing a customer's profile, orders and notes"
+    where: "support, sales and helpdesk tools"
+    test: "Agent view with a customer card next to public app chrome. Swap the customer between runs."
+  - id: P-chat-thread
+    rank: 41
+    tier: L2
+    category: third-party
+    special_category: false
+    page: back-office
+    channels: [text, image]
+    what: "Messages from other participants in a chat or ticket thread"
+    where: "support inboxes, messaging, ticket threads"
+    test: "Chat pane receiving messages through mutations after the snapshot."
+  - id: P-comments
+    rank: 42
+    tier: L2
+    category: third-party
+    special_category: false
+    page: back-office
+    channels: [text, attribute]
+    what: "Comments, reviews or mentions with other people's names"
+    where: "reviews, social features, collaboration tools"
+    test: "Comment list with linked names."
+  - id: P-virtual-list
+    rank: 43
+    tier: L2
+    category: third-party
+    special_category: false
+    page: back-office
+    channels: [text, scroll]
+    what: "Virtualised or lazy-loaded list of other people"
+    where: "feeds, inboxes, contact and data lists"
+    test: "Infinite-scroll contact list."
+  - id: P-svg-text
+    rank: 44
+    tier: L2
+    category: personal
+    special_category: false
+    page: account
+    channels: [text]
+    what: "Text inside SVG (`<text>`, `<title>`)"
+    where: "dashboard charts drawn with SVG chart libraries"
+    test: "Chart with labels showing a balance."
+  - id: P-copy-button
+    rank: 45
+    tier: L2
+    category: secret
+    special_category: false
+    page: account
+    channels: [clipboard, text]
+    what: "\"Copy to clipboard\" for codes, keys, addresses"
+    where: "referral codes, developer dashboards, crypto addresses"
+    test: ""
+  - id: P-qr-secret
+    rank: 46
+    tier: L3
+    category: secret
+    special_category: false
+    page: account
+    channels: [image, canvas, attribute]
+    what: "QR code or image showing a 2FA secret or wallet address"
+    where: "two-factor setup pages: on most SaaS, visited rarely"
+    test: "`img` with a data-URL QR and a canvas-rendered QR."
+  - id: P-reveal-secret
+    rank: 47
+    tier: L3
+    category: secret
+    special_category: false
+    page: account
+    channels: [text, clipboard]
+    what: "\"Show\" button for an account number, API key or recovery code"
+    where: "banking account numbers, API keys in developer dashboards"
+    test: "Masked `****1234` that reveals the full number on click."
+  - id: P-gov-id
+    rank: 48
+    tier: L3
+    category: secret
+    special_category: false
+    page: profile-form
+    channels: [value-length, text]
+    what: "National ID, tax ID, passport number with format hints"
+    where: "identity verification, tax, insurance and government forms"
+    test: ""
+  - id: P-web-component
+    rank: 49
+    tier: L3
+    category: personal
+    special_category: false
+    page: components
+    channels: [shadow-dom, input-value, text, attribute]
+    what: "Inputs inside shadow DOM web components"
+    where: "sites built on web-component design systems"
+    test: "Custom element wrapping an input in an open shadow root."
+  - id: P-media-preview
+    rank: 50
+    tier: L3
+    category: personal
+    special_category: true
+    page: profile-form
+    channels: [image, canvas]
+    what: "Avatar upload preview, camera or video preview"
+    where: "avatar upload, ID document capture, video calls"
+    test: ""
+  - id: P-signature-pad
+    rank: 51
+    tier: L3
+    category: personal
+    special_category: true
+    page: secure-entry
+    channels: [canvas, pointer-path, touch-path]
+    what: "Signature drawn on a canvas"
+    where: "e-signing, delivery, insurance and loan onboarding"
+    test: "Canvas that draws on pointer move. Draw two shapes."
+  - id: P-slider-secret
+    rank: 52
+    tier: L3
+    category: personal
+    special_category: false
+    page: questionnaire
+    channels: [pointer-path, attribute, input-value, value-length]
+    what: "Slider or dial used for a secret or a sensitive number (salary, age, weight, debt)"
+    where: "loan, salary and insurance calculators"
+    test: "Native `range` and a custom div slider. Drag to two values with different digit counts."
+  - id: P-map-picker
+    rank: 53
+    tier: L3
+    category: personal
+    special_category: false
+    page: search-and-compose
+    channels: [click-target, pointer-path, canvas, image, network]
+    what: "Location chosen on a map"
+    where: "delivery, ride-hailing and property search"
+    test: "Map with click-to-place marker."
+  - id: P-shared-doc
+    rank: 54
+    tier: L3
+    category: third-party
+    special_category: false
+    page: back-office
+    channels: [text, selection]
+    what: "Document or spreadsheet edited by several people, with presence cursors"
+    where: "collaborative editors and whiteboards"
+    test: "Editor showing a second user's named cursor."
+  - id: P-pin-pad
+    rank: 55
+    tier: L3
+    category: secret
+    special_category: false
+    page: secure-entry
+    channels: [click-target, pointer-path, touch-path, hover-state, attribute, text, key-count, key-timing]
+    what: "On-screen number pad (PIN entry, ATM-style login, phone unlock, banking step-up) built from `button` or `div` keys"
+    where: "web banking step-up, kiosks, point-of-sale and parental controls; mostly native apps elsewhere"
+    test: "0 to 9 grid of buttons, a dot display that adds one `•` per press. Enter `1397` and `8240`. Repeat with the pad blocked."
+  - id: P-masked-display
+    rank: 56
+    tier: L3
+    category: secret
+    special_category: false
+    page: login
+    channels: [input-value, text, stylesheet]
+    what: "Field rendered by CSS as dots (`-webkit-text-security: disc`, password fonts) without `type=password`"
+    where: "custom PIN and code fields styled as dots to avoid password-manager prompts"
+    test: "`input style=\"-webkit-text-security:disc\"` and a `div` with the same style."
+  - id: P-security-question
+    rank: 57
+    tier: L3
+    category: secret
+    special_category: false
+    page: profile-form
+    channels: [input-value, value-length, layout-size]
+    what: "Security question answer, recovery phrase, seed words"
+    where: "account recovery and crypto wallets"
+    test: "Twelve inputs for a seed phrase."
+  - id: P-virtual-keyboard
+    rank: 58
+    tier: L4
+    category: secret
+    special_category: false
+    page: secure-entry
+    channels: [click-target, pointer-path, touch-path, hover-state, attribute, text, key-count, key-timing]
+    what: "On-screen QWERTY keyboard (anti-keylogger login, kiosk, accessibility keyboard)"
+    where: "some banks' anti-keylogger logins, kiosks"
+    test: "Letter grid with shift toggle. Enter two passwords of different length and case."
+  - id: P-shuffled-pad
+    rank: 59
+    tier: L4
+    category: secret
+    special_category: false
+    page: secure-entry
+    channels: [click-target, pointer-path, touch-path, hover-state, attribute, text, key-count, key-timing]
+    what: "Number pad whose key order is randomised per session"
+    where: "some banks' PIN entry"
+    test: "Same pad, with key labels assigned at load from a random order. Check whether the labels or their order reach the recording when text is masked."
+  - id: P-css-content
+    rank: 60
+    tier: L4
+    category: personal
+    special_category: false
+    page: account
+    channels: [stylesheet, attribute]
+    what: "Values shown with CSS `content:` or `attr()`"
+    where: "rare for personal data, common for public icons and labels"
+    test: "`::after { content: attr(data-balance) }`."
+  - id: P-color-picker
+    rank: 61
+    tier: L4
+    category: personal
+    special_category: false
+    page: profile-form
+    channels: [attribute, input-value]
+    what: "Colour picker (low risk alone, high for some accessibility settings)"
+    where: "design and accessibility settings"
+    test: ""
+  - id: P-pattern-lock
+    rank: 62
+    tier: L4
+    category: secret
+    special_category: false
+    page: secure-entry
+    channels: [pointer-path, touch-path, attribute, canvas]
+    what: "Swipe pattern on a grid of dots"
+    where: "rare on the web"
+    test: "3x3 grid, each dot gets class `hit` when crossed. Draw two different patterns."
+  - id: P-picture-password
+    rank: 63
+    tier: L4
+    category: secret
+    special_category: false
+    page: secure-entry
+    channels: [click-target, pointer-path]
+    what: "Choose images or points on an image as a secret"
+    where: "rare on the web"
+    test: "Grid of images; select three in two different orders."

@@ -14,6 +14,8 @@ Authored by rrweb B.V. MIT licensed.
 
 ## Auditing capture SDKs
 
-[`audit/`](audit/AGENTS.md) holds instructions for an agent to audit a session-capture SDK for privacy leaks: a threat model, high-risk UI patterns, a leak taxonomy and a findings format. Point the agent at `audit/AGENTS.md`, pinned to an `audit-v*` tag for reproducible results.
+[`audit/`](audit/AGENTS.md) holds instructions for an agent to audit a session-capture SDK for privacy leaks and for fidelity lost to masking: an objective, data categories, a threat model, high-risk UI patterns, a leak taxonomy and a findings format. Point the agent at `audit/AGENTS.md`, pinned to an `audit-v*` tag for reproducible results.
 
-Found a leak the audit missed? [Open an audit feedback issue](https://github.com/privacy-attribute/spec/issues/new?template=audit-feedback.yml). Accepted reports are tested by every later audit run.
+Found a leak the audit missed? [Open an audit feedback issue](https://github.com/privacy-attribute/spec/issues/new?template=audit-feedback.yml). Accepted reports are tested by every later audit run. Reporting gaps is required for anyone using the audit.
+
+These instructions and every audit produced with them are provided as is, without warranty. An audit can miss leaks and can misjudge fidelity. Its findings are not legal advice and not a certification of compliance with any privacy law. The implementer (whoever integrates, configures or ships the recorder) is responsible for the final output: what their recordings contain, how the recorder is configured, and whether that meets their legal and contractual obligations.
