@@ -4,6 +4,7 @@
 //   privacy-audit run    --adapter rrweb --sdk <path> [options]   run fixtures, write results.json and summary.md
 //   privacy-audit report <fixture.mjs> --adapter rrweb --sdk <path> [options]   run one fixture, write a feedback issue
 //   privacy-audit coverage                                        list patterns without a fixture journey
+//   privacy-audit merge  --out <dir>                              merge the agent's traces.json into privacy-audit.json
 //   privacy-audit agent  --sdk <path> [--agent claude|codex|<command>] [--headless] [--model <m>]
 //                        run the fixtures, then start the user's own coding agent on the rest of the audit
 //
@@ -20,6 +21,8 @@ import { runAll } from './lib/run.mjs';
 import { summaryMarkdown, auditVersion, feedbackIssue } from './lib/report.mjs';
 import { chooseAgent, writeSession, launch as launchAgent, launchPrompt } from './lib/agent.mjs';
 import { playbook } from './lib/playbook.mjs';
+import { resolveCodeMap } from './lib/code-map.mjs';
+import { draftFindings, merge } from './lib/draft.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AUDIT_DIR = path.resolve(HERE, '..');
@@ -155,8 +158,65 @@ function writeRun(out, dir) {
   console.log(`Wrote ${path.join(dir, 'summary.md')} and results.json (${out.differential.length} differential runs, ${out.seconds}s).`);
 }
 
+// The draft findings, a per-channel trace plan, and the traces.json template the agent fills in.
+async function writeDraft(out, dir, sdk) {
+  const adapter = await loadAdapter(out.adapter);
+  const codeMap = resolveCodeMap(sdk, adapter.codeMap);
+  const draft = draftFindings({ out, patterns: loadPatterns(), codeMap, auditDir: AUDIT_DIR });
+  fs.writeFileSync(path.join(dir, 'draft-findings.json'), JSON.stringify(draft, null, 1));
+  const privacy = draft.findings.filter((f) => f.kind === 'privacy');
+  const channels = [...new Set(privacy.map((f) => f.channel))];
+  const plan = [
+    `# Trace plan`,
+    ``,
+    `${privacy.length} privacy and ${draft.findings.length - privacy.length} fidelity draft findings, in ${channels.length} channels. Trace each channel once; its path and fix apply to every finding listed under it.`,
+    ``,
+    ...channels.flatMap((ch) => {
+      const fs_ = privacy.filter((f) => f.channel === ch);
+      const ev = fs_[0].reproduction.evidence[0];
+      return [
+        `## ${ch}`,
+        ``,
+        `Findings: ${fs_.map((f) => `${f.id} (${f.data_category}${f.special_category ? ', special' : ''}, ${f.severity}, leaks under ${f.leaks_under.join(' ')})`).join('; ')}`,
+        `Code: ${(fs_[0].code || []).map((c) => (c.file ? `${c.symbol} ${c.file}:${c.line}` : `${c.symbol} (not found)`)).join('; ') || 'no map entry'}${fs_[0].code_note ? `. ${fs_[0].code_note}` : ''}`,
+        ev?.a ? `Evidence (${ev.pattern}, ${ev.config}): A ${JSON.stringify(ev.a[0] ?? '')} B ${JSON.stringify(ev.b[0] ?? '')}` : `Evidence: ${JSON.stringify(fs_[0].reproduction.evidence)}`,
+        ``,
+      ];
+    }),
+    `## Fidelity`,
+    ``,
+    ...draft.findings.filter((f) => f.kind === 'fidelity').map((f) => `- ${f.id} ${f.title}`),
+    ``,
+  ].join('\n');
+  fs.writeFileSync(path.join(dir, 'trace-plan.md'), plan);
+  const template = {
+    channels: Object.fromEntries(channels.map((ch) => [ch, { path: [], masking_checked: '', fix: '', fidelity_cost: '', verdict: 'CONFIRMED' }])),
+    findings: {},
+    extra_findings: [],
+    coverage: [],
+    feedback_sent: [],
+    method_note: '',
+  };
+  const tracesFile = path.join(dir, 'traces.json');
+  if (!fs.existsSync(tracesFile)) fs.writeFileSync(tracesFile, JSON.stringify(template, null, 1));
+  console.log(`Wrote draft-findings.json (${draft.findings.length} drafts in ${channels.length} channels), trace-plan.md and traces.json.`);
+}
+
 if (cmd === 'run') {
-  writeRun(await execute(args, [path.join(HERE, 'fixtures'), ...(list(args.fixtures) || [])]), outDir);
+  const out = await execute(args, [path.join(HERE, 'fixtures'), ...(list(args.fixtures) || [])]);
+  writeRun(out, outDir);
+  await writeDraft(out, outDir, args.sdk);
+} else if (cmd === 'merge') {
+  const draft = JSON.parse(fs.readFileSync(path.join(outDir, 'draft-findings.json'), 'utf8'));
+  const traces = JSON.parse(fs.readFileSync(path.join(outDir, 'traces.json'), 'utf8'));
+  const { report, incomplete } = merge(draft, traces);
+  fs.writeFileSync(path.join(outDir, 'privacy-audit.json'), JSON.stringify(report, null, 1));
+  const count = (k, v) => report.findings.filter((f) => f[k] === v).length;
+  console.log(`Wrote ${path.join(outDir, 'privacy-audit.json')}: ${report.findings.length} findings (${count('kind', 'privacy')} privacy, ${count('kind', 'fidelity')} fidelity; ${['critical', 'high', 'medium', 'low'].map((s) => `${count('severity', s)} ${s}`).join(', ')}), ${report.dropped.length} dropped.`);
+  if (incomplete.length) {
+    console.log(`Incomplete (no path of two or more steps, or no fix): ${incomplete.join(', ')}`);
+    process.exitCode = 1;
+  }
 } else if (cmd === 'agent') {
   // The session folder sits outside the SDK checkout, which the agent must leave untouched.
   const sdk = path.resolve(args.sdk || '.');
@@ -169,6 +229,7 @@ if (cmd === 'run') {
     out = await execute({ ...args, sdk }, [path.join(HERE, 'fixtures'), ...(list(args.fixtures) || [])]);
     writeRun(out, dir);
   }
+  await writeDraft(out, dir, sdk);
   const target = { ...out.target, adapter: out.adapter };
   const { promptFile, contextFile } = writeSession({
     dir,

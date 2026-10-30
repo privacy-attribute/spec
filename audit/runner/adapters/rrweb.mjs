@@ -279,4 +279,39 @@ function publicFromEvents(events) {
   return out;
 }
 
-export default { name: 'rrweb', configs, prepare, normalise, publicFromEvents };
+// Where each channel is emitted, masked or blocked in rrweb. Symbols are resolved to file:line in
+// the audited source at run time (lib/code-map.mjs). These are starting points for the trace.
+const codeMap = {
+  dirs: ['packages/rrweb/src', 'packages/rrweb-snapshot/src', 'packages/plugins/rrweb-plugin-network-record/src'],
+  channels: {
+    'pointer-path': { symbols: ['initMoveObserver', 'isBlocked'], note: 'Move positions: check whether the block check runs on the move target.' },
+    'touch-path': { symbols: ['initMoveObserver'], note: 'Touch moves share the move observer.' },
+    'click-target': { symbols: ['initMouseInteractionObserver', 'isBlocked'], note: 'Interaction events carry mirror ids of masked elements.' },
+    focus: { symbols: ['initMouseInteractionObserver'], note: 'Focus and blur are mouse interaction types.' },
+    'hover-state': { symbols: ['processMutation', 'transformAttribute'], note: 'Class and style changes from hover reach attribute mutations.' },
+    attribute: { symbols: ['serializeElementNode', 'transformAttribute', 'processMutation'], note: 'Attribute values in snapshots and attribute mutations; check for any mask call.' },
+    text: { symbols: ['serializeTextNode', 'needMaskingText', 'processMutation'], note: 'Text in snapshots and character data mutations; check the ancestor walk.' },
+    'value-length': { symbols: ['maskInputValue', 'serializeTextNode'], note: 'Masks that repeat a character per input character keep the length.' },
+    'input-value': { symbols: ['initInputObserver', 'maskInputValue', 'serializeElementNode'], note: 'Value reads on the input path and in the snapshot; which types are masked.' },
+    'checked-state': { symbols: ['initInputObserver', 'serializeElementNode'], note: 'isChecked and the checked attribute bypass value masking.' },
+    'select-state': { symbols: ['serializeElementNode', 'maskInputValue'], note: 'Selected option and option values.' },
+    'key-count': { symbols: ['initInputObserver', 'processMutation'], note: 'One event per keystroke or per masked-value change.' },
+    'key-timing': { symbols: ['initInputObserver', 'wrappedEmit'], note: 'Event timestamps and any coarsening.' },
+    'emit-timing': { symbols: ['initInputObserver'], note: 'Deduplication compares the masked text (lastInputValue).' },
+    'title-meta': { symbols: ['takeFullSnapshot', 'serializeTextNode'], note: 'Title text and head content.' },
+    url: { symbols: ['takeFullSnapshot', 'transformAttribute'], note: 'Meta event href and URL attributes.' },
+    stylesheet: { symbols: ['initStyleSheetObserver', 'stringifyStylesheet'], note: 'CSS text, rules and declarations are never masked.' },
+    canvas: { symbols: ['CanvasManager'], note: 'Canvas recording when recordCanvas is on.' },
+    image: { symbols: ['serializeElementNode'], note: 'src, srcset and rr_dataURL (inlineImages).' },
+    iframe: { symbols: ['IframeManager', 'serializeElementNode'], note: 'Same-origin frame content and cross-origin frame URLs.' },
+    'shadow-dom': { symbols: ['ShadowDomManager', 'needMaskingText'], note: 'Mask checks across shadow roots.' },
+    network: { symbols: ['getRecordNetworkPlugin'], note: 'Network plugin request and response capture.' },
+    selection: { symbols: ['initSelectionObserver'], note: 'Selection ranges inside masked text.' },
+    scroll: { symbols: ['initScrollObserver'], note: 'Scroll offsets of masked or blocked containers and inputs.' },
+    viewport: { symbols: ['initViewportResizeObserver'], note: 'Viewport size changes.' },
+    'layout-size': { symbols: ['serializeElementNode'], note: 'rr_width and rr_height on blocked placeholders.' },
+    clipboard: { symbols: [], note: 'rrweb records no clipboard events.' },
+  },
+};
+
+export default { name: 'rrweb', configs, prepare, normalise, publicFromEvents, codeMap };

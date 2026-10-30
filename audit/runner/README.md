@@ -15,7 +15,7 @@ node cli.mjs run --adapter rrweb --sdk ~/code/rrweb --out out
 node cli.mjs agent --sdk ~/code/rrweb
 ```
 
-This runs every fixture, writes a session folder (in the system temp folder unless you pass `--out`) with `summary.md`, `results.json`, `context.json` and `PLAYBOOK.md`, and then starts Claude Code or Codex in the SDK folder with a one-line prompt that points at the playbook. The agent does only what needs judgement: tracing each difference in the table to code, writing `privacy-audit.json`, and turning missed leaks into fixtures and pre-filled issue links. You supply the agent and its account, so model usage is billed to you, and the runner has already done the work that costs no tokens.
+This runs every fixture, writes a session folder (in the system temp folder unless you pass `--out`) with `summary.md`, `results.json`, `context.json`, `PLAYBOOK.md`, `draft-findings.json` (every finding drafted from the runs: evidence, configs, category, severity, rank), `trace-plan.md` (one section per channel with code starting points from the adapter's channel-to-code map) and a `traces.json` template, and then starts Claude Code or Codex in the SDK folder with a one-line prompt that points at the playbook. The agent does only what needs judgement: it traces each channel to code once, writes the path, fix and verdict per channel into `traces.json`, and runs `node cli.mjs merge --out <dir>`, which builds `privacy-audit.json` and refuses findings without a path or fix. It also turns leaks it notices while tracing into fixtures and pre-filled issue links. On rrweb this took a headless Claude Code run 5 minutes and about $1.70. You supply the agent and its account, so model usage is billed to you, and the runner has already done the work that costs no tokens.
 
 - `--agent claude`, `--agent codex`, or any other agent command that takes a prompt as its argument. Without it, the runner uses the one installed agent, or asks when there are several.
 - `--headless` starts the agent without a person at the terminal (`claude -p`, `codex exec`). The playbook then tells the agent not to ask questions or file issues, and to leave every report in the session folder.
@@ -31,6 +31,7 @@ The launcher follows T3 Code's `triage` command ([pingdotgg/t3code](https://gith
 | `run` | Runs every fixture in `fixtures/` (plus `--fixtures <dir or file,...>`) and writes `summary.md` and `results.json`. |
 | `report <fixture.mjs>` | Runs one fixture and writes a feedback issue body, then prints a link that opens a pre-filled audit feedback issue. |
 | `coverage` | Lists patterns in `patterns.yaml` that no fixture covers. |
+| `merge` | Combines `draft-findings.json` and the agent's `traces.json` into `privacy-audit.json`, and lists findings still missing a path or fix. |
 | `agent` | Runs the fixtures, writes a session folder with a playbook, and starts the user's own coding agent on the rest of the audit. |
 
 Options: `--pages login,checkout`, `--patterns P-pin-pad`, `--tier L1` (run L1 only; `L2` runs L1 and L2), `--configs targeted,default-core`, `--concurrency 4`, `--chrome <path>`, `--out <dir>`. Opt-in configs (such as `opt-in:recordCanvas`) run only when named in `--configs`.
@@ -82,6 +83,7 @@ An adapter connects the runner to one SDK. `adapters/rrweb.mjs` is the reference
 | `configs` | `[{ id, options, fidelity?, optIn?, note? }]`. The ids follow the config matrix in `AGENTS.md`. `options` must be JSON; the page glue turns markers into functions. |
 | `prepare({ sdk, bundle })` | Builds or loads the recorder and returns `{ script, target }`. `script` runs in every page and must define `window.__audit` with `events`, `start(options)` and `finish()`. `target` is the step 0 version block. |
 | `normalise(events)` | Returns `{ lines: [{ channel, text }], gaps }`: one line per observable fact, tagged with a channel id, plus the gaps between events in milliseconds. |
+| `codeMap` | `{ dirs, channels: { [channel]: { symbols, note } } }`: the functions that emit, mask or block each channel. Symbols are looked up in the audited source at run time and appear as `file:line` in `trace-plan.md`. |
 | `publicFromEvents(events)` | Returns `{ [data-audit-id]: { text, src, inlined } }` for public elements in the last full snapshot. |
 
 To add an SDK, copy the rrweb adapter and replace the build, the configs and the event mapping.

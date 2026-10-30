@@ -93,8 +93,11 @@ export function launch({ agent, promptFile, cwd, headless, model, dirs = [] }) {
         try {
           const r = JSON.parse(stdout);
           console.log(r.result ?? '');
+          // modelUsage totals include subagents; usage covers the main agent only.
+          const models = Object.values(r.modelUsage || {});
+          const sum = (k, fallback) => (models.length ? models.reduce((n, m) => n + (m[k] || 0), 0) : fallback ?? '?');
           const u = r.usage || {};
-          console.log(`\nAgent finished in ${Math.round((Date.now() - started) / 60000)} min, ${r.num_turns ?? '?'} turns. Tokens: ${u.input_tokens ?? '?'} input, ${u.cache_creation_input_tokens ?? 0} cache write, ${u.cache_read_input_tokens ?? 0} cache read, ${u.output_tokens ?? '?'} output. Cost reported by the agent: ${r.total_cost_usd ?? '?'} USD. Raw output: ${file}`);
+          console.log(`\nAgent finished in ${Math.round((Date.now() - started) / 60000)} min, ${r.num_turns ?? '?'} turns. Tokens, all models: ${sum('inputTokens', u.input_tokens)} input, ${sum('cacheCreationInputTokens', u.cache_creation_input_tokens)} cache write, ${sum('cacheReadInputTokens', u.cache_read_input_tokens)} cache read, ${sum('outputTokens', u.output_tokens)} output. Cost reported by the agent: ${r.total_cost_usd ?? '?'} USD. Raw output: ${file}`);
         } catch {
           console.log(stdout);
         }
