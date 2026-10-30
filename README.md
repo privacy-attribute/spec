@@ -19,3 +19,7 @@ Authored by rrweb B.V. MIT licensed.
 Found a leak the audit missed? [Open an audit feedback issue](https://github.com/privacy-attribute/spec/issues/new?template=audit-feedback.yml). Accepted reports are tested by every later audit run. Reporting gaps is required for anyone using the audit.
 
 These instructions and every audit produced with them are provided as is, without warranty. An audit can miss leaks and can misjudge fidelity. Its findings are not legal advice and not a certification of compliance with any privacy law. The implementer (whoever integrates, configures or ships the recorder) is responsible for the final output: what their recordings contain, how the recorder is configured, and whether that meets their legal and contractual obligations.
+
+## Scanning an application
+
+[`scan/`](scan/AGENTS.md) finds the front-end code in an application that a session recorder must mask or block, and proposes `data-privacy` annotations as a patch for review. `node scan/cli.mjs agent <app-source-dir> --sdk rrweb` runs a static pass with no model, then hands the review to your own Claude Code or Codex. On the rrweb Cloud dashboard (263 files) it took 4 minutes and about $2.20.

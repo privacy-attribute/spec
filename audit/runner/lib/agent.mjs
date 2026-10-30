@@ -71,8 +71,8 @@ export function writeSession({ dir, playbook, context }) {
 export const launchPrompt = (promptFile) =>
   `Read ${promptFile} and follow it. It sets up a privacy audit of the SDK in the current folder.`;
 
-export function launch({ agent, promptFile, cwd, headless, model, dirs = [] }) {
-  const prompt = launchPrompt(promptFile);
+export function launch({ agent, promptFile, cwd, headless, model, dirs = [], prompt: text }) {
+  const prompt = text || launchPrompt(promptFile);
   const args = [...(model ? ['--model', model] : []), ...(headless ? agent.headless(prompt, dirs) : agent.interactive(prompt, dirs))];
   const capture = headless && agent.jsonOutput;
   const started = Date.now();

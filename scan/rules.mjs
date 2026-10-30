@@ -1,0 +1,70 @@
+// Static rules for finding front-end code that collects or shows data a recorder must mask or block.
+// Each rule maps a source line to a pattern in ../audit/patterns.yaml and a likely data category.
+// Rules are line-based so they work on any framework (JSX, Vue, Svelte, Angular templates, HTML).
+// They over-report on purpose: the agent decides what each candidate really holds.
+
+const ID = String.raw`[A-Za-z_$][\w$]*`;
+
+// Variables that usually hold the signed-in person versus other people's records.
+const SELF = /\b(me|viewer|currentUser|user|self|profile|account|session\??\.user|clerkUser|authUser)\??\.\w/;
+const OTHERS = /\b(customer|member|contact|row|participant|invitee|invite|recipient|sender|author|owner|assignee|attendee|employee|client|lead|candidate|patient|visitor|recording|item|entry|u|m|c|p|r)\??\.\w/;
+
+const PERSON_FIELD = String.raw`(email|emailAddress|phone|phoneNumber|mobile|firstName|lastName|fullName|displayName|name|username|handle|address|street|city|zip|postalCode|postcode|birth|birthday|dob|dateOfBirth|age|gender|ssn|taxId|nationalId|passport|iban|bic|ip|ipAddress|userAgent|location|geo|lat|lng|country|avatar|avatarUrl|imageUrl|picture|photo|company|organization|orgName|title|jobTitle|salary|income|balance|amount|diagnosis|notes|bio)`;
+
+export const RULES = [
+  // Secrets typed or shown
+  { id: 'secret-input-password', re: /type=\{?["'`]password["'`]\}?|autoComplete=\{?["'`](current-password|new-password)/, pattern: 'P-password', category: 'secret' },
+  { id: 'secret-input-otp', re: /autoComplete=\{?["'`]one-time-code|\b(otp|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|totp|mfa[-_ ]?code|2fa[-_ ]?code)\b/i, pattern: 'P-otp-single', category: 'secret' },
+  { id: 'secret-input-card', re: /autoComplete=\{?["'`]cc-|\b(card[-_ ]?number|cardNumber|cvv|cvc|security[-_ ]?code|iban|routing[-_ ]?number|account[-_ ]?number)\b/i, pattern: 'P-card-number', category: 'secret' },
+  { id: 'secret-pin', re: /\b(pin[-_ ]?code|pinCode|enterPin|PinInput|PinPad|Keypad|NumberPad)\b/, pattern: 'P-pin-pad', category: 'secret' },
+  { id: 'secret-display', render: true, re: new RegExp(String.raw`\{[^}]*\b(apiKey|api_key|secretKey|secret|token|accessToken|refreshToken|clientSecret|privateKey|webhookSecret|signingSecret|password|recoveryCode|backupCode|seedPhrase)\b[^}]*\}`), pattern: 'P-reveal-secret', category: 'secret' },
+  { id: 'secret-reveal-toggle', re: /\b(showPassword|revealed|isRevealed|showSecret|showKey|setShow(Password|Secret|Key))\b/, pattern: 'P-password-reveal', category: 'secret' },
+  { id: 'secret-copy', re: /navigator\.clipboard|copyToClipboard|useCopy(ToClipboard)?\b|<CopyButton\b|\bonCopy\b/, pattern: 'P-copy-button', category: 'secret?' },
+  { id: 'secret-qr', re: /\bQRCode|qrcode|otpauth:/, pattern: 'P-qr-secret', category: 'secret' },
+  { id: 'secret-gov-id', re: /\b(ssn|socialSecurity|taxId|nationalId|passportNumber|driversLicen[cs]e)\b/i, pattern: 'P-gov-id', category: 'secret' },
+
+  // Personal or third-party data rendered as text, attributes or images
+  { id: 'person-field-self', render: true, re: new RegExp(String.raw`\{[^}]*${SELF.source}[^}]*\.${PERSON_FIELD}\b[^}]*\}`), pattern: 'P-pii-text', category: 'personal' },
+  { id: 'person-field-others', render: true, re: new RegExp(String.raw`\{[^}]*${OTHERS.source}[^}]*\.${PERSON_FIELD}\b[^}]*\}`), pattern: 'P-crm-record', category: 'third-party' },
+  { id: 'person-field', render: true, re: new RegExp(String.raw`\{[^}]*\.${PERSON_FIELD}\b[^}]*\}`), pattern: 'P-pii-text', category: 'personal?', fallback: true },
+  { id: 'auth-user', re: /\b(useUser|useAuth|useSession|useCurrentUser|useViewer|useClerk|currentUser)\s*\(/, pattern: 'P-pii-text', category: 'personal' },
+  { id: 'record-list', re: new RegExp(String.raw`\.map\(\s*\(?\s*(${ID}\s*,\s*)?(user|member|customer|contact|row|session|recording|invite|invitation|account|org|organization|team|comment|message|participant|log|event|key|apiKey|visitor)s?\b`, 'i'), pattern: 'P-admin-table', category: 'third-party?' },
+  { id: 'table', re: /<(table|Table|DataTable|DataGrid|TableRow|TableCell)\b/, pattern: 'P-admin-table', category: 'third-party?' },
+  { id: 'avatar-image', re: /<(Avatar|AvatarImage|img|Image)\b[^>]*\bsrc=\{/, pattern: 'P-media-preview', category: 'personal?' },
+  { id: 'chart', re: /<(LineChart|BarChart|AreaChart|PieChart|ResponsiveContainer|Sparkline|Chart)\b|from ["'](recharts|chart\.js|d3|@nivo\/|victory)/, pattern: 'P-svg-text', category: 'personal?' },
+  { id: 'html-injection', re: /dangerouslySetInnerHTML|v-html=|\{@html /, pattern: 'P-pii-text', category: 'personal?' },
+  { id: 'attribute-data', render: true, re: new RegExp(String.raw`\b(title|aria-label|aria-valuetext|alt|placeholder|data-[\w-]+)=\{[^}]*\.${PERSON_FIELD}\b`), pattern: 'P-pii-text', category: 'personal?' },
+  { id: 'attribute-expr', render: true, re: /\b(title|aria-label|aria-description|alt|href|src|data-(?!audit|privacy|testid|state|slot|side|align|orientation|variant|size)[\w-]+)=\{(?!\s*["'`])[^}]*\b(row|item|session|recording|meta|metadata|user|member|customer|value|label|title|name|q|query|search)\b/, pattern: 'P-pii-text', category: 'personal?', note: 'Attributes are recorded even inside masked elements in most recorders.' },
+  { id: 'set-attribute', re: /\.setAttribute\(\s*["'`](href|src|title|aria-label|alt|value|data-[\w-]+)["'`]/, pattern: 'P-pii-text', category: 'personal?' },
+  { id: 'metadata-render', render: true, re: /\{[^}]*\b(metadata|meta|attributes|properties|traits|tags|customData)\b[^}]*\}/, pattern: 'P-crm-record', category: 'third-party?' },
+  { id: 'echo-search', render: true, re: /\{[^}]*\b(q|query|search|searchTerm|filter|filters|term)\b[^}]*\}/, pattern: 'P-search-as-you-type', category: 'personal?' },
+  { id: 'style-from-data', re: /style=\{\{[^}]*(width|left|height|transform)\s*:\s*`?[^}]*\$\{|content:\s*attr\(/, pattern: 'P-strength-meter', category: 'personal?' },
+
+  // Inputs and widgets that collect personal data
+  { id: 'input', re: /<(input|Input|textarea|Textarea|TextField|TextInput|select|Select|NativeSelect|Combobox|Autocomplete)\b/, pattern: 'P-input-types', category: 'personal' },
+  { id: 'rich-editor', re: /contentEditable|<(ProseMirror|EditorContent|LexicalComposer|Slate|Editable|CodeMirror|MonacoEditor|Editor|ReactQuill)\b|from ["'](@tiptap|lexical|slate-react|@uiw\/react-codemirror|@monaco-editor|react-quill)/, pattern: 'P-chat-composer', category: 'personal' },
+  { id: 'file-upload', re: /type=\{?["'`]file|Dropzone|useDropzone|\bonDrop=/, pattern: 'P-file-upload', category: 'personal' },
+  { id: 'choice-widget', re: /type=\{?["'`](checkbox|radio)|<(Checkbox|Radio|RadioGroup|RadioGroupItem|Switch|Toggle|ToggleGroup)\b|role=\{?["'`](switch|checkbox|radio)/, pattern: 'P-checkbox-radio', category: 'personal' },
+  { id: 'slider', re: /type=\{?["'`]range|<Slider\b|role=\{?["'`]slider/, pattern: 'P-slider-secret', category: 'personal' },
+  { id: 'date-picker', re: /type=\{?["'`](date|datetime-local|month)|<(DatePicker|Calendar|DateRangePicker)\b/, pattern: 'P-date-picker', category: 'personal' },
+  { id: 'search', re: /type=\{?["'`]search|placeholder=\{?["'`][^"'`]*search|\b(useSearch|setQuery|setSearch|onSearch)\b/i, pattern: 'P-search-as-you-type', category: 'personal' },
+  { id: 'validation', re: /errors?\??\.\w+\??\.message|<FormMessage\b|setError\(/, pattern: 'P-validation', category: 'personal' },
+
+  // Page metadata, URLs and messages
+  { id: 'title-from-data', re: /document\.title\s*=|<title>\{|title:\s*`[^`]*\$\{|useTitle\(|head:\s*\(\s*\{/, pattern: 'P-pii-text', category: 'personal?' },
+  { id: 'url-with-data', re: /(navigate|router\.push|redirect|Link)\b[^;]*(search|params):\s*\{[^}]*(email|token|key|secret|q|query|name)\b|\?[\w&=]*(email|token|key|secret)=\$\{/, pattern: 'P-search-as-you-type', category: 'personal?' },
+  { id: 'toast', re: /\btoast(\.\w+)?\(|useToast\(|\bnotify\(|enqueueSnackbar\(/, pattern: 'P-toast', category: 'personal?' },
+  { id: 'console', re: /console\.(log|info|debug|warn|error)\(/, pattern: null, category: 'personal?', note: 'Recorded only when a console plugin is on.' },
+
+  // Embedded content
+  { id: 'iframe', re: /<iframe\b/, pattern: 'P-embedded-iframe', category: 'personal?' },
+  { id: 'canvas-video', re: /<(canvas|video)\b|getUserMedia|captureStream/, pattern: 'P-media-preview', category: 'personal?' },
+  { id: 'session-replay', re: /rrweb-player|new\s+\w*(Replayer|Player)\s*\(|rrwebPlayer\s*\(|<(Replayer|Player|ReplayPlayer|SessionPlayer)\b|from ["'](rrweb|@rrweb\/replay)|\b(playerRef|replayerRef|playerContainer)\b/, pattern: 'P-shared-doc', category: 'third-party', note: 'A replay of someone else\'s session shows their data.' },
+];
+
+// Rules marked `render` only count on lines that look like markup, so values passed to fetch
+// headers or hooks (which never reach the page) are skipped.
+export const MARKUP = /<[A-Za-z]|\/>|<\/|^\s*\{[^}]*\}\s*$|>\s*\{|\}\s*<|=\{[^}]*\}/;
+
+// Existing masking annotations from the standard and from common vendors.
+export const COVERAGE = /data-privacy=|\brr-(mask|block|ignore)\b|data-rr-(mask|block|ignore)|ph-no-capture|ph-mask|data-hj-(suppress|allow)|fs-(exclude|mask|unmask)|sentry-(mask|block|unmask)|data-sentry-(mask|block)|data-dd-privacy|data-clarity-(mask|unmask)|data-private\b|data-mask\b|lr-(hide|block)|data-(heap|mp|amp)-(redact|mask)/;
