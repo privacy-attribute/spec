@@ -4,16 +4,22 @@
 //   privacy-audit run    --adapter rrweb --sdk <path> [options]   run fixtures, write results.json and summary.md
 //   privacy-audit report <fixture.mjs> --adapter rrweb --sdk <path> [options]   run one fixture, write a feedback issue
 //   privacy-audit coverage                                        list patterns without a fixture journey
+//   privacy-audit agent  --sdk <path> [--agent claude|codex|<command>] [--headless] [--model <m>]
+//                        run the fixtures, then start the user's own coding agent on the rest of the audit
 //
 // Options: --out <dir>  --fixtures <dir|file,...>  --pages a,b  --patterns P-x,P-y  --tier L1|L2|L3|L4
 //          --configs id,id  --concurrency <n>  --chrome <path>  --kind <feedback kind>  --actor human|agent
+//          --skip-run (agent: reuse results.json already in --out)
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import yaml from 'js-yaml';
 import { startServer, launch } from './lib/browser.mjs';
 import { runAll } from './lib/run.mjs';
 import { summaryMarkdown, auditVersion, feedbackIssue } from './lib/report.mjs';
+import { chooseAgent, writeSession, launch as launchAgent, launchPrompt } from './lib/agent.mjs';
+import { playbook } from './lib/playbook.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AUDIT_DIR = path.resolve(HERE, '..');
@@ -44,10 +50,12 @@ async function loadFixtures(sources, pages) {
       fs.readdirSync(p).filter((f) => f.endsWith('.mjs') && (!pages || pages.includes(f.slice(0, -4)))).sort().forEach((f) => files.push(path.join(p, f)));
     } else files.push(p);
   }
+  // Files named one by one (--fixtures, report) always run, whatever --pages says.
+  const explicit = new Set(sources.map((s) => path.resolve(s)).filter((p) => !fs.statSync(p).isDirectory()));
   const fixtures = [];
   for (const f of files) {
     try {
-      fixtures.push({ ...(await import(pathToFileURL(f))).default, file: f });
+      fixtures.push({ ...(await import(pathToFileURL(f))).default, file: f, explicit: explicit.has(f) });
     } catch (e) {
       process.stderr.write(`Skipping fixture ${f}: ${e.message}\n`);
     }
@@ -69,7 +77,7 @@ function buildPlan({ fixtures, patterns, adapter, args }) {
   const plan = { differential: [], fidelity: [], not_run: [] };
   const covered = new Set();
   for (const fixture of fixtures) {
-    if (pages && !pages.includes(fixture.page)) continue;
+    if (pages && !fixture.explicit && !pages.includes(fixture.page)) continue;
     let any = false;
     for (const journey of fixture.journeys) {
       covered.add(journey.pattern);
@@ -140,13 +148,40 @@ const args = parseArgs(process.argv.slice(2));
 const cmd = args._[0];
 const outDir = path.resolve(args.out || 'privacy-audit-out');
 
+function writeRun(out, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'results.json'), JSON.stringify(out, null, 1));
+  fs.writeFileSync(path.join(dir, 'summary.md'), summaryMarkdown(out));
+  console.log(`Wrote ${path.join(dir, 'summary.md')} and results.json (${out.differential.length} differential runs, ${out.seconds}s).`);
+}
+
 if (cmd === 'run') {
-  const sources = [path.join(HERE, 'fixtures'), ...(list(args.fixtures) || [])];
-  const out = await execute(args, sources);
-  fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify(out, null, 1));
-  fs.writeFileSync(path.join(outDir, 'summary.md'), summaryMarkdown(out));
-  console.log(`Wrote ${path.join(outDir, 'summary.md')} and results.json (${out.differential.length} differential runs, ${out.seconds}s).`);
+  writeRun(await execute(args, [path.join(HERE, 'fixtures'), ...(list(args.fixtures) || [])]), outDir);
+} else if (cmd === 'agent') {
+  // The session folder sits outside the SDK checkout, which the agent must leave untouched.
+  const sdk = path.resolve(args.sdk || '.');
+  const dir = path.resolve(args.out || path.join(os.tmpdir(), `privacy-audit-${new Date().toISOString().replace(/[:.]/g, '-')}`));
+  let out;
+  if (args['skip-run']) {
+    out = JSON.parse(fs.readFileSync(path.join(dir, 'results.json'), 'utf8'));
+  } else {
+    out = await execute({ ...args, sdk }, [path.join(HERE, 'fixtures'), ...(list(args.fixtures) || [])]);
+    writeRun(out, dir);
+  }
+  const target = { ...out.target, adapter: out.adapter };
+  const { promptFile, contextFile } = writeSession({
+    dir,
+    playbook: playbook({ auditDir: AUDIT_DIR, sessionDir: dir, sdk, target, cli: fileURLToPath(import.meta.url), headless: Boolean(args.headless) }),
+    context: { target, runner_version: out.runner_version, audit_version: out.audit_version, configs: out.configs, not_run: out.not_run, seconds: out.seconds },
+  });
+  const agent = await chooseAgent(typeof args.agent === 'string' ? args.agent : undefined);
+  if (!agent) {
+    console.log(['', 'No supported agent CLI (claude, codex) was found on this machine.', 'The playbook and context were written to:', `  ${promptFile}`, `  ${contextFile}`, '', `Start any coding agent in ${sdk} with: ${launchPrompt(promptFile)}`].join('\n'));
+  } else {
+    console.log(`\nStarting ${agent.label} in ${sdk}. Session folder: ${dir}\n`);
+    const code = await launchAgent({ agent, promptFile, cwd: sdk, headless: Boolean(args.headless), model: typeof args.model === 'string' ? args.model : undefined });
+    if (code !== 0) process.exitCode = code;
+  }
 } else if (cmd === 'report') {
   const file = args._[1];
   if (!file) throw new Error('report needs a fixture file');
@@ -173,5 +208,5 @@ if (cmd === 'run') {
   console.log(`${patterns.size - missing.length}/${patterns.size} patterns have a fixture journey.`);
   missing.forEach((p) => console.log(`missing ${p.id} (${p.tier}, page ${p.page})`));
 } else {
-  console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 11).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+  console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split("\n").slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
 }

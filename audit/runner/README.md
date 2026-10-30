@@ -9,6 +9,21 @@ node cli.mjs run --adapter rrweb --sdk ~/code/rrweb --out out
 
 `out/summary.md` has one row per pattern (in likelihood order) and one column per config. Value A runs twice as a noise baseline. Each cell lists the channels whose events differ between hidden value A and B clearly more than between the two A runs, using the channel ids from `../patterns.yaml`; `·` means the recordings are identical. Below the table it lists public content the recording lost (fidelity) and patterns that did not run. `out/results.json` holds sample lines for every cell.
 
+## Running the whole audit with your own agent
+
+```bash
+node cli.mjs agent --sdk ~/code/rrweb
+```
+
+This runs every fixture, writes a session folder (in the system temp folder unless you pass `--out`) with `summary.md`, `results.json`, `context.json` and `PLAYBOOK.md`, and then starts Claude Code or Codex in the SDK folder with a one-line prompt that points at the playbook. The agent does only what needs judgement: tracing each difference in the table to code, writing `privacy-audit.json`, and turning missed leaks into fixtures and pre-filled issue links. You supply the agent and its account, so model usage is billed to you, and the runner has already done the work that costs no tokens.
+
+- `--agent claude`, `--agent codex`, or any other agent command that takes a prompt as its argument. Without it, the runner uses the one installed agent, or asks when there are several.
+- `--headless` starts the agent without a person at the terminal (`claude -p`, `codex exec`). The playbook then tells the agent not to ask questions or file issues, and to leave every report in the session folder.
+- With no agent installed, the command prints the playbook path and a prompt to paste into any agent.
+- `--skip-run` reuses `results.json` from an earlier run in `--out`.
+
+The launcher follows T3 Code's `triage` command ([pingdotgg/t3code](https://github.com/pingdotgg/t3code/blob/main/apps/server/src/cli/triage.ts)).
+
 ## Commands
 
 | Command | What it does |
@@ -16,6 +31,7 @@ node cli.mjs run --adapter rrweb --sdk ~/code/rrweb --out out
 | `run` | Runs every fixture in `fixtures/` (plus `--fixtures <dir or file,...>`) and writes `summary.md` and `results.json`. |
 | `report <fixture.mjs>` | Runs one fixture and writes a feedback issue body, then prints a link that opens a pre-filled audit feedback issue. |
 | `coverage` | Lists patterns in `patterns.yaml` that no fixture covers. |
+| `agent` | Runs the fixtures, writes a session folder with a playbook, and starts the user's own coding agent on the rest of the audit. |
 
 Options: `--pages login,checkout`, `--patterns P-pin-pad`, `--tier L1` (run L1 only; `L2` runs L1 and L2), `--configs targeted,default-core`, `--concurrency 4`, `--chrome <path>`, `--out <dir>`. Opt-in configs (such as `opt-in:recordCanvas`) run only when named in `--configs`.
 
