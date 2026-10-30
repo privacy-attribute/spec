@@ -17,7 +17,7 @@ Re-run the runner only after you add or change a fixture: \`${rerun} --pages <pa
 1. Steps 1 to 5 of AGENTS.md, guided by the table: for each cell that differs, find the code that emits that channel and trace it back to the DOM read. That trace is the finding's path. Cells under \`targeted\` and \`strictest\` come first.
 2. The parts of step 6b the runner does not cover (replay over time, hover, animation, layout) for pages where the table or the code suggests a problem.
 3. Steps 7 and 8: a results.json cell is a valid reproduction; cite the pattern, config and sample lines. Write ${sessionDir}/privacy-audit.json in the format of ${auditDir}/output-format.md.
-4. Step 9 (gaps, mandatory): for a leak the patterns did not lead you to, write a fixture in ${sessionDir}/fixtures/ (format in ${auditDir}/runner/README.md) and run \`node ${cli} report <fixture> --adapter ${target.adapter} --sdk ${sdk} --out ${sessionDir}\`. It writes the issue body and prints a pre-filled issue link.
+4. Step 9 (gaps, mandatory): for a leak the patterns did not lead you to, write a fixture in ${sessionDir}/fixtures/ (format in ${auditDir}/runner/README.md) and run \`node ${cli} report <fixture> --adapter ${target.adapter} --sdk ${sdk} --out ${sessionDir} --what "<what you found and expected>"\`. It writes the issue body and prints a pre-filled issue link.
 
 ## Rules
 

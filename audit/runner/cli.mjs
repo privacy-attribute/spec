@@ -9,7 +9,7 @@
 //
 // Options: --out <dir>  --fixtures <dir|file,...>  --pages a,b  --patterns P-x,P-y  --tier L1|L2|L3|L4
 //          --configs id,id  --concurrency <n>  --chrome <path>  --kind <feedback kind>  --actor human|agent
-//          --skip-run (agent: reuse results.json already in --out)
+//          --skip-run (agent: reuse results.json already in --out)  --what <text> (report: what happened)
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -164,6 +164,7 @@ if (cmd === 'run') {
   let out;
   if (args['skip-run']) {
     out = JSON.parse(fs.readFileSync(path.join(dir, 'results.json'), 'utf8'));
+    fs.writeFileSync(path.join(dir, 'summary.md'), summaryMarkdown(out));
   } else {
     out = await execute({ ...args, sdk }, [path.join(HERE, 'fixtures'), ...(list(args.fixtures) || [])]);
     writeRun(out, dir);
@@ -179,7 +180,7 @@ if (cmd === 'run') {
     console.log(['', 'No supported agent CLI (claude, codex) was found on this machine.', 'The playbook and context were written to:', `  ${promptFile}`, `  ${contextFile}`, '', `Start any coding agent in ${sdk} with: ${launchPrompt(promptFile)}`].join('\n'));
   } else {
     console.log(`\nStarting ${agent.label} in ${sdk}. Session folder: ${dir}\n`);
-    const code = await launchAgent({ agent, promptFile, cwd: sdk, headless: Boolean(args.headless), model: typeof args.model === 'string' ? args.model : undefined });
+    const code = await launchAgent({ agent, promptFile, cwd: sdk, headless: Boolean(args.headless), model: typeof args.model === 'string' ? args.model : undefined, dirs: [dir, AUDIT_DIR] });
     if (code !== 0) process.exitCode = code;
   }
 } else if (cmd === 'report') {
@@ -192,6 +193,7 @@ if (cmd === 'run') {
     out,
     fixtureFile: file,
     fixtureSource: fs.readFileSync(file, 'utf8'),
+    what: typeof args.what === 'string' ? args.what : undefined,
   });
   fs.mkdirSync(outDir, { recursive: true });
   const reportFile = path.join(outDir, `feedback-${path.basename(file, '.mjs')}.md`);

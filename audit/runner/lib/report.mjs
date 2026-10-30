@@ -58,14 +58,15 @@ export function auditVersion(auditDir) {
 }
 
 // Builds the issue body (same headings as feedback.md) and a pre-filled issue-form URL.
-export function feedbackIssue({ kind, actor, out, fixtureFile, fixtureSource }) {
+export function feedbackIssue({ kind, actor, out, fixtureFile, fixtureSource, what: whatText }) {
   const leaking = out.differential.filter((r) => r.differs && r.category !== 'public');
   const patterns = [...new Set(out.differential.map((r) => r.pattern))];
   const title = `${kind}: ${patterns.join(', ')} ${leaking.length ? 'differs between hidden values' : 'shows no difference'}`.slice(0, 80);
   const target = `${out.target.repo || 'unknown repo'}@${out.target.commit || 'unknown'}, ${Object.entries(out.target.packages || {}).map(([k, v]) => `${k}@${v}`).join(', ')}`;
-  const what = leaking.length
-    ? `Running the fixture below with two hidden values gave different recordings under: ${[...new Set(leaking.map((r) => r.config))].join(', ')}. Channels that differ: ${[...new Set(leaking.flatMap((r) => Object.keys(r.channels)))].join(', ')}. <Describe what you expected and where you saw this pattern.>`
-    : `The fixture below gave identical recordings for both hidden values under every config run. <Describe why you expected a leak.>`;
+  const measured = leaking.length
+    ? `Running the fixture below with two hidden values gave different recordings under: ${[...new Set(leaking.map((r) => r.config))].join(', ')}. Channels that differ: ${[...new Set(leaking.flatMap((r) => Object.keys(r.channels)))].join(', ')}.`
+    : `The fixture below gave identical recordings for both hidden values under every config run.`;
+  const what = `${measured} ${whatText || (leaking.length ? '<Describe what you expected and where you saw this pattern.>' : '<Describe why you expected a leak.>')}`;
   const evidence = leaking.slice(0, 4).map((r) => `${r.pattern} / ${r.config}:\n` + Object.entries(r.channels).slice(0, 3).map(([c, d]) => `  ${c}\n    A: ${d.a[0] ?? ''}\n    B: ${d.b[0] ?? ''}`).join('\n')).join('\n');
   const body = [
     `**Title:** ${title}`,
