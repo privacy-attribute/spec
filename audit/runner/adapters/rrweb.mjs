@@ -30,6 +30,7 @@ const configs = [
   { id: 'strictest-block', options: { ...STRICT, blockSelector: `${STRICT.blockSelector},[data-audit-block]` } },
   { id: 'strictest-custom', options: { ...STRICT, __mask: 'constant' } },
   { id: 'custom-nonconstant', options: { ...STRICT, ignoreSelector: null, __mask: 'bucket' } },
+  { id: 'constant-mask', options: { ...STRICT, ignoreSelector: null, __mask: 'constant' }, note: 'Constant mask hooks with input events on: what a length-hiding mask gives on its own.' },
   { id: 'opt-in:recordCanvas', optIn: true, options: { recordCanvas: true } },
   { id: 'opt-in:inlineImages', optIn: true, options: { inlineImages: true } },
   { id: 'opt-in:network', optIn: true, options: { __network: true } },
