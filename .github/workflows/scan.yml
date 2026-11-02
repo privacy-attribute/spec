@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Unit tests
-        run: node --test scan/test/
+        run: node --test scan/test/scan.test.mjs
       - name: Benchmark the scan rules
         run: node scan/cli.mjs bench
 

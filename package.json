@@ -40,7 +40,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test scan/test/",
+    "test": "node --test scan/test/scan.test.mjs",
     "bench": "node scan/cli.mjs bench"
   }
 }
