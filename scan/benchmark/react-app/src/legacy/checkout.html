@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head><title>Checkout</title></head>
+<body>
+  <form id="checkout">
+    <input name="card" autocomplete="cc-number" inputmode="numeric" /> <!-- @expect secret block -->
+    <input name="exp" autocomplete="cc-exp" /> <!-- @expect secret block -->
+    <input name="code" maxlength="4" /> <!-- @expect secret block -->
+    <input name="ship_to" placeholder="Shipping address" /> <!-- @expect personal mask -->
+  </form>
+  <p>Receipt goes to <span id="receipt-email"></span></p> <!-- @expect personal mask -->
+  <ul id="recent-orders"></ul> <!-- @expect personal mask -->
+  <script>
+    fetch('/api/me').then((r) => r.json()).then((data) => {
+      document.getElementById('receipt-email').textContent = data.contact; // @expect personal mask
+      document.getElementById('recent-orders').innerHTML = data.orders.map((o) => '<li>' + o[0] + ' ' + o[1] + '</li>').join(''); // @expect personal mask
+      document.title = 'Checkout for ' + data.first; // @expect personal mask
+    });
+  </script>
+</body>
+</html>

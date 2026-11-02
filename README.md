@@ -36,9 +36,9 @@ What you get:
 |------|----------|
 | `privacy.patch` | The `data-privacy` annotations, ready for `git apply` |
 | `app-privacy.json` | Each annotation with its reason, every dismissed candidate, and recorder configuration to add |
-| `feedback/` | Issue texts for gaps the agent found in the scan itself |
+| `feedback/` | One report for the scan: how each rule performed, as counts only, and gaps with a proposed rule. Recorder weaknesses go to a separate private file. |
 
-Recorders do not all read `data-privacy` yet. [`scan/caveats/rrweb.md`](scan/caveats/rrweb.md) gives the rrweb configuration that maps the attribute onto rrweb's options, and lists what an annotation alone cannot fix in rrweb.
+Recorders do not all read `data-privacy` yet, so the patch can use the recorder's own classes. With `--sdk rrweb` it writes `rr-block`, `rr-mask` and `rr-ignore`, which rrweb reads with no configuration; add `--annotate data-privacy` to write the standard attribute instead. [`scan/recorders/rrweb.md`](scan/recorders/rrweb.md) explains both and lists the rrweb options to set.
 
 ### Report a problem with the scan
 

@@ -7,11 +7,12 @@ body:
     attributes:
       value: |
         Use made-up names and values in this issue. Do not paste code or data from your application.
+        Do not report weaknesses in a recorder here: see SECURITY.md.
   - type: dropdown
     id: kind
     attributes:
       label: Kind
-      options: [missed-data, false-positive, wrong-guidance, recorder-gap, unclear-instruction]
+      options: [scan-report, missed-data, false-positive, wrong-guidance, unclear-instruction]
     validations: { required: true }
   - type: input
     id: recorder

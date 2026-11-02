@@ -2,6 +2,10 @@
 // Each rule maps a source line to a pattern in ../audit/patterns.yaml and a likely data category.
 // Rules are line-based so they work on any framework (JSX, Vue, Svelte, Angular templates, HTML).
 // They over-report on purpose: the agent decides what each candidate really holds.
+//
+// A rule with `auto` decides on its own: find writes its annotation and the agent skips the candidate.
+// Promote a rule to `auto` only when scan reports show it right almost every time (see README.md,
+// "Maintaining the rules").
 
 const ID = String.raw`[A-Za-z_$][\w$]*`;
 
@@ -9,15 +13,15 @@ const ID = String.raw`[A-Za-z_$][\w$]*`;
 const SELF = /\b(me|viewer|currentUser|user|self|profile|account|session\??\.user|clerkUser|authUser)\??\.\w/;
 const OTHERS = /\b(customer|member|contact|row|participant|invitee|invite|recipient|sender|author|owner|assignee|attendee|employee|client|lead|candidate|patient|visitor|recording|item|entry|u|m|c|p|r)\??\.\w/;
 
-const PERSON_FIELD = String.raw`(email|emailAddress|phone|phoneNumber|mobile|firstName|lastName|fullName|displayName|name|username|handle|address|street|city|zip|postalCode|postcode|birth|birthday|dob|dateOfBirth|age|gender|ssn|taxId|nationalId|passport|iban|bic|ip|ipAddress|userAgent|location|geo|lat|lng|country|avatar|avatarUrl|imageUrl|picture|photo|company|organization|orgName|title|jobTitle|salary|income|balance|amount|diagnosis|notes|bio)`;
+export const PERSON_FIELD = String.raw`(email|emailAddress|phone|phoneNumber|mobile|firstName|lastName|fullName|displayName|name|username|handle|address|street|city|zip|postalCode|postcode|birth|birthday|dob|dateOfBirth|age|gender|ssn|taxId|nationalId|passport|iban|bic|ip|ipAddress|userAgent|location|geo|lat|lng|country|avatar|avatarUrl|imageUrl|picture|photo|company|organization|orgName|title|jobTitle|salary|income|balance|amount|diagnosis|notes|bio)`;
 
 export const RULES = [
   // Secrets typed or shown
-  { id: 'secret-input-password', re: /type=\{?["'`]password["'`]\}?|autoComplete=\{?["'`](current-password|new-password)/, pattern: 'P-password', category: 'secret' },
+  { id: 'secret-input-password', auto: { value: 'block', category: 'secret' }, re: /type=\{?["'`]password["'`]\}?|autoComplete=\{?["'`](current-password|new-password)/, pattern: 'P-password', category: 'secret' },
   { id: 'secret-input-otp', re: /autoComplete=\{?["'`]one-time-code|\b(otp|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|totp|mfa[-_ ]?code|2fa[-_ ]?code)\b/i, pattern: 'P-otp-single', category: 'secret' },
   { id: 'secret-input-card', re: /autoComplete=\{?["'`]cc-|\b(card[-_ ]?number|cardNumber|cvv|cvc|security[-_ ]?code|iban|routing[-_ ]?number|account[-_ ]?number)\b/i, pattern: 'P-card-number', category: 'secret' },
   { id: 'secret-pin', re: /\b(pin[-_ ]?code|pinCode|enterPin|PinInput|PinPad|Keypad|NumberPad)\b/, pattern: 'P-pin-pad', category: 'secret' },
-  { id: 'secret-display', render: true, re: new RegExp(String.raw`\{[^}]*\b(apiKey|api_key|secretKey|secret|token|accessToken|refreshToken|clientSecret|privateKey|webhookSecret|signingSecret|password|recoveryCode|backupCode|seedPhrase)\b[^}]*\}`), pattern: 'P-reveal-secret', category: 'secret' },
+  { id: 'secret-display', render: true, re: new RegExp(String.raw`\{[^}]*\b(apiKey|api_key|secretKey|secret|token|accessToken|refreshToken|clientSecret|privateKey|webhookSecret|signingSecret|password|recoveryCodes?|backupCodes?|seedPhrase|plaintext|secretValue)\b[^}]*\}`), pattern: 'P-reveal-secret', category: 'secret' },
   { id: 'secret-reveal-toggle', re: /\b(showPassword|revealed|isRevealed|showSecret|showKey|setShow(Password|Secret|Key))\b/, pattern: 'P-password-reveal', category: 'secret' },
   { id: 'secret-copy', re: /navigator\.clipboard|copyToClipboard|useCopy(ToClipboard)?\b|<CopyButton\b|\bonCopy\b/, pattern: 'P-copy-button', category: 'secret?' },
   { id: 'secret-qr', re: /\bQRCode|qrcode|otpauth:/, pattern: 'P-qr-secret', category: 'secret' },
@@ -38,6 +42,9 @@ export const RULES = [
   { id: 'set-attribute', re: /\.setAttribute\(\s*["'`](href|src|title|aria-label|alt|value|data-[\w-]+)["'`]/, pattern: 'P-pii-text', category: 'personal?' },
   { id: 'metadata-render', render: true, re: /\{[^}]*\b(metadata|meta|attributes|properties|traits|tags|customData)\b[^}]*\}/, pattern: 'P-crm-record', category: 'third-party?' },
   { id: 'echo-search', render: true, re: /\{[^}]*\b(q|query|searchQuery|searchTerm|searchText)\b[^}]*\}/, pattern: 'P-search-as-you-type', category: 'personal?' },
+  { id: 'template-binding', render: true, re: new RegExp(String.raw`(\{\{[^}]*|:[\w-]+="[^"]*|\{[^}]*)\.${PERSON_FIELD}\b`), pattern: 'P-pii-text', category: 'personal?', fallback: true },
+  { id: 'generic-cell', render: true, re: /\{\s*[A-Za-z_$][\w$]*\[[^\]]+\]\s*\}|>\s*\{\s*(cell|value|val|v|field|column|col)\s*\}\s*</, pattern: 'P-admin-table', category: 'third-party?' },
+  { id: 'dom-write', re: /\.(textContent|innerText|innerHTML|outerHTML)\s*\+?=|\.insertAdjacentHTML\(|document\.write\(/, pattern: 'P-pii-text', category: 'personal?' },
   { id: 'style-from-data', re: /style=\{\{[^}]*(width|left|height|transform)\s*:\s*`?[^}]*\$\{|content:\s*attr\(/, pattern: 'P-strength-meter', category: 'personal?' },
 
   // Inputs and widgets that collect personal data
@@ -51,7 +58,7 @@ export const RULES = [
   { id: 'validation', re: /errors?\??\.\w+\??\.message|<FormMessage\b|setError\(/, pattern: 'P-validation', category: 'personal' },
 
   // Page metadata, URLs and messages
-  { id: 'title-from-data', re: /document\.title\s*=|<title>\{|title:\s*`[^`]*\$\{|useTitle\(|head:\s*\(\s*\{/, pattern: 'P-pii-text', category: 'personal?' },
+  { id: 'title-from-data', re: /document\.title\s*=|<title>\{|title:\s*`[^`]*\$\{|use\w*Title\(|head:\s*\(\s*\{/, pattern: 'P-pii-text', category: 'personal?' },
   { id: 'url-with-data', re: /(navigate|router\.push|redirect|Link)\b[^;]*(search|params):\s*\{[^}]*(email|token|key|secret|q|query|name)\b|\?[\w&=]*(email|token|key|secret)=\$\{/, pattern: 'P-search-as-you-type', category: 'personal?' },
   { id: 'toast', re: /\btoast(\.\w+)?\(|useToast\(|\bnotify\(|enqueueSnackbar\(/, pattern: 'P-toast', category: 'personal?' },
   { id: 'console', re: /console\.(log|info|debug|warn|error)\(/, pattern: null, category: 'personal?', note: 'Recorded only when a console plugin is on.' },
@@ -64,7 +71,10 @@ export const RULES = [
 
 // Rules marked `render` only count on lines that look like markup, so values passed to fetch
 // headers or hooks (which never reach the page) are skipped.
-export const MARKUP = /<[A-Za-z]|\/>|<\/|^\s*\{[^}]*\}\s*$|>\s*\{|\}\s*<|=\{[^}]*\}/;
+export const MARKUP = /<[A-Za-z]|\/>|<\/|^\s*\{[^}]*\}\s*$|>\s*\{|\}\s*<|=\{[^}]*\}|\{\{[^}]+\}\}|\s:[\w-]+="/;
+
+// Objects that usually hold public content; person-field matches on them are skipped.
+export const PUBLIC_OWNER = /\b(hero|plan|plans|tier|brand|product|feature|features|post|article|page|site|seo|meta|config|copy|content|nav|menu|faq|testimonial|footer|header|link|category|tag|step|section|col)\??\.\w+/;
 
 // Existing masking annotations from the standard and from common vendors.
 export const COVERAGE = /data-privacy=|\brr-(mask|block|ignore)\b|data-rr-(mask|block|ignore)|ph-no-capture|ph-mask|data-hj-(suppress|allow)|fs-(exclude|mask|unmask)|sentry-(mask|block|unmask)|data-sentry-(mask|block)|data-dd-privacy|data-clarity-(mask|unmask)|data-private\b|data-mask\b|lr-(hide|block)|data-(heap|mp|amp)-(redact|mask)/;

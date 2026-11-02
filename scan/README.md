@@ -8,9 +8,9 @@ To run it from a coding agent, use the prompt in [PROMPT.md](PROMPT.md). The age
 
 | Command | What it does |
 |---------|--------------|
-| `privacy-scan find <src> [--sdk rrweb] [--out <dir>]` | Static pass with no model. Applies the rules in `rules.mjs` to every source file and writes a session folder: `scan-plan.md` (flagged lines grouped by file, most private first), `candidates.json`, an empty `annotations.json` and `PLAYBOOK.md`. The folder goes in the system temp folder unless you pass `--out`. |
+| `privacy-scan find <src> [--sdk rrweb] [--annotate rrweb\|data-privacy] [--out <dir>]` | Static pass with no model. Applies the rules in `rules.mjs` to every source file and writes a session folder: `scan-plan.md` (flagged lines grouped by file, most private first), `candidates.json`, an empty `annotations.json` and `PLAYBOOK.md`. The folder goes in the system temp folder unless you pass `--out`. |
 | `privacy-scan patch --out <dir>` | Turns `annotations.json` into `privacy.patch` (paths relative to the repository root) and `app-privacy.json`. Lists every candidate that is not yet annotated or dismissed. |
-| `privacy-scan report --out <dir>` | Turns the gaps in `annotations.json` into issue texts in `feedback/`, each with a link that fills in the scan feedback form. |
+| `privacy-scan report --out <dir>` | Writes one report for the scan to `feedback/`: rule outcomes (counts only), gaps with proposed rules tested against their example, and a link that fills in the scan feedback form. Recorder gaps go to `feedback/private-recorder-gaps.md` for private reporting (see `SECURITY.md`). |
 | `privacy-scan agent <src> [--sdk rrweb] [--agent claude\|codex\|<command>] [--headless] [--model <m>]` | Runs `find`, then starts Claude Code or Codex on the playbook. `--headless` runs without questions and leaves the reports in the session folder. |
 
 From a clone, run `node scan/cli.mjs <command>`. Without a clone, run `npx -y -p github:privacy-attribute/spec privacy-scan <command>`.
@@ -21,7 +21,19 @@ From a clone, run `node scan/cli.mjs <command>`. Without a clone, run `npx -y -p
 |------|---------|
 | `AGENTS.md` | Instructions for the agent: data categories, what to annotate, the procedure, and how to report gaps |
 | `rules.mjs` | The static rules. Each maps a source line to a pattern and a likely data category. |
-| `caveats/<sdk>.md` | What an annotation cannot fix in that recorder, and the configuration that closes each gap |
+| `recorders/<sdk>.md` | How that recorder reads annotations, and the configuration to add |
 | `PROMPT.md` | The prompt to share with implementers |
 
 The scan never writes to the application. The implementer reviews and applies the patch.
+
+## Maintaining the rules
+
+The scan gets cheaper as the rules get better. Each scan report carries rule outcomes: for every rule, how many lines it flagged and how many the agent annotated (with which value) or dismissed. Maintainers collect these and adjust `rules.mjs`:
+
+| Signal across reports | Change |
+|-----------------------|--------|
+| A rule's lines are annotated with the same value in at least 95% of cases, over at least 20 reports | Add `auto: { value, category }`. `find` then writes the annotation and the agent skips those lines. |
+| A rule's lines are dismissed in at least 90% of cases | Narrow the pattern, or remove the rule. |
+| A `missed-data` gap with a tested `proposed_rule` | Add the rule, then run the benchmark. |
+
+Every rule change must keep the benchmark's recall at or above `benchmark/baseline.json`. Run `node scan/cli.mjs bench` locally; CI runs it on every pull request.

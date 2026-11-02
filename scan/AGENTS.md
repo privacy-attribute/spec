@@ -16,7 +16,7 @@ The session folder contains these files:
 - `annotations.json`: the file that you fill in.
 - `PLAYBOOK.md`: the commands for this session.
 
-When the recorder is known, also read `caveats/<sdk>.md` in the scan folder. It tells you what an annotation cannot fix in that recorder. It also gives the recorder configuration that closes each gap.
+When the recorder is known, also read `recorders/<sdk>.md` in the scan folder. It tells you how the recorder reads annotations, and the configuration to add.
 
 ## Data categories
 
@@ -51,6 +51,21 @@ Each annotation is one of `mask`, `block`, `ignore` or `unmask`. A recorder trea
 
 Annotate the smallest element that holds all of the private data. Do not include public content in it.
 
+## Annotation style
+
+`PLAYBOOK.md` names the annotation style of the session. Write `value` in `annotations.json` as `mask`, `block`, `ignore` or `unmask` for each style. The `patch` command writes the style.
+
+| Style | What the patch adds |
+|-------|---------------------|
+| `data-privacy` | The attribute `data-privacy="<value>"` |
+| `rrweb` | The class `rr-mask`, `rr-block` or `rr-ignore`. The patch adds the class to a static `className` or `class`, or adds a new attribute. |
+
+For the `rrweb` style, obey these rules:
+
+1. rrweb has no class for `unmask`. Move the public content out of the masked element.
+2. `rr-mask` does not mask input values. For a field, `recorders/rrweb.md` gives the configuration that masks it.
+3. When `className` is an expression, the `patch` command cannot add the class. Give an `edit` for the annotation, for example `"edit": { "from": "className={cn('row', active)}", "to": "className={cn('row rr-mask', active)}" }`.
+
 ## Procedure
 
 1. Read `scan-plan.md`.
@@ -64,7 +79,7 @@ Annotate the smallest element that holds all of the private data. Do not include
    7. Look at the open file for private data that no rule found. Annotate this data. Then add a gap of kind `missed-data`.
 3. Do not open files that have no candidates. Exception: a candidate uses a component from a different file, for example `<CustomerCard>` in a list.
 4. When a shared component (`<Avatar>`, `<UserName>`) shows only private data, annotate the component one time. Do not annotate each use.
-5. Read `caveats/<sdk>.md`. Add the configuration changes that apply to `config` in `annotations.json`. Name the pages that need them.
+5. Read `recorders/<sdk>.md`. Add the configuration changes that apply to `config` in `annotations.json`. Name the pages that need them.
 6. Run the `patch` command from `PLAYBOOK.md`. The command writes `privacy.patch` and `app-privacy.json`. It also shows the candidates that you did not annotate or dismiss.
 7. Repeat step 2 to step 6 until the `patch` command shows no candidates.
 8. Run the `report` command from `PLAYBOOK.md` when `gaps` is not empty.
@@ -92,7 +107,8 @@ Annotate the smallest element that holds all of the private data. Do not include
       "kind": "missed-data",
       "title": "No rule finds API keys shown through a custom field component",
       "example": "<KeyField value={account.apiKey} />",
-      "expected": "A secret candidate on the KeyField line"
+      "expected": "A secret candidate on the KeyField line",
+      "proposed_rule": { "re": "<KeyField\\b[^>]*value=\\{", "category": "secret", "pattern": "P-reveal-secret" }
     }
   ]
 }
@@ -101,6 +117,7 @@ Annotate the smallest element that holds all of the private data. Do not include
 - `file` and `line` point to the opening tag of the element.
 - `match` is the text at the start of the tag, for example `<Input`, `<td` or `<CustomerCard`. The `patch` command puts the attribute after this text. When the tag uses more than one line, use the line with the tag name.
 - `candidates` lists each candidate id that the annotation closes.
+- `edit` is optional. Use it when the `patch` command cannot place the annotation. `from` is the exact text on the line. `to` is the new text.
 
 ## Report gaps
 
@@ -111,12 +128,16 @@ A gap is a problem in the scan itself. You must report each gap. Use one of thes
 | `missed-data` | No rule found private data in a file that you read. |
 | `false-positive` | A rule finds many lines that never hold private data. |
 | `wrong-guidance` | These instructions gave an annotation that does not protect the data, or that removes public content. |
-| `recorder-gap` | No annotation protects the data in this recorder, and `caveats/<sdk>.md` does not tell you this. |
+| `recorder-gap` | No annotation protects the data in this recorder. |
 | `unclear-instruction` | You had to guess what an instruction means. |
 
 CAUTION: A gap report becomes visible to other people. Write a new, short `example` with made-up names and values. Do not copy code, names, URLs or data from the application.
 
-Add each gap to `gaps` in `annotations.json`. The `report` command writes one issue text for each gap. It also shows a link that opens a filled-in issue form. A person must examine and send each issue.
+Add each gap to `gaps` in `annotations.json`. For `missed-data` and `false-positive`, also give a `proposed_rule`: a JavaScript regular expression that finds the line, its category and its pattern id. Make sure that `re` matches your `example`. The `report` command tests this.
+
+The `report` command writes one report for the scan. The report also counts, for each rule, the lines that the rule found, annotated and dismissed. These counts contain no code. It also shows a link that opens a filled-in issue form. A person must examine and send the report.
+
+CAUTION: A `recorder-gap` tells about a weakness in a recorder. Do not put it in a public issue. The `report` command writes each `recorder-gap` to a private file. Send that file to the security contact in `SECURITY.md`.
 
 ## Rules
 

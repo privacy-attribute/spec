@@ -1,6 +1,6 @@
 // PLAYBOOK.md for a scan session: the steps and the exact commands for this session.
 // `find` writes it, so an agent can follow it after it runs the scan itself.
-export function playbook({ scanDir, sessionDir, src, sdk, cli, headless }) {
+export function playbook({ scanDir, sessionDir, src, sdk, annotate = 'data-privacy', cli, headless }) {
   const run = `node ${cli}`;
   return `# Privacy scan playbook
 
@@ -9,7 +9,8 @@ This session scans the front-end code in ${src}. The static pass is done. Your t
 ## Read
 
 1. ${scanDir}/AGENTS.md. It gives the data categories, the annotations, the procedure and the format of annotations.json.
-${sdk ? `2. ${scanDir}/caveats/${sdk}.md. It tells you what an annotation cannot fix in ${sdk}, and the configuration that closes each gap.\n` : ''}
+${sdk ? `2. ${scanDir}/recorders/${sdk}.md. It tells you how ${sdk} reads annotations, and the configuration to add.\n` : ''}
+The annotation style of this session is \`${annotate}\`. AGENTS.md tells you what the patch adds for this style.
 Then do the procedure in AGENTS.md. Start with ${sessionDir}/scan-plan.md. Do not read candidates.json from start to end.
 
 ## Commands

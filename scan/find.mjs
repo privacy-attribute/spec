@@ -2,7 +2,7 @@
 // must mask or block. Deterministic and model-free; the agent reviews the output.
 import fs from 'node:fs';
 import path from 'node:path';
-import { RULES, COVERAGE, MARKUP } from './rules.mjs';
+import { RULES, COVERAGE, MARKUP, PERSON_FIELD, PUBLIC_OWNER } from './rules.mjs';
 
 const EXT = /\.(tsx|jsx|ts|js|mjs|vue|svelte|astro|html|hbs|erb|cshtml|php)$/;
 const SKIP_DIR = new Set(['node_modules', 'dist', 'build', '.next', '.nuxt', '.output', '.svelte-kit', 'coverage', '.git', '.claude', 'vendor', 'public', 'storybook-static']);
@@ -22,6 +22,45 @@ function files(root) {
   return out.sort();
 }
 
+// Source-first pass: variables that hold fetched data or person-like records, and the markup
+// lines that render them. Finds private data that no field name gives away.
+const SOURCE = /\b(const|let|var)\s+(\{[^}]*\}|[A-Za-z_$][\w$]*)\s*=\s*(await\s+)?(use\w*Query|useSWR|useSuspenseQuery|useLoaderData|useFetcher|useFetch|useAsyncData|fetch|axios(\.\w+)?|api\.\w+|trpc\.[\w.]+|client\.\w+|useSelector|useStore|useRecords|useList)\b/;
+const PERSON_TYPE = /\b([A-Za-z_$][\w$]*)\s*[?]?:\s*(User|Customer|Member|Contact|Account|Profile|Person|Patient|Client|Employee|Lead|Visitor|Recording|Session|Order|Invoice|Message|Comment|Ticket|Participant|Invitee)(\[\]|<|\b)/g;
+
+function sourceNames(src) {
+  const names = new Set();
+  for (const line of src) {
+    const m = line.match(SOURCE);
+    if (m) {
+      const binding = m[2];
+      if (binding.startsWith('{')) {
+        for (const part of binding.slice(1, -1).split(',')) {
+          const name = (part.split(':')[1] || part.split(':')[0]).replace(/=.*/, '').trim();
+          if (/^[A-Za-z_$][\w$]*$/.test(name)) names.add(name);
+        }
+      } else names.add(binding);
+    }
+    for (const t of line.matchAll(PERSON_TYPE)) names.add(t[1]);
+  }
+  // Values built from person fields, then rendered: const greeting = `Hi ${user.firstName}`.
+  const built = new RegExp(String.raw`\b(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=.*\.${PERSON_FIELD}\b`);
+  for (const line of src) {
+    const b = line.match(built);
+    if (b && !PUBLIC_OWNER.test(line)) names.add(b[2]);
+  }
+  // Parameters of callbacks that iterate over a source, repeated for nested loops:
+  // rows.map((row) => row.cells.map((cell) => ...)).
+  for (let pass = 0; pass < 3; pass++) {
+    for (const line of src) {
+      for (const it of line.matchAll(/\b([A-Za-z_$][\w$.]*)\.(map|flatMap|forEach|filter)\(\s*\(?\s*([A-Za-z_$][\w$]*)/g)) {
+        if (names.has(it[1].split('.')[0])) names.add(it[3]);
+      }
+    }
+  }
+  ['data', 'props', 'children', 'error', 'isLoading'].forEach((n) => names.delete(n));
+  return names;
+}
+
 export function find(root) {
   const candidates = [];
   let scanned = 0;
@@ -31,16 +70,36 @@ export function find(root) {
     scanned++;
     lines += src.length;
     let component = null;
+    const sources = sourceNames(src);
     src.forEach((line, i) => {
       const c = line.match(COMPONENT);
       if (c) component = c[5];
       if (line.length > 2000 || /^\s*(\/\/|\*|import\b)/.test(line)) return;
       const markup = MARKUP.test(line);
-      const applies = (r) => (!r.render || markup) && r.re.test(line);
+      const publicOwner = PUBLIC_OWNER.test(line);
+      const applies = (r) => (!r.render || markup) && !(publicOwner && /^(person-field|template-binding|attribute-data|attribute-expr)/.test(r.id)) && r.re.test(line);
       const hits = RULES.filter((r) => !r.fallback && applies(r));
-      if (!hits.some((h) => h.id.startsWith('person-field'))) hits.push(...RULES.filter((r) => r.fallback && applies(r)));
+      if (!hits.some((h) => h.id.startsWith('person-field'))) {
+        const fallback = RULES.filter((r) => r.fallback && applies(r));
+        hits.push(...(fallback.some((r) => r.id === 'person-field') ? fallback.filter((r) => r.id !== 'template-binding') : fallback));
+      }
+      if (!hits.length && markup && sources.size) {
+        const rendered = [...line.matchAll(/\{([^{}]*)\}/g)].map((m) => m[1]);
+        if (rendered.some((expr) => [...sources].some((n) => new RegExp(`(^|[^\\w$.])${n.replace(/\$/g, '\\$')}\\b`).test(expr)))) {
+          hits.push({ id: 'data-flow', pattern: 'P-crm-record', category: 'third-party?' });
+        }
+      }
       if (!hits.length) return;
       const near = src.slice(Math.max(0, i - 3), i + 4).join('\n');
+      const autoRule = hits.find((h) => h.auto);
+      let auto = null;
+      if (autoRule) {
+        // The tag that holds this line: this line or the nearest line above that opens a tag.
+        for (let k = i; k >= Math.max(0, i - 10); k--) {
+          const t = src[k].match(/<([A-Za-z][\w.]*)/);
+          if (t) { auto = { ...autoRule.auto, rule: autoRule.id, line: k + 1, match: `<${t[1]}` }; break; }
+        }
+      }
       const category = hits.map((h) => h.category).sort((a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b))[0];
       candidates.push({
         id: null,
@@ -51,6 +110,7 @@ export function find(root) {
         patterns: [...new Set(hits.map((h) => h.pattern).filter(Boolean))],
         category_hint: category,
         covered: COVERAGE.test(near),
+        auto: COVERAGE.test(near) ? null : auto,
         snippet: line.trim().slice(0, 200),
       });
     });
@@ -74,12 +134,12 @@ export function planMarkdown(result) {
   return [
     '# Scan plan',
     '',
-    `${result.candidates.length} candidates in ${byFile.size} of ${result.scanned_files} files (${result.scanned_lines} lines): ${count('secret')} secret, ${count('third-party')} third-party, ${count('personal')} personal. A trailing ? means the category is a guess. "covered" means a masking annotation is already within three lines.`,
+    `${result.candidates.length} candidates in ${byFile.size} of ${result.scanned_files} files (${result.scanned_lines} lines): ${count('secret')} secret, ${count('third-party')} third-party, ${count('personal')} personal. A trailing ? means the category is a guess. "covered" means a masking annotation is already within three lines. "decided" means a rule made the annotation; it is already in annotations.json, so examine it only when the file is open for other candidates.`,
     '',
     ...files.flatMap(([file, list]) => [
       `## ${file}`,
       '',
-      ...list.map((c) => `- ${c.id} L${c.line} ${c.component ? `<${c.component}> ` : ''}[${c.category_hint}; ${c.rules.join(', ')}]${c.covered ? ' covered' : ''}: \`${c.snippet.slice(0, 140).replace(/`/g, "'")}\``),
+      ...list.map((c) => `- ${c.id} L${c.line} ${c.component ? `<${c.component}> ` : ''}[${c.category_hint}; ${c.rules.join(', ')}]${c.covered ? ' covered' : ''}${c.auto ? ` decided: ${c.auto.value}` : ''}: \`${c.snippet.slice(0, 140).replace(/`/g, "'")}\``),
       '',
     ]),
   ].join('\n');

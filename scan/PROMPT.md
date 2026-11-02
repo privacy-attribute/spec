@@ -1,6 +1,8 @@
 # Implementation prompt
 
-Copy the prompt below into a coding agent that runs in your application's repository, for example Claude Code, Codex or Cursor. Replace `<front-end source folder>` and `<recorder>`. Use `rrweb` as the recorder when you record with rrweb or rrweb Cloud. Remove `--sdk <recorder>` when no caveats file exists for your recorder.
+Copy the prompt below into a coding agent that runs in your application's repository, for example Claude Code, Codex or Cursor. Replace `<front-end source folder>` and `<recorder>`. Use `rrweb` as the recorder when you record with rrweb or rrweb Cloud. Remove `--sdk <recorder>` when `scan/recorders/` has no file for your recorder.
+
+With `--sdk rrweb`, the patch uses rrweb's own classes (`rr-block`, `rr-mask`, `rr-ignore`). rrweb reads them with no configuration. To use the `data-privacy` attribute, add `--annotate data-privacy`.
 
 The agent needs Node.js 18 or later and read access to `github.com/privacy-attribute/spec`.
 
