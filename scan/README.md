@@ -13,7 +13,7 @@ To run it from a coding agent, use the prompt in [PROMPT.md](PROMPT.md). The age
 | `privacy-scan report --out <dir>` | Writes one report for the scan to `feedback/`: rule outcomes (counts only), gaps with proposed rules tested against their example, and a link that fills in the scan feedback form. Recorder gaps go to `feedback/private-recorder-gaps.md` for private reporting (see `SECURITY.md`). |
 | `privacy-scan agent <src> [--sdk rrweb] [--agent claude\|codex\|<command>] [--headless] [--model <m>]` | Runs `find`, then starts Claude Code or Codex on the playbook. `--headless` runs without questions and leaves the reports in the session folder. |
 
-From a clone, run `node scan/cli.mjs <command>`. Without a clone, run `npx -y -p github:privacy-attribute/spec privacy-scan <command>`.
+From a clone, run `node scan/cli.mjs <command>`. The prompts pin a release tag; update the tag in them when you release. Without a clone, run `npx -y -p github:privacy-attribute/spec#v0.2.0 privacy-scan <command>`.
 
 ## Files
 

@@ -6,15 +6,30 @@ on:
     branches: [main]
 
 jobs:
-  benchmark:
-    runs-on: ubuntu-latest
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        node: [18, 20, 22, 24]
+        include:
+          - os: windows-latest
+            node: 22
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
+      - name: Unit tests
+        run: node --test scan/test/
       - name: Benchmark the scan rules
         run: node scan/cli.mjs bench
+
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Check the instruction files for the house style
         run: |
           if grep -nE "—|–" README.md SECURITY.md scan/*.md scan/recorders/*.md audit/*.md; then

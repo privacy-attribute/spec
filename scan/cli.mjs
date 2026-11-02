@@ -4,20 +4,22 @@
 //   privacy-scan find   <app-source-dir> [--sdk rrweb] [--annotate rrweb|data-privacy] [--out <dir>]
 //                                                                      static pass; prints the session folder and its PLAYBOOK.md
 //   privacy-scan patch  --out <dir>                                    annotations.json -> privacy.patch and app-privacy.json
-//   privacy-scan report --out <dir>                                    one feedback report for the scan, and private recorder gaps
+//   privacy-scan report --out <dir> [--post <url>]                     one feedback report for the scan, and private recorder gaps;
+//                                                                      --post sends the public report to a feedback endpoint
 //   privacy-scan bench  [<benchmark-dir>]                              score the static pass on labelled apps; fails below the baseline
 //   privacy-scan agent  <app-source-dir> [--sdk rrweb] [--annotate rrweb|data-privacy] [--out <dir>] [--agent claude|codex|<command>] [--headless] [--model <m>]
 //                                                                      static pass, then starts a coding agent on PLAYBOOK.md
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { find, planMarkdown } from './find.mjs';
 import { chooseAgent, writeSession, launch } from '../audit/runner/lib/agent.mjs';
 import { playbook } from './playbook.mjs';
 import { buildScanReport, writeScanReport } from './report.mjs';
 import { bench, formatBench } from './bench.mjs';
+import { applyAnnotation, unifiedDiff } from './patch.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CLI = fileURLToPath(import.meta.url);
@@ -76,38 +78,6 @@ function runFind(src, out, sdk, headless, annotate) {
   return { result, promptFile };
 }
 
-const RRWEB_CLASS = { mask: 'rr-mask', block: 'rr-block', ignore: 'rr-ignore' };
-
-// Adds a class to the tag that starts at lines[i]: into a static class or className string when
-// the tag has one, or as a new attribute. Returns a reason when it cannot place the class.
-function addClass(lines, i, match, cls, jsx) {
-  if (!cls) return 'rrweb has no class for this value (rrweb has no unmask): restructure, or use an edit';
-  for (let k = i; k < Math.min(lines.length, i + 12); k++) {
-    const from = k === i ? lines[k].indexOf(match) + match.length : 0;
-    const line = lines[k];
-    const rest = line.slice(from);
-    // An existing rrweb class: keep it when it is the same, replace it when the scan asks for another.
-    const existing = rest.match(/\b(rr-block|rr-mask|rr-ignore)\b/);
-    if (existing) {
-      if (existing[1] === cls) return null;
-      lines[k] = line.slice(0, from) + rest.replace(existing[1], cls);
-      return null;
-    }
-    const stat = rest.match(/\b(className|class)=(\{\s*)?(["'`])/);
-    if (stat) {
-      const q = from + stat.index + stat[0].length;
-      lines[k] = `${line.slice(0, q)}${cls} ${line.slice(q)}`;
-      return null;
-    }
-    if (/\b(className|class)=\{/.test(rest)) return 'className is an expression: give an edit that adds the class';
-    // The tag ends on this line: add a new attribute after the tag name.
-    if (/(^|[^=])>/.test(rest) || k > i && /^\s*\/?>/.test(line)) break;
-  }
-  const at = lines[i].indexOf(match) + match.length;
-  lines[i] = `${lines[i].slice(0, at)} ${jsx ? 'className' : 'class'}="${cls}"${lines[i].slice(at)}`;
-  return null;
-}
-
 // Inserts each annotation after its `match` text and writes a unified diff the implementer can apply.
 function runPatch(out) {
   const scan = JSON.parse(fs.readFileSync(path.join(out, 'candidates.json'), 'utf8'));
@@ -119,42 +89,20 @@ function runPatch(out) {
   for (const a of decisions.annotations) {
     const abs = path.join(root, a.file);
     if (!files.has(abs)) files.set(abs, fs.readFileSync(abs, 'utf8').split('\n'));
-    const lines = files.get(abs);
-    const near = (text) => [0, 1, -1, 2, -2, 3, -3].map((d) => a.line - 1 + d).filter((i) => i >= 0 && i < lines.length).find((k) => lines[k].includes(text));
-    // An exact edit from the agent, for tags the automatic insert cannot handle.
-    if (a.edit) {
-      const i = near(a.edit.from);
-      if (i === undefined) { failed.push({ ...a, reason: `edit text "${a.edit.from}" not found near line ${a.line}` }); continue; }
-      lines[i] = lines[i].replace(a.edit.from, a.edit.to);
-      continue;
-    }
-    const i = near(a.match);
-    if (i === undefined) { failed.push({ ...a, reason: `"${a.match}" not found near line ${a.line}` }); continue; }
-    if (style === 'data-privacy') {
-      if (/data-privacy=/.test(lines[i])) { failed.push({ ...a, reason: 'line already has data-privacy' }); continue; }
-      const at = lines[i].indexOf(a.match) + a.match.length;
-      lines[i] = `${lines[i].slice(0, at)} data-privacy="${a.value}"${lines[i].slice(at)}`;
-      continue;
-    }
-    const result = addClass(lines, i, a.match, RRWEB_CLASS[a.value], /\.(tsx|jsx|ts|js|mjs)$/.test(a.file));
-    if (result) failed.push({ ...a, reason: result });
+    const reason = applyAnnotation(files.get(abs), a, style);
+    if (reason) failed.push({ ...a, reason });
   }
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-scan-'));
-  const original = new Map([...files.keys()].map((abs) => [abs, fs.readFileSync(abs, 'utf8')]));
   // Paths in the patch are relative to the repository root, so `git apply` works from there.
   let top = null;
   try { top = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { /* not a git checkout */ }
   let patch = '';
   let changedFiles = 0;
   for (const [abs, lines] of files) {
-    if (lines.join('\n') === original.get(abs)) continue;
+    const before = fs.readFileSync(abs, 'utf8');
+    const after = lines.join('\n');
+    if (after === before) continue;
     changedFiles++;
-    const rel = path.relative(top || root, abs);
-    const modified = path.join(tmp, rel);
-    fs.mkdirSync(path.dirname(modified), { recursive: true });
-    fs.writeFileSync(modified, lines.join('\n'));
-    const d = spawnSync('git', ['diff', '--no-index', '--no-color', `--src-prefix=a/`, `--dst-prefix=b/`, abs, modified], { encoding: 'utf8' }).stdout;
-    patch += d.split(abs).join(`/${rel}`).split(modified).join(`/${rel}`).replace(/a\/+\//g, 'a/').replace(/b\/+\//g, 'b/');
+    patch += unifiedDiff(path.relative(top || root, abs), before, after);
   }
   fs.writeFileSync(path.join(out, 'privacy.patch'), patch);
   const settled = new Set([...decisions.annotations.flatMap((a) => a.candidates || []), ...Object.keys(decisions.dismissed || {})]);
@@ -215,6 +163,22 @@ if (cmd === 'find') {
   console.log(`${report.title}\n  report: ${files.md}\n  payload: ${files.json}\n  file it: ${report.url}`);
   console.log('\nExamine the report before you send it. It must contain made-up values only.');
   if (files.private) console.log(`\nRecorder gaps were written to ${files.private}. Do not post them publicly: send them as described in SECURITY.md.`);
+  // Sends the public payload only; recorder gaps never leave the private file.
+  if (typeof args.post === 'string') {
+    try {
+      const res = await fetch(args.post, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'user-agent': `privacy-scan/${VERSION}` },
+        body: JSON.stringify(report.payload),
+        signal: AbortSignal.timeout(10000),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) console.log(`\nSent the report to ${args.post}${body.id ? ` (id ${body.id})` : ''}.`);
+      else console.log(`\nThe endpoint refused the report: HTTP ${res.status}${body.error ? ` (${body.error})` : ''}. Use the issue link instead.`);
+    } catch (e) {
+      console.log(`\nCould not send the report to ${args.post}: ${e.message}. Use the issue link instead.`);
+    }
+  }
 } else if (cmd === 'bench') {
   // Scores the rules against labelled apps. Recall and precision may not drop below the baseline.
   const dir = path.resolve(args._[1] || path.join(HERE, 'benchmark', 'react-app'));

@@ -16,7 +16,7 @@ Paste this into the coding agent you use in your repository (Claude Code, Codex,
 Find the data in this application that a session recorder must mask or block.
 
 1. Run this command in the repository root:
-   npx -y -p github:privacy-attribute/spec privacy-scan find <front-end source folder> --sdk rrweb
+   npx -y -p github:privacy-attribute/spec#v0.2.0 privacy-scan find <front-end source folder> --sdk rrweb
 2. The command shows the path of a PLAYBOOK.md file. Read that file.
 3. Do the procedure in the playbook. Do not change files in this repository.
 4. When the patch command shows no open candidates, show me:
@@ -40,9 +40,15 @@ What you get:
 
 Recorders do not all read `data-privacy` yet, so the patch can use the recorder's own classes. With `--sdk rrweb` it writes `rr-block`, `rr-mask` and `rr-ignore`, which rrweb reads with no configuration; add `--annotate data-privacy` to write the standard attribute instead. [`scan/recorders/rrweb.md`](scan/recorders/rrweb.md) explains both and lists the rrweb options to set.
 
+### What leaves your machine
+
+The scanner sends nothing. It writes its session folder to your system temp folder and never changes your repository. Your coding agent reads your code and sends it to the agent's own model provider under your agreement with that provider. A scan report leaves your machine only when you submit it, and it contains counts and made-up examples, never your code.
+
+After you apply the patch, record a session on each changed page with test data and play it back to check that nothing private shows.
+
 ### Report a problem with the scan
 
-If the scan missed private data, flagged too much, or suggested the wrong annotation, [open a scan feedback issue](https://github.com/privacy-attribute/spec/issues/new?template=scan-feedback.yml). Agents write these reports for you in `feedback/`, with a link that fills in the form. Use made-up names and values: never paste code or data from your application.
+If the scan missed private data, flagged too much, or suggested the wrong annotation, [open a scan feedback issue](https://github.com/privacy-attribute/spec/issues/new?template=scan-feedback.yml). Agents write these reports for you in `feedback/`, with a link that fills in the form. `privacy-scan report --post <url>` sends the same report to a feedback endpoint. Use made-up names and values: never paste code or data from your application.
 
 These instructions and every scan produced with them are provided as is, without warranty. A scan can miss data that needs protecting and can propose annotations that are wrong. Its output is not legal advice and not a certification of compliance with any privacy law. The implementer (whoever integrates, configures or ships the recorder) is responsible for the final output: what their recordings contain, how the recorder is configured, and whether that meets their legal and contractual obligations.
 

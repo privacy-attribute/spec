@@ -146,4 +146,9 @@ CAUTION: A `recorder-gap` tells about a weakness in a recorder. Do not put it in
 - At the end, write a short summary. Start it with the text of "Responsibility" above, word for word. Then give:
   1. The number of annotations for each value and category.
   2. The configuration changes.
-  3. The gaps and the paths of their issue texts.
+  3. The gaps, and the paths of the report files.
+  4. These steps for the person, to check the result:
+     1. Apply `privacy.patch` and add the configuration changes.
+     2. Record one session on each page that the patch changes. Use test data.
+     3. Play each recording. Look for private data in text, fields, page titles and URLs.
+     4. When private data shows, report it as a gap of kind `missed-data`.
