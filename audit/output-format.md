@@ -1,6 +1,11 @@
 # Output format
 
-Write one JSON file, `privacy-audit.json`, in your scratch directory, and print its path when you finish. Then write a short summary in prose. It starts with the disclaimer from the Responsibility section of `AGENTS.md`, word for word, then gives counts by kind, severity and verdict, the privacy findings that leak under `targeted` or `strictest`, and the gap reports from step 9 with their issue URLs or, for unfiled reports, their paths and a note that the implementer must file them.
+Write one JSON file, `privacy-audit.json`, in your scratch directory. When you finish, print its path. Then write a short summary in prose. The summary contains these items, in this order:
+
+1. the disclaimer from the Responsibility section of `AGENTS.md`, word for word
+2. counts by kind, severity and verdict
+3. the privacy findings that leak under `targeted` or `strictest`
+4. the gap reports from step 9 with their issue URLs. For reports that you did not file, give their paths and a note that the implementer must file them.
 
 ## Top level
 
@@ -47,7 +52,7 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory, and print 
 }
 ```
 
-`configs` lists every config you evaluated, with the exact options object. Finding fields refer to these ids.
+`configs` lists each config that you tested, with the exact options object. The finding fields refer to these ids.
 
 ## Finding
 
@@ -93,40 +98,40 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory, and print 
 
 | Field | Rule |
 |-------|------|
-| `audit_version`, `target` | Required. Filled in step 0 of the method. `commit` is the full SHA. |
-| `previous_audit` | Present only when you compared with an earlier audit. Its target commit and audit version. |
-| `fingerprint` | `<leak_class>:<sink function>:<source property or attribute>`. Use function and property names, never line numbers, so the same leak gets the same fingerprint in every version. Two findings in one report never share a fingerprint. |
-| `affected_since`, `affected_since_exact` | Oldest release tag that has the leak, found as described in `AGENTS.md` under "Affected releases". |
-| `status`, `status_note` | `new`, `unchanged` or `changed` against `previous_audit`. Use `new` for every finding when there is no previous audit. `status_note` is required for `changed`. |
+| `audit_version`, `target` | Required. Fill them in step 0 of the method. `commit` is the full SHA. |
+| `previous_audit` | Include it only when you compared with an earlier audit. It holds the target commit and the audit version of that audit. |
+| `fingerprint` | `<leak_class>:<sink function>:<source property or attribute>`. Use function and property names. Never use line numbers. Then the same leak gets the same fingerprint in each version. Two findings in one report never share a fingerprint. |
+| `affected_since`, `affected_since_exact` | The oldest release tag that has the leak. Find it as `AGENTS.md` describes under "Affected releases". |
+| `status`, `status_note` | `new`, `unchanged` or `changed` against `previous_audit`. Use `new` for each finding when there is no previous audit. `status_note` is required for `changed`. |
 | `resolved` | Earlier fingerprints that no longer leak, each with `removed_in` and `now_stopped_at`. Empty when there is no previous audit. |
 | `pattern_rank` | The `rank` of `pattern` in `patterns.yaml`, or `null`. |
 | `kind` | `privacy` or `fidelity`. |
 | `data_category` | `secret`, `personal`, `third-party` or `public`, from the Data categories table in `AGENTS.md`. Fidelity findings use `public`. |
 | `special_category` | `true` for `personal` or `third-party` data in a special category (health, sex life or orientation, religion, political views, ethnicity, biometrics, union membership, criminal records). |
-| `fidelity_cost` | For privacy findings: what public content or behaviour the proposed fix removes, and what the cheapest working config today removes. For fidelity findings: what is lost and on which pages it would show. Required. |
-| `pattern` | The `patterns.yaml` id whose test page found this, or `null` if the code track found it. |
-| `recoverable` | `true` if the attacker can reconstruct the full value from one recording, in at least one of your runs. Give the success rate across runs in `reproduction` when it is below all of them. Show the reconstruction in `reproduction`. `false` for partial leaks (length, range, which of a few options). |
-| `leak_class` | One id from `taxonomy.md` (a fidelity class id for fidelity findings). Make one finding per leak class and data category: when evidence of one class spans categories that leak under different configs, split it by category. When one event shows two classes (an echo element whose text length also leaks), report it under each class and cite the same evidence; merge only findings of the same class. |
-| `sink` | The `file:line` where the data is placed into an emitted structure. When one leaking behaviour reaches several sinks (for example a URL in the meta event and in iframe attributes), keep one finding, put the main sink here and the others in `additional_sinks`. |
-| `path` | Ordered steps from the source (DOM read, attribute read, event) to the sink. Each step has a `file:line` and says what happens to the value there. At least two steps. |
-| `masking_checked` | The masking or blocking function on this path and why it does not stop the leak. Write `none` if no check runs. |
-| `leaks_under` / `safe_under` / `not_evaluated` | Config ids from `configs`. Together the three lists cover every config in `configs`. Use `not_evaluated` for configs that did not apply to this finding's pages. |
+| `fidelity_cost` | For privacy findings: the public content or behaviour that the proposed fix removes, and what the cheapest config that works today removes. For fidelity findings: the lost content, and the pages where the loss would show. Required. |
+| `pattern` | The `patterns.yaml` id whose test page found this finding, or `null` if the code track found it. |
+| `recoverable` | `true` if the attacker can reconstruct the full value from one recording, in at least one of your runs. When the attacker does not succeed in all runs, give the success rate across runs in `reproduction`. Show the reconstruction in `reproduction`. `false` for partial leaks (length, range, which of a few options). |
+| `leak_class` | One id from `taxonomy.md` (a fidelity class id for fidelity findings). Make one finding for each leak class and data category. If the evidence of one class covers categories that leak under different configs, split the finding by category. One event can show two classes (for example, an echo element whose text length also leaks). Then report it under each class with the same evidence. Merge only findings of the same class. |
+| `sink` | The `file:line` where the code puts the data into an emitted structure. One leaking behaviour can reach more than one sink (for example, a URL in the meta event and in iframe attributes). Then keep one finding, put the main sink here, and put the other sinks in `additional_sinks`. |
+| `path` | Ordered steps from the source (DOM read, attribute read, event) to the sink. Each step has a `file:line` and tells what happens to the value there. At least two steps. |
+| `masking_checked` | The mask or block function on this path, and why it does not stop the leak. Write `none` if no check runs. |
+| `leaks_under` / `safe_under` / `not_evaluated` | Config ids from `configs`. Together, the three lists cover each config in `configs`. Use `not_evaluated` for configs that do not apply to the pages of this finding. |
 | `disclaimer` | Required. The full disclaimer text from the Responsibility section of `AGENTS.md`, word for word. |
-| `audit_source` | The link or path you read the instructions from. |
-| `feedback_applied` | One row per accepted feedback issue you tested, with its `FB-` pattern id and the finding ids or `no finding`. Empty if there was none or the fetch failed (say which in `method_note`). |
-| `feedback_sent` | One row per report from step 9. `filed` is `true` with the issue or comment `url`, or `false` with the local `path` and the `reason` (failed, no permission, user declined, dry run). |
-| `method_note`, `pattern_coverage` | Required. `pattern_coverage` has one row per `patterns.yaml` id with the configs run and the finding ids or `no finding`. |
-| `coverage[].table` | Optional. Put per-type or per-config result tables (such as the `P-input-types` matrix) on the coverage row of their leak class. |
-| `severity` | `critical`, `high`, `medium` or `low`, per the table in `AGENTS.md`. |
-| `verdict` | `CONFIRMED` when `reproduction.event` was copied from output you ran. `PLAUSIBLE` otherwise. |
-| `reproduction` | Required for `CONFIRMED`. For `PLAUSIBLE`, give `page`, `actions`, `config` and the event you expect, and set `event_observed: false`. |
-| `fix` | A concrete change at a named location. Reject vague fixes such as "improve masking". |
+| `audit_source` | The link or path that you read the instructions from. |
+| `feedback_applied` | One row for each accepted feedback issue that you tested, with its `FB-` pattern id and the finding ids or `no finding`. Empty if there was no accepted feedback or the fetch failed (write which in `method_note`). |
+| `feedback_sent` | One row for each report from step 9. `filed` is `true` with the issue or comment `url`, or `false` with the local `path` and the `reason` (failed, no permission, user declined, dry run). |
+| `method_note`, `pattern_coverage` | Required. `pattern_coverage` has one row for each `patterns.yaml` id, with the configs that you ran and the finding ids or `no finding`. |
+| `coverage[].table` | Optional. Put result tables for each type or config (such as the `P-input-types` matrix) on the coverage row of their leak class. |
+| `severity` | `critical`, `high`, `medium` or `low`, as the table in `AGENTS.md` gives. |
+| `verdict` | `CONFIRMED` when you copied `reproduction.event` from output that you ran. `PLAUSIBLE` in all other cases. |
+| `reproduction` | Required for `CONFIRMED`. For `PLAUSIBLE`, give `page`, `actions`, `config` and the event that you expect, and set `event_observed: false`. |
+| `fix` | A concrete change at a named location. Do not accept vague fixes such as "improve masking". |
 
 ## Rejected findings
 
 Do not include a finding that:
 
-- has no `path`, or a path whose steps lack `file:line`
-- says a class "may" leak without naming the code that emits it
-- repeats another finding with different wording; merge them and list every sink
-- depends on the page author putting secrets in a place the SDK documents as recorded in the clear (for example a custom event the app emits itself), unless the docs say otherwise
+- has no `path`, or has a path whose steps have no `file:line`
+- says that a class "may" leak, and does not name the code that emits it
+- repeats another finding with different words. Merge the two findings and list each sink.
+- depends on the page author to put secrets in a place that the SDK documents as recorded in the clear, unless the docs say otherwise. An example of such a place is a custom event that the app emits itself.

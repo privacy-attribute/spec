@@ -4,40 +4,49 @@ export function playbook({ auditDir, sessionDir, sdk, target, cli, headless }) {
   const common = `--adapter ${target.adapter} --sdk ${sdk} --out ${sessionDir}`;
   return `# Privacy audit playbook
 
-You are finishing a privacy audit of the capture SDK in the current folder (${sdk}) for the person who started you. The runner has already recorded every pattern and drafted every finding. Your job is the part that needs judgement: trace each channel to the code, and say how to fix it. Work fast and keep your output short.
+You complete a privacy audit of the capture SDK in the current folder (${sdk}) for the person who started you. The runner already recorded each pattern and wrote a draft of each finding. Your task is the part that needs judgement. Trace each channel to the code, and tell how to fix it. Work quickly. Keep your output short.
 
 ## Read first
 
-1. ${sessionDir}/trace-plan.md: one section per channel, with its draft findings, code starting points (file:line) and one evidence sample. This is your work list.
-2. The Data categories, Severity and Responsibility sections of ${auditDir}/AGENTS.md. Skip the rest unless the plan leaves you unsure.
+1. ${sessionDir}/trace-plan.md: one section for each channel, with its draft findings, the code starting points (file:line) and one evidence sample. This is your work list.
+2. The Data categories, Severity and Responsibility sections of ${auditDir}/AGENTS.md. Do not read the other sections, unless the plan leaves you unsure.
 
-Do not read draft-findings.json, results.json or patterns.yaml end to end. When you need more evidence for one finding, query it: \`jq '.differential[] | select(.pattern=="P-pin-pad" and .config=="targeted") | .channels' ${sessionDir}/results.json\`.
+Do not read draft-findings.json, results.json or patterns.yaml from start to end. When you need more evidence for one finding, query the file: \`jq '.differential[] | select(.pattern=="P-pin-pad" and .config=="targeted") | .channels' ${sessionDir}/results.json\`.
 
 ## Trace each channel once
 
-For each channel in the plan, open the code starting points and follow the value from where it is read from the page to where it is emitted. Then fill that channel's entry in ${sessionDir}/traces.json:
+For each channel in the plan, open the code starting points. Follow the value from the place where the code reads it from the page to the place where the code emits it. Then fill in the entry for that channel in ${sessionDir}/traces.json:
 
-- \`path\`: two to five steps, each starting with \`file:line\` and saying what happens to the value there. End at the line that puts it into an emitted event.
+- \`path\`: two to five steps. Start each step with \`file:line\`, and tell what happens to the value there. End at the line that puts the value into an emitted event.
 - \`masking_checked\`: the mask or block check on this path, and why it does not stop the leak (or "none").
 - \`fix\`: a concrete change at a named location, with the smallest fidelity cost.
-- \`fidelity_cost\`: what public content or behaviour that fix removes.
-- \`verdict\`: keep CONFIRMED; the runner reproduced it.
+- \`fidelity_cost\`: the public content or behaviour that the fix removes.
+- \`verdict\`: keep CONFIRMED. The runner reproduced the leak.
 
-The entry applies to every finding under that channel. Use \`findings\` in traces.json only for exceptions, keyed by finding id: \`{"F12": {"drop": "runner noise: ..."}}\` when the evidence does not hold up, or field overrides such as a different \`severity\` or \`recoverable\` with a reason in \`title\`. Fill the fidelity findings (ids in the plan) through \`findings\` too. Trace everything yourself in this one session: subagents re-read the context and multiply the cost without saving time.
+The entry applies to each finding under that channel. Use \`findings\` in traces.json only for exceptions, keyed by finding id. Use \`{"F12": {"drop": "runner noise: ..."}}\` when the evidence is not correct. Use field overrides, such as a different \`severity\` or \`recoverable\`, with a reason in \`title\`.
 
-Then run \`${run} merge --out ${sessionDir}\`. It writes privacy-audit.json and lists any finding still missing a path or fix. Fix those and run it again until it reports none.
+Also fill in the fidelity findings (the plan gives their ids) through \`findings\`. Trace all channels yourself in this one session. Subagents read the context again, which multiplies the cost and saves no time.
+
+Then run \`${run} merge --out ${sessionDir}\`. This command writes privacy-audit.json and lists each finding that does not have a path or fix yet. Correct those findings. Run the command again until it lists no findings.
 
 ## Gaps (mandatory)
 
-If you notice a leak that no draft covers, write a fixture in ${sessionDir}/fixtures/ (format in ${auditDir}/runner/README.md), run \`${run} report <fixture> ${common} --what "<what you found and expected>"\`, add the finding to \`extra_findings\` and the report to \`feedback_sent\` in traces.json, and merge again. Only do this for leaks you actually find while tracing; do not search for new ones beyond the plan.
+If you see a leak that no draft covers, do these steps:
+
+1. Write a fixture in ${sessionDir}/fixtures/ (the format is in ${auditDir}/runner/README.md).
+2. Run \`${run} report <fixture> ${common} --what "<what you found and expected>"\`.
+3. In traces.json, add the finding to \`extra_findings\` and the report to \`feedback_sent\`.
+4. Merge again.
+
+Do this only for leaks that you find during the trace. Do not search for new leaks outside the plan.
 
 ## Rules
 
-- Do not modify, commit or switch branches in ${sdk}. Write only inside ${sessionDir}.
-- Use made-up values in every fixture and report.
+- Do not change files, commit or switch branches in ${sdk}. Write only inside ${sessionDir}.
+- Use made-up values in each fixture and each report.
 ${headless
-    ? '- No person is at the terminal. Do not ask questions and do not file issues: leave reports in the session folder.'
-    : '- Tell the person what you are doing. Ask before you file an issue, install anything, or run anything outside the session folder. Show pre-filled links and let the person submit them.'}
-- End with a short summary that starts with the disclaimer from the Responsibility section of AGENTS.md, word for word, then gives counts by severity, the findings that leak under \`targeted\` or \`strictest\`, and the report files for the implementer to file.
+    ? '- No person is at the terminal. Do not ask questions. Do not file issues. Leave the reports in the session folder.'
+    : '- Tell the person what you do. Ask before you file an issue, install anything, or run anything outside the session folder. Show pre-filled links, and let the person submit them.'}
+- End with a short summary. Start it with the disclaimer from the Responsibility section of AGENTS.md, word for word. Then give counts by severity, the findings that leak under \`targeted\` or \`strictest\`, and the report files that the implementer must file.
 `;
 }
