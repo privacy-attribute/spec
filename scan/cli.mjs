@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // privacy-scan: finds front-end code a session recorder must mask or block, and proposes annotations.
 //
-//   privacy-scan find   <app-source-dir> [--sdk rrweb] [--annotate rrweb|data-privacy] [--out <dir>]
+//   privacy-scan find   <app-source-dir> [--sdk rrweb] [--annotate rrweb|data-privacy] [--include <path,...>] [--out <dir>]
 //                                                                      static pass; prints the session folder and its PLAYBOOK.md
 //   privacy-scan patch  --out <dir>                                    annotations.json -> privacy.patch and app-privacy.json
 //   privacy-scan report --out <dir> [--post <url>]                     one feedback report for the scan, and private recorder gaps;
@@ -56,9 +56,9 @@ function annotateStyle(requested, sdk) {
   return style;
 }
 
-function runFind(src, out, sdk, headless, annotate) {
+function runFind(src, out, sdk, headless, annotate, include) {
   const root = path.resolve(src);
-  const result = { ...find(root), target: { root, ...gitInfo(root) }, sdk: sdk || null, annotate, scan_version: VERSION };
+  const result = { ...find(root, { include }), target: { root, ...gitInfo(root) }, sdk: sdk || null, annotate, scan_version: VERSION };
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, 'candidates.json'), JSON.stringify(result, null, 1));
   fs.writeFileSync(path.join(out, 'scan-plan.md'), planMarkdown(result));
@@ -146,9 +146,10 @@ const cmd = args._[0];
 
 const sdkArg = typeof args.sdk === 'string' ? args.sdk : null;
 const annotateArg = annotateStyle(typeof args.annotate === 'string' ? args.annotate : null, sdkArg);
+const includeArg = typeof args.include === 'string' ? args.include.split(',').map((s) => s.trim()).filter(Boolean) : null;
 
 if (cmd === 'find') {
-  runFind(args._[1] || '.', path.resolve(typeof args.out === 'string' ? args.out : defaultOut('privacy-scan')), sdkArg, false, annotateArg);
+  runFind(args._[1] || '.', path.resolve(typeof args.out === 'string' ? args.out : defaultOut('privacy-scan')), sdkArg, false, annotateArg, includeArg);
 } else if (cmd === 'patch') {
   if (typeof args.out !== 'string') throw new Error('patch needs --out <session folder>');
   runPatch(path.resolve(args.out));
@@ -192,7 +193,7 @@ if (cmd === 'find') {
 } else if (cmd === 'agent') {
   const src = path.resolve(args._[1] || '.');
   const out = path.resolve(typeof args.out === 'string' ? args.out : defaultOut('privacy-scan'));
-  const { promptFile } = runFind(src, out, sdkArg, Boolean(args.headless), annotateArg);
+  const { promptFile } = runFind(src, out, sdkArg, Boolean(args.headless), annotateArg, includeArg);
   writeSession({ dir: out, playbook: fs.readFileSync(promptFile, 'utf8'), context: { target: { root: src, ...gitInfo(src) }, sdk: sdkArg } });
   const agent = await chooseAgent(typeof args.agent === 'string' ? args.agent : undefined);
   const prompt = `Read ${promptFile} and follow it. It sets up a privacy scan of the front-end code in the current folder.`;
@@ -200,7 +201,7 @@ if (cmd === 'find') {
     console.log(`\nNo supported agent CLI (claude, codex) was found. Start any coding agent in ${src} with: ${prompt}`);
   } else {
     console.log(`\nStarting ${agent.label} in ${src}. Session folder: ${out}\n`);
-    const code = await launch({ agent, promptFile, cwd: src, headless: Boolean(args.headless), model: typeof args.model === 'string' ? args.model : undefined, dirs: [out, HERE], prompt });
+    const code = await launch({ agent, promptFile, cwd: src, headless: Boolean(args.headless), model: typeof args.model === 'string' ? args.model : undefined, dirs: [out, HERE], scripts: [CLI], prompt });
     if (code !== 0) process.exitCode = code;
   }
 } else {

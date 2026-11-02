@@ -241,7 +241,7 @@ if (cmd === 'run') {
     console.log(['', 'No supported agent CLI (claude, codex) was found on this machine.', 'The playbook and context were written to:', `  ${promptFile}`, `  ${contextFile}`, '', `Start any coding agent in ${sdk} with: ${launchPrompt(promptFile)}`].join('\n'));
   } else {
     console.log(`\nStarting ${agent.label} in ${sdk}. Session folder: ${dir}\n`);
-    const code = await launchAgent({ agent, promptFile, cwd: sdk, headless: Boolean(args.headless), model: typeof args.model === 'string' ? args.model : undefined, dirs: [dir, AUDIT_DIR] });
+    const code = await launchAgent({ agent, promptFile, cwd: sdk, headless: Boolean(args.headless), model: typeof args.model === 'string' ? args.model : undefined, dirs: [dir, AUDIT_DIR], scripts: [fileURLToPath(import.meta.url)] });
     if (code !== 0) process.exitCode = code;
   }
 } else if (cmd === 'report') {

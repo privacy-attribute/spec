@@ -6,16 +6,24 @@ import { RULES, COVERAGE, MARKUP, PERSON_FIELD, PUBLIC_OWNER } from './rules.mjs
 
 const EXT = /\.(tsx|jsx|ts|js|mjs|vue|svelte|astro|html|hbs|erb|cshtml|php)$/;
 const SKIP_DIR = new Set(['node_modules', 'dist', 'build', '.next', '.nuxt', '.output', '.svelte-kit', 'coverage', '.git', '.claude', 'vendor', 'public', 'storybook-static']);
-const SKIP_FILE = /\.(test|spec|stories|e2e|d)\.|\.gen\.|routeTree\.gen|\.min\.|[-.](fixtures?|mocks?)\.|__mocks__/;
+const SKIP_FILE = /\.(test|spec|stories|e2e|d)\.|\.gen\.|\.generated\.|routeTree\.gen|\.min\.|[-.](fixtures?|mocks?)\.|__mocks__/;
+// Generated code (GraphQL types, API clients) holds no rendered data.
+const GENERATED_DIR = /^(generated|__generated__|generated-.+|.+-generated|gql|__gql__)$/;
 const COMPONENT = /^\s*(export\s+)?(default\s+)?(async\s+)?(function|const|let|class)\s+([A-Z][\w$]*)/;
 const CATEGORY_ORDER = ['secret', 'secret?', 'third-party', 'third-party?', 'personal', 'personal?'];
 
-function files(root) {
+// `include` limits the scan to paths under these prefixes, relative to root.
+function files(root, include) {
   const out = [];
+  const prefixes = (include || []).map((p) => path.normalize(p).replace(/[\\/]+$/, ''));
+  const wanted = (rel) => !prefixes.length || prefixes.some((p) => rel === p || rel.startsWith(p + path.sep) || p.startsWith(rel + path.sep));
   const walk = (d) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-      if (e.isDirectory()) { if (!SKIP_DIR.has(e.name) && !e.name.startsWith('.')) walk(path.join(d, e.name)); }
-      else if (EXT.test(e.name) && !SKIP_FILE.test(e.name)) out.push(path.join(d, e.name));
+      const abs = path.join(d, e.name);
+      const rel = path.relative(root, abs);
+      if (e.isDirectory()) {
+        if (!SKIP_DIR.has(e.name) && !e.name.startsWith('.') && !GENERATED_DIR.test(e.name) && wanted(rel)) walk(abs);
+      } else if (EXT.test(e.name) && !SKIP_FILE.test(e.name) && wanted(rel)) out.push(abs);
     }
   };
   walk(root);
@@ -61,11 +69,11 @@ function sourceNames(src) {
   return names;
 }
 
-export function find(root) {
+export function find(root, { include } = {}) {
   const candidates = [];
   let scanned = 0;
   let lines = 0;
-  for (const file of files(root)) {
+  for (const file of files(root, include)) {
     const src = fs.readFileSync(file, 'utf8').split('\n');
     scanned++;
     lines += src.length;
@@ -118,7 +126,7 @@ export function find(root) {
   candidates.sort((a, b) => CATEGORY_ORDER.indexOf(a.category_hint) - CATEGORY_ORDER.indexOf(b.category_hint)
     || a.file.localeCompare(b.file) || a.line - b.line);
   candidates.forEach((c, i) => { c.id = `C${i + 1}`; });
-  return { root, scanned_files: scanned, scanned_lines: lines, candidates };
+  return { root, include: include || null, scanned_files: scanned, scanned_lines: lines, candidates };
 }
 
 // Compact plan for the agent: one section per file, most private category first.

@@ -7,8 +7,10 @@ import readline from 'node:readline/promises';
 import { spawn, spawnSync } from 'node:child_process';
 
 // Tools a headless Claude run may use without asking: reading anywhere, writing (the playbook
-// limits writes to the session folder), and read-only shell commands plus the runner itself.
-const CLAUDE_TOOLS = 'Read,Grep,Glob,Write,Edit,Bash(node:*),Bash(jq:*),Bash(grep:*),Bash(rg:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(sed -n:*),Bash(wc:*),Bash(git log:*),Bash(git show:*),Bash(git blame:*),Bash(git describe:*),Bash(git tag:*)';
+// limits writes to the session folder), read-only shell commands, and node for the given scripts
+// only. Code in the scanned folder may contain text aimed at agents, so nothing broader is allowed.
+const READ_ONLY = 'Read,Grep,Glob,Write,Edit,Bash(jq:*),Bash(grep:*),Bash(rg:*),Bash(ls:*),Bash(head:*),Bash(sed -n:*),Bash(wc:*),Bash(git log:*),Bash(git show:*),Bash(git blame:*),Bash(git describe:*),Bash(git tag:*)';
+const claudeTools = (scripts = []) => [READ_ONLY, ...scripts.map((s) => `Bash(node ${s}:*)`)].join(',');
 
 // `interactive` and `headless` build the arguments that carry the one-line launch prompt.
 // `dirs` are the session and audit folders, which sit outside the SDK folder the agent starts in.
@@ -18,7 +20,7 @@ export const AGENTS = [
     command: 'claude',
     label: 'Claude Code',
     interactive: (p, dirs) => ['--add-dir', ...dirs, '--', p],
-    headless: (p, dirs) => ['-p', p, '--output-format', 'json', '--add-dir', ...dirs, '--allowedTools', CLAUDE_TOOLS],
+    headless: (p, dirs, scripts) => ['-p', p, '--output-format', 'json', '--add-dir', ...dirs, '--allowedTools', claudeTools(scripts)],
     // Headless output is JSON (result text plus usage); it is saved to the session folder.
     jsonOutput: true,
   },
@@ -71,9 +73,9 @@ export function writeSession({ dir, playbook, context }) {
 export const launchPrompt = (promptFile) =>
   `Read ${promptFile} and follow it. It sets up a privacy audit of the SDK in the current folder.`;
 
-export function launch({ agent, promptFile, cwd, headless, model, dirs = [], prompt: text }) {
+export function launch({ agent, promptFile, cwd, headless, model, dirs = [], scripts = [], prompt: text }) {
   const prompt = text || launchPrompt(promptFile);
-  const args = [...(model ? ['--model', model] : []), ...(headless ? agent.headless(prompt, dirs) : agent.interactive(prompt, dirs))];
+  const args = [...(model ? ['--model', model] : []), ...(headless ? agent.headless(prompt, dirs, scripts) : agent.interactive(prompt, dirs))];
   const capture = headless && agent.jsonOutput;
   const started = Date.now();
   return new Promise((resolve, reject) => {
