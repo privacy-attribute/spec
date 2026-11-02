@@ -95,7 +95,7 @@ export function feedbackIssue({ kind, actor, out, fixtureFile, fixtureSource, wh
     ``,
   ].join('\n');
   const params = new URLSearchParams({
-    template: 'audit-feedback.yml',
+    template: 'sdk-audit-feedback.yml',
     title,
     kind,
     actor,

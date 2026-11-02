@@ -1,7 +1,7 @@
 {
   "name": "@privacy-attribute/spec",
-  "version": "0.0.1",
-  "description": "Privacy Attribute Standard (PAS): the page-owned data-privacy attribute and capture policy for session recorders and other capture SDKs. Placeholder release; the proposal is under review.",
+  "version": "0.1.0",
+  "description": "Privacy Attribute Standard (PAS): the data-privacy attribute for session recorders and other capture SDKs, and a scanner that finds what an application must mask or block.",
   "license": "MIT",
   "author": "rrweb B.V.",
   "homepage": "https://github.com/privacy-attribute/spec",
@@ -10,21 +10,33 @@
     "url": "https://github.com/privacy-attribute/spec"
   },
   "keywords": [
-    "privacy",
-    "data-privacy",
-    "masking",
-    "redaction",
-    "session-replay",
     "capture",
-    "rrweb",
+    "data-privacy",
+    "gdpr",
+    "masking",
+    "pas",
+    "pii",
+    "privacy",
     "privacy-attribute",
-    "pas"
+    "privacy-scan",
+    "redaction",
+    "rrweb",
+    "session-replay"
   ],
   "files": [
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "scan/",
+    "audit/runner/lib/agent.mjs"
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "bin": {
+    "privacy-scan": "scan/cli.mjs"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
   }
 }

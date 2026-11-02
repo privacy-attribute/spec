@@ -1,0 +1,41 @@
+name: Scan feedback
+description: Report private data the scan missed, a rule that flags too much, guidance that gave the wrong annotation, or a recorder gap.
+title: "<kind>: "
+labels: ["scan-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use made-up names and values in this issue. Do not paste code or data from your application.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [missed-data, false-positive, wrong-guidance, recorder-gap, unclear-instruction]
+    validations: { required: true }
+  - type: input
+    id: recorder
+    attributes:
+      label: Recorder
+      placeholder: "rrweb 2.2.0"
+  - type: input
+    id: scan-version
+    attributes:
+      label: Scan version
+      placeholder: "0.1.0"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations: { required: true }
+  - type: textarea
+    id: example
+    attributes:
+      label: Example (made-up)
+      description: A short snippet that shows the pattern, written new with made-up values.
+      render: html
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: The candidate, annotation or guidance you expected.

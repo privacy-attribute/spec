@@ -1,5 +1,5 @@
-name: Audit feedback
-description: Report a privacy leak the audit missed, a false positive, or a problem with the audit instructions.
+name: SDK audit feedback
+description: For recorder maintainers. Report a privacy leak the SDK audit missed, a false positive, or a problem with the audit instructions.
 title: "<kind>: "
 labels: ["audit-feedback"]
 body:
