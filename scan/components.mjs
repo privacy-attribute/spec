@@ -49,6 +49,20 @@ function idsIn(node) {
   return out;
 }
 
+// Identifiers whose values an expression shows: nested JSX elements and functions are left out,
+// because handlers are not data and nested elements are checked on their own.
+function dataIdsIn(node) {
+  const out = new Set();
+  walk(node, (n, p) => {
+    if (n !== node && (n.type === 'JSXElement' || n.type === 'JSXFragment' || n.type === 'ArrowFunctionExpression' || n.type === 'FunctionExpression')) return false;
+    if (n.type === 'Identifier' && !(p && (p.type === 'MemberExpression' || p.type === 'OptionalMemberExpression') && p.property === n && !p.computed) && !(p && p.type === 'ObjectProperty' && p.key === n && !p.computed)) out.add(n.name);
+    return true;
+  });
+  return out;
+}
+// A name that holds a secret, which excludes flags and handlers such as hasValidToken or onTokenChange.
+const secretIdentifier = (name) => SECRET_NAME.test(name) && !/^(has|is|should|can|show|with|needs|handle|on|set|toggle|open|close|validate|refresh|regenerate|copy|generate|reset)[A-Z_]/.test(name);
+
 function bindingNames(pattern, out = []) {
   if (!pattern) return out;
   if (pattern.type === 'Identifier') out.push(pattern.name);
@@ -125,25 +139,41 @@ function analyse(comp, taintedProps) {
   }
   if (comp.propsObject && (taintedProps.size || [...comp.propTypes.values()].some((t) => PERSON_TYPE.test(t)))) mark(comp.propsObject, [...taintedProps.values()][0] || 'props');
   // Sources and derived values, repeated until no new names are found.
-  for (let pass = 0; pass < 4; pass++) {
+  // React state and its setter: state holds whatever data its setter receives.
+  const setters = new Map();
+  walk(comp.fn.body, (n) => {
+    if (n.type === 'VariableDeclarator' && n.id.type === 'ArrayPattern' && n.init?.type === 'CallExpression' && /^use(State|Reducer)$/.test(calleeName(n.init) || '')) {
+      const [state, setter] = n.id.elements;
+      if (state?.type === 'Identifier' && setter?.type === 'Identifier') setters.set(setter.name, state.name);
+    }
+  });
+  for (let pass = 0; pass < 5; pass++) {
     let changed = false;
     walk(comp.fn.body, (n) => {
       if (n.type === 'VariableDeclarator' && n.init) {
         const names = bindingNames(n.id);
         let origin = null;
-        let init = n.init.type === 'AwaitExpression' ? n.init.argument : n.init;
+        const awaited = n.init.type === 'AwaitExpression';
+        let init = awaited ? n.init.argument : n.init;
         if (init.type === 'TSAsExpression' || init.type === 'TSNonNullExpression') init = init.expression;
+        if (init.type === 'ArrowFunctionExpression' || init.type === 'FunctionExpression') return true;
         if (init.type === 'CallExpression') {
           const name = calleeName(init);
+          if (name && /^use(Callback|Ref)$/.test(name)) return true;
           if (name && /^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name) && DATA_HOOK.test(name)) origin = `${name}()`;
           if (name && /^(useRecoilValue|useAtomValue|useRecoilState|useAtom|useSelector|useStore|useContext)$/.test(name)) origin = `${name}(${init.arguments[0] ? [...idsIn(init.arguments[0])][0] || '' : ''})`;
           if (name && /^(fetch|get|post|request|query)$/.test(name)) origin = `${name}()`;
+          if (name && awaited && /^(fetch|load|get|query|request|retrieve|find|search|list)[A-Z]\w*$/.test(name)) origin = `${name}()`;
         }
         if (!origin) {
-          const used = [...idsIn(init)].find((id) => taint.has(id));
+          const used = [...dataIdsIn(init)].find((id) => taint.has(id));
           if (used) origin = taint.get(used);
         }
         if (origin) names.forEach((nm) => { changed = mark(nm, origin) || changed; });
+      }
+      if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && setters.has(n.callee.name) && n.arguments[0]) {
+        const used = [...dataIdsIn(n.arguments[0])].find((id) => taint.has(id));
+        if (used) changed = mark(setters.get(n.callee.name), taint.get(used)) || changed;
       }
       // Callback parameters of iterations over tainted values: rows.map((row) => ...).
       if (n.type === 'CallExpression' && n.callee.type === 'MemberExpression' && /^(map|flatMap|forEach|filter|find|some|reduce)$/.test(n.callee.property?.name || '')) {
@@ -160,7 +190,10 @@ function analyse(comp, taintedProps) {
   const sites = [];
   const edges = [];
   const uses = []; // each child component element: its name, and whether it gets private data
-  const tainted = (expr) => [...idsIn(expr)].find((id) => taint.has(id)) || (SECRET_NAME.test(exprText(expr)) ? '#secret' : null);
+  const tainted = (expr) => {
+    const ids = [...dataIdsIn(expr)];
+    return ids.find((id) => taint.has(id)) || (ids.some(secretIdentifier) || /\.(\w*(secret|token|password|apiKey|privateKey)\w*)\b/i.test(exprText(expr)) && !/\b(has|is|show)\w*(Token|Secret|Password)/.test(exprText(expr)) ? '#secret' : null);
+  };
   walk(comp.fn.body, (n) => {
     if (n.type !== 'JSXElement') return true;
     const opening = n.openingElement;
@@ -192,7 +225,7 @@ function analyse(comp, taintedProps) {
       sites.push({ line: child.loc.start.line, tag, kind: 'text', expr: exprText(child.expression), origin });
       if (isComp) edges.push({ child: tag, prop: 'children', origin });
     }
-    if (isComp) uses.push({ child: tag.split('.').pop(), tainted: edges.length > edgesBefore });
+    if (isComp) uses.push({ child: tag.split('.').pop(), tainted: edges.length > edgesBefore, line });
     return true;
   });
   return { sites, edges, uses };
@@ -273,12 +306,14 @@ export function componentPass(root, files) {
     });
   }
   // Uses of each component across the app, and how many of them pass private data.
+  // usage[name] = [uses, uses with private data, up to 30 locations as [file, line, private]].
   const usage = {};
-  for (const r of results.values()) {
+  for (const [c, r] of results) {
     for (const u of r.uses) {
-      const k = (usage[u.child] ||= [0, 0]);
+      const k = (usage[u.child] ||= [0, 0, []]);
       k[0]++;
       if (u.tainted) k[1]++;
+      if (k[2].length < 30) k[2].push([c.file, u.line, u.tainted]);
     }
   }
   // Where each component sits, and whether it gets data from its own hooks or typed props

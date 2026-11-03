@@ -97,7 +97,7 @@ export function overMaskWarnings(scan, annotations) {
       .sort((x, y) => (x[2] - x[1]) - (y[2] - y[1]))[0];
     if (!enclosing) continue;
     const [name, , , ownData] = enclosing;
-    const [uses = 0, tainted = 0] = usage[name] || [];
+    const [uses = 0, tainted = 0, at = []] = usage[name] || [];
     const publicUses = uses - tainted;
     if (ownData || publicUses < 2 || publicUses < uses / 4) continue;
     warnings.push({
@@ -106,7 +106,9 @@ export function overMaskWarnings(scan, annotations) {
       component: name,
       uses,
       private_uses: tainted,
-      message: `<${name}> is used ${uses} times and gets private data in ${tainted} of them: annotate at those uses, or set accept_shared with a reason`,
+      private_at: at.filter((u) => u[2]).map(([f, l]) => `${f}:${l}`),
+      public_at: at.filter((u) => !u[2]).map(([f, l]) => `${f}:${l}`),
+      message: `<${name}> is used ${uses} times and gets private data in ${tainted} of them (${at.filter((u) => u[2]).slice(0, 8).map(([f, l]) => `${f}:${l}`).join(', ')}): annotate at those uses, or set accept_shared with a reason`,
     });
   }
   return warnings;
