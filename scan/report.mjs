@@ -53,7 +53,7 @@ export function buildScanReport({ scan, decisions }) {
     annotate: scan.annotate,
     size: { files: scan.scanned_files, candidates: scan.candidates.length },
     annotations: byValue,
-    dismissed: Object.keys(decisions.dismissed || {}).length,
+    dismissed: Object.keys(decisions.dismissed || {}).filter((k) => !k.includes(':')).length,
     rule_outcomes: ruleOutcomes(scan.candidates, decisions),
     gaps: publicGaps,
   };

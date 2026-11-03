@@ -91,7 +91,8 @@ export function overMaskWarnings(scan, annotations) {
   const usage = scan.component_usage || {};
   const warnings = [];
   for (const a of annotations) {
-    if (a.accept_shared || a.auto) continue;
+    // A secret is private at every use, so a shared secret field is never over-masked.
+    if (a.accept_shared || a.auto || a.category === 'secret') continue;
     const enclosing = (index[a.file] || [])
       .filter(([, start, end]) => a.line >= start && a.line <= end)
       .sort((x, y) => (x[2] - x[1]) - (y[2] - y[1]))[0];
@@ -112,4 +113,42 @@ export function overMaskWarnings(scan, annotations) {
     });
   }
   return warnings;
+}
+
+const SECRET_SITE = /secret name|token|secret|password|apiKey|api_key/i;
+
+// Lines where a unit puts data in the page (text and attributes) that no annotation covers: no
+// annotated element contains the line. Data passed to a child component is checked in the child. Checked for
+// every annotated unit, and for dismissed units at lines that show a secret. `spans(file)` returns
+// the element spans of a file (elementSpans); `dismissed` may hold "C12:L40" keys that accept a line.
+export function uncoveredSites(scan, decisions, spans) {
+  const annotations = decisions.annotations || [];
+  const dismissed = decisions.dismissed || {};
+  const annotatedIds = new Set(annotations.flatMap((a) => a.candidates || []));
+  const byFile = new Map();
+  for (const a of annotations) {
+    if (!byFile.has(a.file)) byFile.set(a.file, []);
+    const els = spans(a.file).filter(([s, open]) => a.line >= s && a.line <= open).sort((x, y) => (x[2] - x[0]) - (y[2] - y[0]));
+    byFile.get(a.file).push(els[0] ? [els[0][0], els[0][2]] : [a.line - 1, a.line + 1]);
+  }
+  const out = [];
+  for (const c of scan.candidates) {
+    if (!c.sites || c.cached || c.settled) continue;
+    const annotated = annotatedIds.has(c.id);
+    if (!annotated && !(c.id in dismissed)) continue;
+    const ranges = byFile.get(c.file) || [];
+    const lines = new Set();
+    for (const site of c.sites) {
+      // Data passed to a child component is checked where the child renders it.
+      if (/^prop /.test(site.kind)) continue;
+      // With rrweb, maskAllInputs masks input values.
+      if (scan.sdk === 'rrweb' && /^attr (value|defaultValue)$/.test(site.kind) && /^(input|textarea|select|Input|Textarea|TextArea|Select|PasswordInput|PinInput\w*|InputOTP\w*)$/.test(site.tag.split('.').pop())) continue;
+      if (!annotated && !SECRET_SITE.test(`${site.origin} ${site.expr}`)) continue;
+      if (`${c.id}:L${site.line}` in dismissed) continue;
+      if (ranges.some(([s, e]) => site.line >= s && site.line <= e)) continue;
+      lines.add(site.line);
+    }
+    if (lines.size) out.push({ id: c.id, file: c.file, component: c.component, lines: [...lines].sort((x, y) => x - y), dismissed: !annotated });
+  }
+  return out;
 }

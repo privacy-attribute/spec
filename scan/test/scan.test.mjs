@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { applyAnnotation, unifiedDiff, overMaskWarnings } from '../patch.mjs';
+import { applyAnnotation, unifiedDiff, overMaskWarnings, uncoveredSites } from '../patch.mjs';
 import { find } from '../find.mjs';
 import { buildScanReport, ruleOutcomes } from '../report.mjs';
 
@@ -213,4 +213,26 @@ test('template pass: Svelte props, each blocks and page data', () => {
   assert.deepEqual(page.site_lines, [6]);
   const avatar = r.candidates.find((c) => c.file === 'Avatar.svelte');
   assert.deepEqual(avatar.site_lines, [7, 8]);
+});
+
+test('uncovered sites: lines of an annotated unit outside every annotated element are reported', () => {
+  const scan = {
+    sdk: 'rrweb',
+    candidates: [
+      { id: 'C1', file: 'Card.tsx', component: 'Card', sites: [{ line: 3, tag: 'h3', kind: 'text', expr: 'user.name', origin: 'useUser()' }, { line: 6, tag: 'span', kind: 'text', expr: 'user.email', origin: 'useUser()' }, { line: 7, tag: 'Avatar', kind: 'prop user', expr: 'user', origin: 'useUser()' }, { line: 8, tag: 'input', kind: 'attr value', expr: 'user.phone', origin: 'useUser()' }] },
+      { id: 'C2', file: 'Row.tsx', component: 'Row', sites: [{ line: 4, tag: 'a', kind: 'attr href', expr: '`/sign/${token}`', origin: 'secret name' }, { line: 5, tag: 'p', kind: 'text', expr: 'row.title', origin: 'prop row' }] },
+    ],
+  };
+  const spans = (file) => (file === 'Card.tsx' ? [[2, 2, 4]] : []);
+  const decisions = { annotations: [{ file: 'Card.tsx', line: 2, value: 'mask', candidates: ['C1'] }], dismissed: { C2: 'row actions' } };
+  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => [u.id, u.lines, u.dismissed]), [['C1', [6], false], ['C2', [4], true]]);
+  decisions.dismissed['C1:L6'] = 'shown only to the user';
+  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => u.id), ['C2']);
+});
+
+test('component pass: conditions and mapped elements are not text sites', () => {
+  const r = find(tempApp({ 'List.tsx': "export function List() {\n  const { data: rows } = useQuery(q);\n  return (\n    <div>\n      {rows.length > 0 && (\n        <ul>{rows.map((r) => <li key={r.id}>{r.fullName}</li>)}</ul>\n      )}\n      <p>{_(msg`Empty`)}</p>\n    </div>\n  );\n}\n" }));
+  const unit = r.candidates.find((c) => c.component === 'List');
+  assert.deepEqual(unit.site_lines, [6]);
+  assert.deepEqual(unit.sites.map((s) => s.tag), ['li']);
 });

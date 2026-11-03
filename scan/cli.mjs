@@ -19,7 +19,8 @@ import { chooseAgent, writeSession, launch } from '../audit/runner/lib/agent.mjs
 import { playbook } from './playbook.mjs';
 import { buildScanReport, writeScanReport } from './report.mjs';
 import { bench, formatBench } from './bench.mjs';
-import { applyAnnotation, unifiedDiff, overMaskWarnings } from './patch.mjs';
+import { applyAnnotation, unifiedDiff, overMaskWarnings, uncoveredSites } from './patch.mjs';
+import { elementSpans } from './components.mjs';
 import { CACHE_PATH, loadCache, applyCache, buildCache, cacheDiff } from './cache.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -157,6 +158,7 @@ function runPatch(out) {
     failed,
     unreviewed,
     over_masking: overMaskWarnings(scan, decisions.annotations),
+    uncovered: uncoveredSites(scan, decisions, (file) => elementSpans(file, fs.readFileSync(path.join(root, file), 'utf8'))),
   };
   fs.writeFileSync(path.join(out, 'app-privacy.json'), JSON.stringify(report, null, 1));
   const applied = decisions.annotations.length - failed.length;
@@ -164,6 +166,10 @@ function runPatch(out) {
   if (failed.length) console.log(`Not applied: ${failed.map((f) => `${f.file}:${f.line} (${f.reason})`).join('; ')}`);
   if (report.over_masking.length) {
     console.log(`Over-masking: ${report.over_masking.map((w) => `${w.file}:${w.line} ${w.message}`).join('; ')}`);
+    process.exitCode = 1;
+  }
+  if (report.uncovered.length) {
+    console.log(`Uncovered: ${report.uncovered.map((u) => `${u.id} <${u.component}> ${u.file} L${u.lines.join(', L')}${u.dismissed ? ' (dismissed unit, shows a secret)' : ''}`).join('; ')}. Annotate these lines, or accept a line with a "${report.uncovered[0].id}:L${report.uncovered[0].lines[0]}" key and a reason in dismissed.`);
     process.exitCode = 1;
   }
   if (unreviewed.length) {

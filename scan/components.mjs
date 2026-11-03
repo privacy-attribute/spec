@@ -233,16 +233,31 @@ function analyse(comp, taintedProps) {
     }
     for (const child of n.children) {
       if (child.type !== 'JSXExpressionContainer' || child.expression.type === 'JSXEmptyExpression') continue;
-      const id = tainted(child.expression);
-      if (!id) continue;
+      const part = shownParts(child.expression).find((e) => tainted(e));
+      if (!part) continue;
+      const id = tainted(part);
       const origin = taint.get(id) || 'secret name';
-      sites.push({ line: child.loc.start.line, tag, kind: 'text', expr: exprText(child.expression), origin });
+      sites.push({ line: part.loc.start.line, tag, kind: 'text', expr: exprText(part), origin });
       if (isComp) edges.push({ child: tag, prop: 'children', origin });
     }
     if (isComp) uses.push({ child: tag.split('.').pop(), tainted: edges.length > edgesBefore, line });
     return true;
   });
   return { sites, edges, uses };
+}
+
+// The parts of a child expression that render as text. Conditions only choose what to show, and
+// nested elements and mapped callbacks are checked on their own.
+function shownParts(e) {
+  if (!e) return [];
+  if (e.type === 'JSXElement' || e.type === 'JSXFragment') return [];
+  if (e.type === 'ConditionalExpression') return [...shownParts(e.consequent), ...shownParts(e.alternate)];
+  if (e.type === 'LogicalExpression') return e.operator === '&&' ? shownParts(e.right) : [...shownParts(e.left), ...shownParts(e.right)];
+  if (e.type === 'ParenthesizedExpression' || e.type === 'TSAsExpression' || e.type === 'TSNonNullExpression') return shownParts(e.expression);
+  if (e.type === 'CallExpression' && e.callee.type === 'MemberExpression' && /^(map|flatMap)$/.test(e.callee.property?.name || '') && hasJsx(e)) return [];
+  // Translation calls show a label; only the values passed after the message can hold data.
+  if (e.type === 'CallExpression' && /^(_|t|formatMessage)$/.test(calleeName(e) || '')) return e.arguments.slice(1).flatMap(shownParts);
+  return [e];
 }
 
 function jsxName(n) {
@@ -262,6 +277,16 @@ export function categoryOf(sites) {
   if (SELF_NAME.test(text)) return 'personal?';
   if (/(Record|Member|Person|People|Contact|Customer|Participant|Thread|Message|Email|List|Find|Query|rows|records|members|participants)/i.test(text)) return 'third-party?';
   return 'personal?';
+}
+
+// The JSX elements of a file as [start line, last line of the start tag, end line], for checking
+// which lines an annotated element covers. Empty for files that are not JSX.
+export function elementSpans(file, code) {
+  if (!PARSEABLE.test(file)) return [];
+  const ast = parseFile(file, code);
+  const out = [];
+  if (ast) walk(ast, (n) => { if (n.type === 'JSXElement') out.push([n.loc.start.line, n.openingElement.loc.end.line, n.loc.end.line]); });
+  return out;
 }
 
 // Runs the pass over files (absolute paths). Returns one candidate per component that renders data.

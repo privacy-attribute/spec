@@ -63,6 +63,7 @@ Each annotation removes content from the replay. Obey these rules to remove as l
 3. Block the smallest element that holds the attribute. For a chip with an avatar and a name, block the avatar image and mask the name. Do not block the full chip.
 4. When a shared component shows private data in some uses and public content in other uses, do not annotate the shared component. Annotate the private value where a parent passes it. For example, write `title={<span className="rr-mask">{member.name}</span>}` in the parent. When the prop accepts only text, annotate the element in the parent that holds the component.
 5. The `patch` command shows "Over-masking" when an annotation in a shared component also covers public uses. Move the annotation to the uses that get private data. When the public uses are few or not important, keep the annotation and give the reason in `accept_shared`.
+6. Each line of a component unit that shows data must be in an annotated element. An annotation in a shared component, for example an avatar, does not cover the other lines of the unit. The `patch` command shows "Uncovered" for each line that no annotated element contains. It also shows a dismissed unit that puts a secret in the page. Annotate these lines. When a line shows no private data, add a key with the unit and the line to `dismissed`, for example `"C12:L40": "shows the role label"`.
 
 ## Annotation style
 
@@ -96,8 +97,8 @@ For the `rrweb` style, obey these rules:
 6. When a shared layout gets private data as a prop, for example a page title with a person's name, annotate the value where the parent passes it. See rule 4 in "What to annotate".
 7. When you do not know if a component gives `className` to its element, open the component. Annotate the element in the component.
 8. Read `recorders/<sdk>.md`. Add the configuration changes that apply to `config` in `annotations.json`. Name the pages that need them.
-9. Run the `patch` command from `PLAYBOOK.md`. The command writes `privacy.patch` and `app-privacy.json`. It also shows the candidates that you did not annotate or dismiss, annotations that it could not place, and over-masking.
-10. Repeat step 2 to step 9 until the `patch` command shows no open candidates, no annotations that it could not place, and no over-masking.
+9. Run the `patch` command from `PLAYBOOK.md`. The command writes `privacy.patch` and `app-privacy.json`. It also shows the candidates that you did not annotate or dismiss, annotations that it could not place, over-masking and uncovered lines.
+10. Repeat step 2 to step 9 until the `patch` command shows no open candidates, no annotations that it could not place, no over-masking and no uncovered lines.
 11. Run the `report` command from `PLAYBOOK.md` when `gaps` is not empty.
 
 ## annotations.json
@@ -116,7 +117,7 @@ For the `rrweb` style, obey these rules:
       "candidates": ["C7", "C9"]
     }
   ],
-  "dismissed": { "C13": "copies a public code sample from a blog post" },
+  "dismissed": { "C13": "copies a public code sample from a blog post", "C12:L40": "shows the role label" },
   "config": ["rrweb on all pages: blockSelector '[data-privacy=\"block\"]'"],
   "gaps": [
     {
