@@ -9,13 +9,21 @@ import { parse } from '@babel/parser';
 const PARSEABLE = /\.(tsx|jsx|ts|js|mjs)$/;
 
 // React and UI hooks that return no application data.
-const NON_DATA_HOOKS = /^use(State|Reducer|Ref|Callback|Memo|Effect|LayoutEffect|InsertionEffect|Id|Transition|DeferredValue|ImperativeHandle|DebugValue|SyncExternalStore|Theme|Translation|Lingui|Intl|Navigate|Location|Params|SearchParams|Router|Pathname|Form|FormContext|Controller|WatchForm|Media|MediaQuery|Breakpoint|IsMobile|Hotkey\w*|ScopedHotkeys|Toast|Snackbar|Dropdown\w*|Modal\w*|Dialog\w*|Debounce\w*|Throttle\w*|Interval|Timeout|ClickOutside\w*|Hover\w*|Focus\w*|Scroll\w*|Resize\w*|Window\w*|Mounted|IsMounted|Previous|Toggle|Disclosure|Clipboard\w*|CopyToClipboard|Analytics|Track\w*|Log\w*|FeatureFlag\w*|IsFeatureEnabled|Icon\w*|Styles?|ClassNames?|Animation\w*|Spring|Transition\w*|Drag\w*|Drop\w*|Sortable|Sensors?|Set\w+|Reset\w+|Open\w+|Close\w+|Create\w+|Update\w+|Delete\w+|Remove\w+|Navigate\w+|Handle\w+|Mutation|Mutate)$/;
+export const NON_DATA_HOOKS = /^use(State|Reducer|Ref|Callback|Memo|Effect|LayoutEffect|InsertionEffect|Id|Transition|DeferredValue|ImperativeHandle|DebugValue|SyncExternalStore|Theme|Translation|Lingui|Intl|Navigate|Location|Params|SearchParams|Router|Pathname|Form|FormContext|Controller|WatchForm|Media|MediaQuery|Breakpoint|IsMobile|Hotkey\w*|ScopedHotkeys|Toast|Snackbar|Dropdown\w*|Modal\w*|Dialog\w*|Debounce\w*|Throttle\w*|Interval|Timeout|ClickOutside\w*|Hover\w*|Focus\w*|Scroll\w*|Resize\w*|Window\w*|Mounted|IsMounted|Previous|Toggle|Disclosure|Clipboard\w*|CopyToClipboard|Analytics|Track\w*|Log\w*|FeatureFlag\w*|IsFeatureEnabled|Icon\w*|Styles?|ClassNames?|Animation\w*|Spring|Transition\w*|Drag\w*|Drop\w*|Sortable|Sensors?|Set\w+|Reset\w+|Open\w+|Close\w+|Create\w+|Update\w+|Delete\w+|Remove\w+|Navigate\w+|Handle\w+|Mutation|Mutate)$/;
 // Hooks whose names say they return records, people, accounts or other application data.
-const DATA_HOOK = /(Record|Field|Value|User|Member|Person|People|Contact|Customer|Account|Workspace|Profile|Session|Auth|Viewer|Me$|Query|Find|Fetch|Data|Store|Atom|Selector|Loader|Thread|Message|Email|Invoice|Billing|Subscription|ApiKey|Webhook|Context|Current)/;
-const PERSON_TYPE = /\b(User|Customer|Member|Contact|Account|Profile|Person|Patient|Client|Employee|Lead|Visitor|Recording|Session|Order|Invoice|Message|Comment|Ticket|Participant|Invitee|Record|ObjectRecord|WorkspaceMember|ApiKey|Webhook)\b/;
-const SECRET_NAME = /(secret|token|password|passwd|apikey|api_key|privatekey|private_key|recoverycode|otp|cvv|cvc|iban|cardnumber)/i;
+export const DATA_HOOK = /(Record|Field|Value|User|Member|Person|People|Contact|Customer|Account|Workspace|Profile|Session|Auth|Viewer|Me$|Query|Find|Fetch|Data|Store|Atom|Selector|Loader|Thread|Message|Email|Invoice|Billing|Subscription|ApiKey|Webhook|Context|Current)/;
+export const PERSON_TYPE = /\b(User|Customer|Member|Contact|Account|Profile|Person|Patient|Client|Employee|Lead|Visitor|Recording|Session|Order|Invoice|Message|Comment|Ticket|Participant|Invitee|Record|ObjectRecord|WorkspaceMember|ApiKey|Webhook)\b/;
+// Record words inside compound type names, such as TDocumentRow or EnvelopeRecipient; a name that
+// ends in a word for a setting (UserAvatarColor, MemberRole) does not count.
+const RECORD_WORD = /^(User|Users|Customer|Member|Contact|Account|Profile|Person|Patient|Client|Employee|Lead|Visitor|Order|Invoice|Message|Comment|Ticket|Participant|Invitee|Record|Recipient|Signer|Document|Envelope|Row|Team|Organisation|Organization|Webhook)$/;
+const SETTING_WORD = /^(Color|Colour|Size|Variant|Role|Status|Type|Kind|Props|Options|Mode|Id|Ids|Enum|Filter|Sort|Column|Columns|Config|Settings|Schema|Input|Action)$/;
+export const personType = (text) => PERSON_TYPE.test(text) || (text || '').split(/\s+/).some((name) => {
+  const words = name.match(/[A-Z][a-z]+/g) || [];
+  return words.length > 0 && words.some((w) => RECORD_WORD.test(w)) && !SETTING_WORD.test(words[words.length - 1]);
+});
+export const SECRET_NAME = /(secret|token|password|passwd|apikey|api_key|privatekey|private_key|recoverycode|otp|cvv|cvc|iban|cardnumber)/i;
 const SELF_NAME = /(currentUser|currentWorkspaceMember|viewer|\bme\b|useAuth|useCurrentUser|useSession|useProfile|currentWorkspace)/;
-const DOM_DATA_ATTR = /^(value|defaultValue|title|alt|href|src|srcSet|placeholder|label|aria-label|aria-valuetext|aria-description|data-[\w-]+|content|name)$/;
+export const DOM_DATA_ATTR = /^(value|defaultValue|title|alt|href|src|srcSet|placeholder|label|aria-label|aria-valuetext|aria-description|data-[\w-]+|content|name)$/;
 
 function parseFile(file, code) {
   const ts = /\.tsx?$/.test(file);
@@ -26,7 +34,7 @@ function parseFile(file, code) {
   }
 }
 
-function walk(node, visit, parent = null) {
+export function walk(node, visit, parent = null) {
   if (!node || typeof node.type !== 'string') return;
   if (visit(node, parent) === false) return;
   for (const key of Object.keys(node)) {
@@ -41,7 +49,7 @@ const isComponentName = (n) => /^[A-Z][\w$]*$/.test(n || '');
 const hasJsx = (node) => { let found = false; walk(node, (n) => { if (n.type === 'JSXElement' || n.type === 'JSXFragment') { found = true; return false; } return !found; }); return found; };
 
 // Names of identifiers used in an expression, without member property names.
-function idsIn(node) {
+export function idsIn(node) {
   const out = new Set();
   walk(node, (n, p) => {
     if (n.type === 'Identifier' && !(p && (p.type === 'MemberExpression' || p.type === 'OptionalMemberExpression') && p.property === n && !p.computed) && !(p && p.type === 'ObjectProperty' && p.key === n && !p.computed)) out.add(n.name);
@@ -51,7 +59,7 @@ function idsIn(node) {
 
 // Identifiers whose values an expression shows: nested JSX elements and functions are left out,
 // because handlers are not data and nested elements are checked on their own.
-function dataIdsIn(node) {
+export function dataIdsIn(node) {
   const out = new Set();
   walk(node, (n, p) => {
     if (n !== node && (n.type === 'JSXElement' || n.type === 'JSXFragment' || n.type === 'ArrowFunctionExpression' || n.type === 'FunctionExpression')) return false;
@@ -61,9 +69,9 @@ function dataIdsIn(node) {
   return out;
 }
 // A name that holds a secret, which excludes flags and handlers such as hasValidToken or onTokenChange.
-const secretIdentifier = (name) => SECRET_NAME.test(name) && !/^(has|is|should|can|show|with|needs|handle|on|set|toggle|open|close|validate|refresh|regenerate|copy|generate|reset)[A-Z_]/.test(name);
+export const secretIdentifier = (name) => SECRET_NAME.test(name) && !/^(has|is|should|can|show|with|needs|handle|on|set|toggle|open|close|validate|refresh|regenerate|copy|generate|reset)[A-Z_]/.test(name);
 
-function bindingNames(pattern, out = []) {
+export function bindingNames(pattern, out = []) {
   if (!pattern) return out;
   if (pattern.type === 'Identifier') out.push(pattern.name);
   else if (pattern.type === 'ObjectPattern') pattern.properties.forEach((p) => bindingNames(p.type === 'RestElement' ? p.argument : p.value, out));
@@ -73,14 +81,14 @@ function bindingNames(pattern, out = []) {
   return out;
 }
 
-const calleeName = (call) => {
+export const calleeName = (call) => {
   const c = call.callee;
   if (c.type === 'Identifier') return c.name;
   if (c.type === 'MemberExpression' && c.property.type === 'Identifier') return c.property.name;
   return null;
 };
 
-function typeNames(t, out = new Set()) {
+export function typeNames(t, out = new Set()) {
   walk(t, (n) => { if (n.type === 'Identifier') out.add(n.name); });
   return out;
 }
@@ -133,11 +141,12 @@ function analyse(comp, taintedProps) {
   const mark = (name, origin) => { if (!taint.has(name)) { taint.set(name, origin); return true; } return false; };
   for (const [prop, local] of comp.props) {
     const why = taintedProps.get(prop) || taintedProps.get('*')
-      || (PERSON_TYPE.test(comp.propTypes.get(prop) || '') ? `prop ${prop}: ${comp.propTypes.get(prop)}` : null)
+      || (personType(comp.propTypes.get(prop) || '') ? `prop ${prop}: ${comp.propTypes.get(prop)}` : null)
+      || (/^(loaderData|actionData)$/.test(prop) ? `prop ${prop}` : null)
       || (SECRET_NAME.test(prop) ? `prop ${prop}` : null);
     if (why) mark(local, why);
   }
-  if (comp.propsObject && (taintedProps.size || [...comp.propTypes.values()].some((t) => PERSON_TYPE.test(t)))) mark(comp.propsObject, [...taintedProps.values()][0] || 'props');
+  if (comp.propsObject && (taintedProps.size || [...comp.propTypes.values()].some(personType))) mark(comp.propsObject, [...taintedProps.values()][0] || 'props');
   // Sources and derived values, repeated until no new names are found.
   // React state and its setter: state holds whatever data its setter receives.
   const setters = new Map();
@@ -174,6 +183,10 @@ function analyse(comp, taintedProps) {
       if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && setters.has(n.callee.name) && n.arguments[0]) {
         const used = [...dataIdsIn(n.arguments[0])].find((id) => taint.has(id));
         if (used) changed = mark(setters.get(n.callee.name), taint.get(used)) || changed;
+      }
+      // Table cell renderers: { cell: ({ row }) => <span>{row.original.email}</span> }.
+      if (n.type === 'ObjectProperty' && /^(cell|Cell|render|renderCell|cellRenderer|accessorFn)$/.test(n.key?.name || '') && (n.value.type === 'ArrowFunctionExpression' || n.value.type === 'FunctionExpression') && n.value.params[0]) {
+        bindingNames(n.value.params[0]).forEach((nm) => { changed = mark(nm, 'table row') || changed; });
       }
       // Callback parameters of iterations over tainted values: rows.map((row) => ...).
       if (n.type === 'CallExpression' && n.callee.type === 'MemberExpression' && /^(map|flatMap|forEach|filter|find|some|reduce)$/.test(n.callee.property?.name || '')) {
@@ -243,7 +256,7 @@ function jsxName(n) {
 let SOURCE_TEXT = '';
 const exprText = (e) => (e && e.start != null ? SOURCE_TEXT.slice(e.start, e.end).replace(/\s+/g, ' ').slice(0, 120) : '');
 
-function categoryOf(sites) {
+export function categoryOf(sites) {
   const text = sites.map((s) => `${s.origin} ${s.expr}`).join(' ');
   if (SECRET_NAME.test(text)) return 'secret?';
   if (SELF_NAME.test(text)) return 'personal?';

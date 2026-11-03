@@ -13,7 +13,7 @@ These instructions and every scan produced with them are provided as is, without
 The session folder contains these files:
 
 - `scan-plan.md`: the units that the static pass found, grouped by file. The most private files are first. A category with `?` is a guess. There are two types of unit:
-  - A component unit names a component, the lines where it shows data, and where the data comes from. Annotate the elements at these lines. When all of the component is private, annotate its root element.
+  - A component unit names a component, the lines where it shows data, and where the data comes from. Annotate the elements at these lines. When all of the component is private, annotate its root element. In Vue, Svelte and Blade files, the unit is the full file.
   - A line unit names one line, the rules that matched, and the code. "covered" shows that an annotation is already near the line.
 - Units in files that did not change since the last scan are not in the plan. Their ids are in `cached` in `annotations.json`. Do not change `cached`. "earlier" on a unit shows the decision from the last scan.
 - `annotations.json`: the file that you fill in.

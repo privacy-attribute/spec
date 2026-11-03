@@ -1,6 +1,6 @@
 {
   "recall": 0.925,
   "recall_exact": 0.776,
-  "precision": 0.925,
+  "precision": 0.917,
   "public_flagged": 2
 }

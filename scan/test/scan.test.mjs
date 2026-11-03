@@ -175,3 +175,42 @@ test('over-masking: an annotation in a shared component with public uses is repo
   assert.deepEqual(w.map((x) => `${x.file}:${x.line}`), ['Layout.tsx:5']);
   assert.equal(w[0].private_uses, 3);
 });
+
+test('template pass: Vue props and store getters reach the template and child components', () => {
+  const r = find(tempApp({
+    'ContactPanel.vue': [
+      '<template>',
+      '  <div class="panel">',
+      '    <h3>{{ contact.name }}</h3>',
+      '    <InfoRow :value="contact.email" />',
+      '    <span :title="agentName">Assigned</span>',
+      '    <p>{{ $t(\'HELP.TEXT\') }}</p>',
+      '  </div>',
+      '</template>',
+      '<script>',
+      "import { mapGetters } from 'vuex';",
+      'export default {',
+      '  props: { contact: { type: Object, default: () => ({}) }, columns: Array },',
+      "  computed: { ...mapGetters({ currentUser: 'getCurrentUser', uiFlags: 'contacts/getUIFlags' }), agentName() { return this.currentUser.name; } },",
+      '};',
+      '</script>',
+    ].join('\n'),
+    'InfoRow.vue': '<template>\n  <span class="row">{{ value }}</span>\n</template>\n<script setup>\ndefineProps({ value: String });\n</script>\n',
+  }));
+  const panel = r.candidates.find((c) => c.file === 'ContactPanel.vue');
+  assert.deepEqual(panel.site_lines, [3, 4, 5]);
+  const row = r.candidates.find((c) => c.file === 'InfoRow.vue');
+  assert.deepEqual(row.site_lines, [2]);
+  assert.match(row.sites[0].origin, /via <ContactPanel value>/);
+});
+
+test('template pass: Svelte props, each blocks and page data', () => {
+  const r = find(tempApp({
+    'routes/+page.svelte': '<script lang="ts">\n  let { data } = $props();\n</script>\n\n{#each data.albums as album (album.id)}\n  <a href="/albums/{album.id}" title={album.albumName}>{album.albumName}</a>\n{/each}\n<p>{size}</p>\n',
+    'Avatar.svelte': '<script lang="ts">\n  interface Props { user: UserResponseDto; size?: string }\n  let { user, size = \'md\' }: Props = $props();\n  let title = $derived(`${user.name} (${user.email})`);\n</script>\n\n<figure class="avatar {size}" title={title}>\n  <img src={user.profileImagePath} alt="" />\n</figure>\n',
+  }));
+  const page = r.candidates.find((c) => c.file.endsWith('+page.svelte'));
+  assert.deepEqual(page.site_lines, [6]);
+  const avatar = r.candidates.find((c) => c.file === 'Avatar.svelte');
+  assert.deepEqual(avatar.site_lines, [7, 8]);
+});

@@ -21,7 +21,8 @@ From a clone, run `node scan/cli.mjs <command>`. The prompts pin a release tag; 
 |------|---------|
 | `AGENTS.md` | Instructions for the agent: data categories, what to annotate, the procedure, and how to report gaps |
 | `components.mjs` | The component pass: parses TypeScript and JSX with `@babel/parser` and follows data from its sources to the elements that render it, across components |
-| `rules.mjs` | The line rules for secrets, inputs, URLs, titles and templates (Vue, Svelte, HTML). Each maps a source line to a pattern and a likely data category. |
+| `templates.mjs` | The template pass: the same analysis for Vue and Svelte single-file components (script blocks parsed with `@babel/parser`, props followed to child components and slot scopes) and for Laravel Blade views |
+| `rules.mjs` | The line rules for secrets, inputs, URLs, titles and other templates (HTML and server views). Each maps a source line to a pattern and a likely data category. |
 | `cache.mjs` | The decisions cache: `find` skips files whose hash matches `.privacy-scan/decisions.json`, and `patch` writes the cache into the patch |
 | `recorders/<sdk>.md` | How that recorder reads annotations, and the configuration to add |
 | `PROMPT.md` | The prompt to share with implementers |

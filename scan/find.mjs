@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { RULES, COVERAGE, MARKUP, PERSON_FIELD, PUBLIC_OWNER, TRANSLATION_CALL } from './rules.mjs';
 import { componentPass } from './components.mjs';
+import { templatePass } from './templates.mjs';
 
-// In TypeScript and JSX files the component pass finds rendered data, so these line rules only
-// run on templates (Vue, Svelte, HTML and others).
+// In TypeScript and JSX files the component pass finds rendered data, and in Vue and Svelte files
+// the template pass does, so these line rules only run on other templates (HTML and server views).
 const RENDER_RULES = new Set(['person-field', 'person-field-self', 'person-field-others', 'template-binding', 'attribute-data', 'attribute-expr', 'generic-cell', 'metadata-render', 'message-content', 'echo-search', 'avatar-image', 'chart', 'style-from-data', 'table', 'record-list', 'validation', 'secret-display']);
 const PARSEABLE = /\.(tsx|jsx|ts|js|mjs)$/;
 // Files without markup cannot render; only these rules apply to them.
@@ -14,9 +15,9 @@ const NO_MARKUP_RULES = new Set(['dom-write', 'url-with-data', 'title-from-data'
 
 const EXT = /\.(tsx|jsx|ts|js|mjs|vue|svelte|astro|html|hbs|erb|cshtml|php)$/;
 const SKIP_DIR = new Set(['node_modules', 'dist', 'build', '.next', '.nuxt', '.output', '.svelte-kit', 'coverage', '.git', '.claude', 'vendor', 'public', 'storybook-static']);
-const SKIP_FILE = /\.(test|spec|stories|e2e|d)\.|\.gen\.|\.generated\.|routeTree\.gen|\.min\.|[-.](fixtures?|mocks?)\.|__mocks__/;
-// Generated code (GraphQL types, API clients) holds no rendered data.
-const GENERATED_DIR = /^(generated|__generated__|generated-.+|.+-generated|gql|__gql__)$/;
+const SKIP_FILE = /\.(test|spec|stories|story|e2e|d)\.|\.gen\.|\.generated\.|routeTree\.gen|\.min\.|[-.](fixtures?|mocks?)\.|__mocks__/;
+// Generated code (GraphQL types, API clients) and translation files hold no rendered data.
+const GENERATED_DIR = /^(generated|__generated__|generated-.+|.+-generated|gql|__gql__|lang|locales?|i18n|translations)$/;
 const COMPONENT = /^\s*(export\s+)?(default\s+)?(async\s+)?(function|const|let|class)\s+([A-Z][\w$]*)/;
 const CATEGORY_ORDER = ['secret', 'secret?', 'third-party', 'third-party?', 'personal', 'personal?'];
 
@@ -135,7 +136,20 @@ export function find(root, { include } = {}) {
     });
   }
   // Component pass over the whole tree, so data passed from components outside --include is seen.
-  const comp = componentPass(root, include ? files(root) : files(root, include));
+  const tree = files(root);
+  const jsx = componentPass(root, tree);
+  const tpl = templatePass(root, tree);
+  const comp = {
+    candidates: [...jsx.candidates, ...tpl.candidates],
+    parsed: jsx.parsed + tpl.parsed,
+    components: jsx.components + tpl.components,
+    usage: { ...tpl.usage, ...jsx.usage },
+    index: { ...tpl.index, ...jsx.index },
+  };
+  // In Vue and Svelte files the template pass read, it finds rendered data, so render rules drop out there too.
+  const read = new Set(Object.keys(tpl.index));
+  for (const c of candidates) if (read.has(c.file)) c.rules = c.rules.filter((r) => !RENDER_RULES.has(r) && r !== 'data-flow');
+  for (let k = candidates.length - 1; k >= 0; k--) if (!candidates[k].rules.length) candidates.splice(k, 1);
   const wanted = (f) => !include || include.some((p) => f === p || f.startsWith(p.replace(/[\\/]+$/, '') + path.sep));
   const units = comp.candidates.filter((c) => wanted(c.file)).map((c) => ({ ...c, id: null, covered: false, auto: null, merged: [] }));
   // A line hit inside a flagged component joins that component's unit, so the agent decides it there.
