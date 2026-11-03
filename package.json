@@ -42,5 +42,8 @@
   "scripts": {
     "test": "node --test scan/test/scan.test.mjs",
     "bench": "node scan/cli.mjs bench"
+  },
+  "dependencies": {
+    "@babel/parser": "7.26.10"
   }
 }

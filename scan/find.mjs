@@ -3,6 +3,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { RULES, COVERAGE, MARKUP, PERSON_FIELD, PUBLIC_OWNER } from './rules.mjs';
+import { componentPass } from './components.mjs';
+
+// In TypeScript and JSX files the component pass finds rendered data, so these line rules only
+// run on templates (Vue, Svelte, HTML and others).
+const RENDER_RULES = new Set(['person-field', 'person-field-self', 'person-field-others', 'template-binding', 'attribute-data', 'attribute-expr', 'generic-cell', 'metadata-render', 'message-content', 'echo-search', 'avatar-image', 'chart', 'style-from-data']);
+const PARSEABLE = /\.(tsx|jsx|ts|js|mjs)$/;
+// Files without markup cannot render; only these rules apply to them.
+const NO_MARKUP_RULES = new Set(['dom-write', 'url-with-data', 'title-from-data', 'console']);
 
 const EXT = /\.(tsx|jsx|ts|js|mjs|vue|svelte|astro|html|hbs|erb|cshtml|php)$/;
 const SKIP_DIR = new Set(['node_modules', 'dist', 'build', '.next', '.nuxt', '.output', '.svelte-kit', 'coverage', '.git', '.claude', 'vendor', 'public', 'storybook-static']);
@@ -13,7 +21,7 @@ const COMPONENT = /^\s*(export\s+)?(default\s+)?(async\s+)?(function|const|let|c
 const CATEGORY_ORDER = ['secret', 'secret?', 'third-party', 'third-party?', 'personal', 'personal?'];
 
 // `include` limits the scan to paths under these prefixes, relative to root.
-function files(root, include) {
+export function files(root, include) {
   const out = [];
   const prefixes = (include || []).map((p) => path.normalize(p).replace(/[\\/]+$/, ''));
   const wanted = (rel) => !prefixes.length || prefixes.some((p) => rel === p || rel.startsWith(p + path.sep) || p.startsWith(rel + path.sep));
@@ -75,6 +83,8 @@ export function find(root, { include } = {}) {
   let lines = 0;
   for (const file of files(root, include)) {
     const src = fs.readFileSync(file, 'utf8').split('\n');
+    const parseable = PARSEABLE.test(file);
+    const hasMarkup = !parseable || /\.(tsx|jsx)$/.test(file) || /<[A-Za-z][\w.]*[\s>/]/.test(src.join('\n'));
     scanned++;
     lines += src.length;
     let component = null;
@@ -85,13 +95,13 @@ export function find(root, { include } = {}) {
       if (line.length > 2000 || /^\s*(\/\/|\*|import\b)/.test(line)) return;
       const markup = MARKUP.test(line);
       const publicOwner = PUBLIC_OWNER.test(line);
-      const applies = (r) => (!r.render || markup) && !(publicOwner && /^(person-field|template-binding|attribute-data|attribute-expr)/.test(r.id)) && r.re.test(line);
+      const applies = (r) => (hasMarkup || NO_MARKUP_RULES.has(r.id)) && !(parseable && RENDER_RULES.has(r.id)) && (!r.render || markup) && !(publicOwner && /^(person-field|template-binding|attribute-data|attribute-expr)/.test(r.id)) && r.re.test(line);
       const hits = RULES.filter((r) => !r.fallback && applies(r));
       if (!hits.some((h) => h.id.startsWith('person-field'))) {
         const fallback = RULES.filter((r) => r.fallback && applies(r));
         hits.push(...(fallback.some((r) => r.id === 'person-field') ? fallback.filter((r) => r.id !== 'template-binding') : fallback));
       }
-      if (!hits.length && markup && sources.size) {
+      if (!parseable && !hits.length && markup && sources.size) {
         const rendered = [...line.matchAll(/\{([^{}]*)\}/g)].map((m) => m[1]);
         if (rendered.some((expr) => [...sources].some((n) => new RegExp(`(^|[^\\w$.])${n.replace(/\$/g, '\\$')}\\b`).test(expr)))) {
           hits.push({ id: 'data-flow', pattern: 'P-crm-record', category: 'third-party?' });
@@ -123,10 +133,25 @@ export function find(root, { include } = {}) {
       });
     });
   }
-  candidates.sort((a, b) => CATEGORY_ORDER.indexOf(a.category_hint) - CATEGORY_ORDER.indexOf(b.category_hint)
+  // Component pass over the whole tree, so data passed from components outside --include is seen.
+  const comp = componentPass(root, include ? files(root) : files(root, include));
+  const wanted = (f) => !include || include.some((p) => f === p || f.startsWith(p.replace(/[\\/]+$/, '') + path.sep));
+  const units = comp.candidates.filter((c) => wanted(c.file)).map((c) => ({ ...c, id: null, covered: false, auto: null, merged: [] }));
+  // A line hit inside a flagged component joins that component's unit, so the agent decides it there.
+  const remaining = [];
+  for (const c of candidates) {
+    const unit = !c.auto && units.find((u) => u.file === c.file && c.line >= u.line && c.line <= u.end_line);
+    if (unit) {
+      unit.merged.push({ line: c.line, rules: c.rules, snippet: c.snippet.slice(0, 120) });
+      for (const r of c.rules) if (!unit.rules.includes(r)) unit.rules.push(r);
+      if (CATEGORY_ORDER.indexOf(c.category_hint) < CATEGORY_ORDER.indexOf(unit.category_hint)) unit.category_hint = c.category_hint;
+    } else remaining.push(c);
+  }
+  const all = [...units, ...remaining];
+  all.sort((a, b) => CATEGORY_ORDER.indexOf(a.category_hint) - CATEGORY_ORDER.indexOf(b.category_hint)
     || a.file.localeCompare(b.file) || a.line - b.line);
-  candidates.forEach((c, i) => { c.id = `C${i + 1}`; });
-  return { root, include: include || null, scanned_files: scanned, scanned_lines: lines, candidates };
+  all.forEach((c, i) => { c.id = `C${i + 1}`; });
+  return { root, include: include || null, scanned_files: scanned, scanned_lines: lines, parsed_files: comp.parsed, components: comp.components, candidates: all };
 }
 
 // Compact plan for the agent: one section per file, most private category first.
@@ -147,7 +172,13 @@ export function planMarkdown(result) {
     ...files.flatMap(([file, list]) => [
       `## ${file}`,
       '',
-      ...list.map((c) => `- ${c.id} L${c.line} ${c.component ? `<${c.component}> ` : ''}[${c.category_hint}; ${c.rules.join(', ')}]${c.covered ? ' covered' : ''}${c.auto ? ` decided: ${c.auto.value}` : ''}: \`${c.snippet.slice(0, 140).replace(/`/g, "'")}\``),
+      ...list.flatMap((c) => (c.sites
+        ? [
+          `- ${c.id} L${c.line}-${c.end_line} component <${c.component}> [${c.category_hint}]: data from ${[...new Set(c.sites.map((s) => s.origin.split(' via ')[0]))].slice(0, 2).join('; ').slice(0, 110)}`,
+          `  - renders at L${c.site_lines.slice(0, 12).join(', L')}${c.site_lines.length > 12 ? ' and more' : ''}: ${c.sites.slice(0, 3).map((s) => `<${s.tag}> ${s.kind} \`${s.expr.replace(/`/g, "'").slice(0, 50)}\``).join('; ')}`,
+          ...(c.merged.length ? [`  - rule hits at L${c.merged.map((m) => m.line).slice(0, 10).join(', L')}: ${[...new Set(c.merged.flatMap((m) => m.rules))].join(', ')}`] : []),
+        ]
+        : [`- ${c.id} L${c.line} ${c.component ? `<${c.component}> ` : ''}[${c.category_hint}; ${c.rules.join(', ')}]${c.covered ? ' covered' : ''}${c.auto ? ` decided: ${c.auto.value}` : ''}: \`${c.snippet.slice(0, 140).replace(/`/g, "'")}\``])),
       '',
     ]),
   ].join('\n');

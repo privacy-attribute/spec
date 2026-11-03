@@ -55,7 +55,7 @@ export const RULES = [
   { id: 'name-in-text', re: /\$\{\s*[\w?.]*(member|user|person|contact|customer|owner|sender|recipient)\w*\.?(name|Name|email|Email)\w*\s*\}|\$\{\s*\w*(Name|Email)\s*\}/, pattern: 'P-echo-greeting', category: 'personal?' },
 
   // Inputs and widgets that collect personal data
-  { id: 'input', re: /<(input|Input|textarea|Textarea|TextField|TextInput|select|Select|NativeSelect|Combobox|Autocomplete)\b/, pattern: 'P-input-types', category: 'personal' },
+  { id: 'input', re: /<(input|textarea|select)\b|<\w*(Input|TextField|TextArea|Textarea|Select|Combobox|Autocomplete|PhoneField|EmailField)\b/, pattern: 'P-input-types', category: 'personal' },
   { id: 'rich-editor', re: /<\w*(Advanced|Rich)\w*(Editor|Input)\b|contentEditable|<(ProseMirror|EditorContent|LexicalComposer|Slate|Editable|CodeMirror|MonacoEditor|Editor|ReactQuill)\b|from ["'](@tiptap|lexical|slate-react|@uiw\/react-codemirror|@monaco-editor|react-quill)/, pattern: 'P-chat-composer', category: 'personal' },
   { id: 'file-upload', re: /type=\{?["'`]file|Dropzone|useDropzone|\bonDrop=/, pattern: 'P-file-upload', category: 'personal' },
   { id: 'choice-widget', re: /type=\{?["'`](checkbox|radio)|<(Checkbox|Radio|RadioGroup|RadioGroupItem|Switch|Toggle|ToggleGroup)\b|role=\{?["'`](switch|checkbox|radio)/, pattern: 'P-checkbox-radio', category: 'personal' },

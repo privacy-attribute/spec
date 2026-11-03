@@ -59,7 +59,10 @@ function scanWithoutLabels(root) {
   }
 }
 
-const near = (a, b) => a.file === b.file && Math.abs(a.line - b.line) <= WINDOW;
+// A component unit points at each line where it renders data; a line candidate at its own line.
+const points = (c) => (c.sites ? [...c.site_lines, ...c.merged.map((m) => m.line)] : [c.line]);
+const near = (c, l) => c.file === l.file && points(c).some((x) => Math.abs(x - l.line) <= WINDOW);
+const distance = (c, l) => Math.min(...points(c).map((x) => Math.abs(x - l.line)));
 const ratio = (n, d) => (d ? n / d : 0);
 
 export async function bench(dir) {
@@ -69,14 +72,18 @@ export async function bench(dir) {
   const priv = labels.filter((l) => PRIVATE.has(l.category));
   const pub = labels.filter((l) => l.category === 'public');
 
-  const found = priv.filter((l) => candidates.some((c) => near(c, l)));
-  const exact = priv.filter((l) => candidates.some((c) => c.file === l.file && c.line === l.line));
+  // A label on a component element counts when the component itself is a unit (it is annotated there).
+  const flaggedComponents = new Set(candidates.filter((c) => c.sites).map((c) => c.component));
+  const viaComponent = (l) => flaggedComponents.has((l.snippet.match(/<([A-Z][\w.]*)/) || [])[1]?.split('.').pop());
+  const found = priv.filter((l) => candidates.some((c) => near(c, l)) || viaComponent(l));
+  const exact = priv.filter((l) => candidates.some((c) => c.file === l.file && points(c).includes(l.line)));
   const matched = candidates.filter((c) => priv.some((l) => near(c, l)));
   const flagged = pub.filter((l) => candidates.some((c) => near(c, l)));
+  const foundNear = (l) => candidates.filter((c) => near(c, l));
   // A found label whose nearest candidate guesses the same category.
   const agree = found.filter((l) => {
-    const best = candidates.filter((c) => near(c, l)).sort((a, b) => Math.abs(a.line - l.line) - Math.abs(b.line - l.line))[0];
-    return best.category_hint.replace('?', '') === l.category;
+    const best = foundNear(l).sort((a, b) => distance(a, l) - distance(b, l))[0];
+    return best && best.category_hint.replace('?', '') === l.category;
   });
 
   const by_category = {};

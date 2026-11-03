@@ -91,7 +91,9 @@ test('find flags secrets, decides password fields, follows fetched data and skip
   const pw = r.candidates.find((c) => c.file === 'Login.tsx');
   assert.equal(pw.category_hint, 'secret');
   assert.deepEqual({ value: pw.auto.value, match: pw.auto.match, line: pw.auto.line }, { value: 'block', match: '<input', line: 2 });
-  assert.ok(r.candidates.some((c) => c.file === 'Team.tsx' && c.rules.includes('data-flow')), 'data-flow candidate');
+  const team = r.candidates.find((c) => c.file === 'Team.tsx' && c.rules.includes('component'));
+  assert.ok(team, 'component unit for Team');
+  assert.deepEqual(team.site_lines, [4]);
   assert.ok(!r.candidates.some((c) => c.file.includes('.test.')), 'test files skipped');
 });
 
