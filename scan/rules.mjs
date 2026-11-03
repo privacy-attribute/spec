@@ -20,10 +20,13 @@ export const RULES = [
   { id: 'secret-input-password', auto: { value: 'block', category: 'secret' }, re: /type=\{?["'`]password["'`]\}?|autoComplete=\{?["'`](current-password|new-password)/, pattern: 'P-password', category: 'secret' },
   { id: 'secret-input-otp', re: /autoComplete=\{?["'`]one-time-code|\b(otp|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|totp|mfa[-_ ]?code|2fa[-_ ]?code)\b/i, pattern: 'P-otp-single', category: 'secret' },
   { id: 'secret-input-card', re: /autoComplete=\{?["'`]cc-|\b(card[-_ ]?number|cardNumber|cvv|cvc|security[-_ ]?code|iban|routing[-_ ]?number|account[-_ ]?number)\b/i, pattern: 'P-card-number', category: 'secret' },
+  { id: 'secret-otp-component', re: /<(OTPInput|InputOTP\w*|OtpInput|PinField|CodeInput|VerificationCodeInput)\b|from ["']input-otp["']/, pattern: 'P-otp-split', category: 'secret' },
+  { id: 'secret-field-name', re: /\bname=\{?["'`][^"'`]*([sS]ecret|[tT]oken|[pP]assword|[aA]pi_?[kK]ey|[pP]rivate_?[kK]ey|[cC]vv|[cC]vc)[^"'`]*["'`]/, pattern: 'P-password', category: 'secret' },
+  { id: 'secret-url', render: true, re: /\b(webhookUrl|webhook_url|targetUrl|callbackUrl|redirectUri|inviteLink|inviteUrl|invitationLink|magicLink|resetLink|signedUrl|presignedUrl|shareUrl|shareLink)\b/, pattern: 'P-reveal-secret', category: 'secret' },
   { id: 'secret-pin', re: /\b(pin[-_ ]?code|pinCode|enterPin|PinInput|PinPad|Keypad|NumberPad)\b/, pattern: 'P-pin-pad', category: 'secret' },
   { id: 'secret-display', render: true, re: new RegExp(String.raw`\{[^}]*\b(apiKey|api_key|secretKey|secret|token|accessToken|refreshToken|clientSecret|privateKey|webhookSecret|signingSecret|password|recoveryCodes?|backupCodes?|seedPhrase|plaintext|secretValue)\b[^}]*\}`), pattern: 'P-reveal-secret', category: 'secret' },
   { id: 'secret-reveal-toggle', re: /\b(showPassword|revealed|isRevealed|showSecret|showKey|setShow(Password|Secret|Key))\b/, pattern: 'P-password-reveal', category: 'secret' },
-  { id: 'secret-copy', re: /navigator\.clipboard|copyToClipboard|useCopy(ToClipboard)?\b|<CopyButton\b|\bonCopy\b/, pattern: 'P-copy-button', category: 'secret?' },
+  { id: 'secret-copy', re: /(copyToClipboard|clipboard\.writeText|useCopy\w*|onCopy)\s*\(\s*[\w?.]*([sS]ecret|[tT]oken|[aA]pi_?[kK]ey|[pP]assword|[rR]ecoveryCode|[pP]rivateKey)\b|<CopyButton\b[^>]*\{[^}]*([sS]ecret|[tT]oken|[kK]ey|[pP]assword)/, pattern: 'P-copy-button', category: 'secret' },
   { id: 'secret-qr', re: /\bQRCode|qrcode|otpauth:/, pattern: 'P-qr-secret', category: 'secret' },
   { id: 'secret-gov-id', re: /\b(ssn|socialSecurity|taxId|nationalId|passportNumber|driversLicen[cs]e)\b/i, pattern: 'P-gov-id', category: 'secret' },
 
@@ -31,7 +34,7 @@ export const RULES = [
   { id: 'person-field-self', render: true, re: new RegExp(String.raw`\{[^}]*${SELF.source}[^}]*\.${PERSON_FIELD}\b[^}]*\}`), pattern: 'P-pii-text', category: 'personal' },
   { id: 'person-field-others', render: true, re: new RegExp(String.raw`\{[^}]*${OTHERS.source}[^}]*\.${PERSON_FIELD}\b[^}]*\}`), pattern: 'P-crm-record', category: 'third-party' },
   { id: 'person-field', render: true, re: new RegExp(String.raw`\{[^}]*\.${PERSON_FIELD}\b[^}]*\}`), pattern: 'P-pii-text', category: 'personal?', fallback: true },
-  { id: 'auth-user', re: /\b(useUser|useAuth|useSession|useCurrentUser|useViewer|useClerk|currentUser)\s*\(/, pattern: 'P-pii-text', category: 'personal' },
+  // Hooks that return the signed-in user are sources for the data-flow pass in find.mjs.
   { id: 'record-list', re: new RegExp(String.raw`\.map\(\s*\(?\s*(${ID}\s*,\s*)?(user|member|customer|contact|row|session|recording|invite|invitation|account|org|organization|team|comment|message|participant|log|event|key|apiKey|visitor)s?\b`, 'i'), pattern: 'P-admin-table', category: 'third-party?' },
   { id: 'table', re: /<(table|Table|DataTable|DataGrid|TableRow|TableCell)\b/, pattern: 'P-admin-table', category: 'third-party?' },
   { id: 'avatar-image', re: /<(Avatar|AvatarImage|img|Image)\b[^>]*\bsrc=\{/, pattern: 'P-media-preview', category: 'personal?' },
@@ -40,16 +43,20 @@ export const RULES = [
   { id: 'attribute-data', render: true, re: new RegExp(String.raw`\b(title|aria-label|aria-valuetext|alt|placeholder|data-[\w-]+)=\{[^}]*\.${PERSON_FIELD}\b`), pattern: 'P-pii-text', category: 'personal?' },
   { id: 'attribute-expr', render: true, re: /\b(title|aria-label|aria-description|alt|href|src|data-(?!audit|privacy|testid|state|slot|side|align|orientation|variant|size)[\w-]+)=\{(?!\s*["'`])[^}]*\b(row|item|session|recording|meta|metadata|user|member|customer|value|label|title|name|q|query|search)\b/, pattern: 'P-pii-text', category: 'personal?', note: 'Attributes are recorded even inside masked elements in most recorders.' },
   { id: 'set-attribute', re: /\.setAttribute\(\s*["'`](href|src|title|aria-label|alt|value|data-[\w-]+)["'`]/, pattern: 'P-pii-text', category: 'personal?' },
-  { id: 'metadata-render', render: true, re: /\{[^}]*\b(metadata|meta|attributes|properties|traits|tags|customData)\b[^}]*\}/, pattern: 'P-crm-record', category: 'third-party?' },
+  { id: 'metadata-render', render: true, re: /\{[^}]*\b(traits|customData|userMetadata|customAttributes|userProperties|customFields)\b[^}]*\}/, pattern: 'P-crm-record', category: 'third-party?' },
   { id: 'echo-search', render: true, re: /\{[^}]*\b(q|query|searchQuery|searchTerm|searchText)\b[^}]*\}/, pattern: 'P-search-as-you-type', category: 'personal?' },
   { id: 'template-binding', render: true, re: new RegExp(String.raw`(\{\{[^}]*|:[\w-]+="[^"]*|\{[^}]*)\.${PERSON_FIELD}\b`), pattern: 'P-pii-text', category: 'personal?', fallback: true },
-  { id: 'generic-cell', render: true, re: /\{\s*[A-Za-z_$][\w$]*\[[^\]]+\]\s*\}|>\s*\{\s*(cell|value|val|v|field|column|col)\s*\}\s*</, pattern: 'P-admin-table', category: 'third-party?' },
+  { id: 'generic-cell', render: true, re: /\{\s*[A-Za-z_$][\w$]*\[\s*[A-Za-z_$][\w$]*\.(key|accessor|accessorKey|field|dataIndex|name)\s*\]\s*\}|>\s*\{\s*cell\s*\}\s*</, pattern: 'P-admin-table', category: 'third-party?' },
   { id: 'dom-write', re: /\.(textContent|innerText|innerHTML|outerHTML)\s*\+?=|\.insertAdjacentHTML\(|document\.write\(/, pattern: 'P-pii-text', category: 'personal?' },
   { id: 'style-from-data', re: /style=\{\{[^}]*(width|left|height|transform)\s*:\s*`?[^}]*\$\{|content:\s*attr\(/, pattern: 'P-strength-meter', category: 'personal?' },
 
+  { id: 'record-component', re: /<(RecordChip|RecordPicker|MultipleRecordPicker|SingleRecordPicker|AvatarGroup)\b|<\w*(Record|Person|People|Contact|Member|Customer|Company|User|Participant|Assignee|Owner|Attendee|Recipient)\w*(Chip|Picker|Select|Card|Cell|Display|Avatar|Name|Link|List|Item|Row)\b|<\w*(Emails|Phones|Links|FullName|Address|Json|Currency)(Display|FieldDisplay)\b/, pattern: 'P-crm-record', category: 'third-party?' },
+  { id: 'message-content', render: true, re: /\{[^}]*\.(subject|body|snippet|preview|messageBody|lastMessageBody|text|content|excerpt)\b[^}]*\}/, pattern: 'P-chat-thread', category: 'third-party?', fallback: true },
+  { id: 'name-in-text', re: /\$\{\s*[\w?.]*(member|user|person|contact|customer|owner|sender|recipient)\w*\.?(name|Name|email|Email)\w*\s*\}|\$\{\s*\w*(Name|Email)\s*\}/, pattern: 'P-echo-greeting', category: 'personal?' },
+
   // Inputs and widgets that collect personal data
   { id: 'input', re: /<(input|Input|textarea|Textarea|TextField|TextInput|select|Select|NativeSelect|Combobox|Autocomplete)\b/, pattern: 'P-input-types', category: 'personal' },
-  { id: 'rich-editor', re: /contentEditable|<(ProseMirror|EditorContent|LexicalComposer|Slate|Editable|CodeMirror|MonacoEditor|Editor|ReactQuill)\b|from ["'](@tiptap|lexical|slate-react|@uiw\/react-codemirror|@monaco-editor|react-quill)/, pattern: 'P-chat-composer', category: 'personal' },
+  { id: 'rich-editor', re: /<\w*(Advanced|Rich)\w*(Editor|Input)\b|contentEditable|<(ProseMirror|EditorContent|LexicalComposer|Slate|Editable|CodeMirror|MonacoEditor|Editor|ReactQuill)\b|from ["'](@tiptap|lexical|slate-react|@uiw\/react-codemirror|@monaco-editor|react-quill)/, pattern: 'P-chat-composer', category: 'personal' },
   { id: 'file-upload', re: /type=\{?["'`]file|Dropzone|useDropzone|\bonDrop=/, pattern: 'P-file-upload', category: 'personal' },
   { id: 'choice-widget', re: /type=\{?["'`](checkbox|radio)|<(Checkbox|Radio|RadioGroup|RadioGroupItem|Switch|Toggle|ToggleGroup)\b|role=\{?["'`](switch|checkbox|radio)/, pattern: 'P-checkbox-radio', category: 'personal' },
   { id: 'slider', re: /type=\{?["'`]range|<Slider\b|role=\{?["'`]slider/, pattern: 'P-slider-secret', category: 'personal' },
@@ -60,7 +67,7 @@ export const RULES = [
   // Page metadata, URLs and messages
   { id: 'title-from-data', re: /document\.title\s*=|<title>\{|title:\s*`[^`]*\$\{|use\w*Title\(|head:\s*\(\s*\{/, pattern: 'P-pii-text', category: 'personal?' },
   { id: 'url-with-data', re: /(navigate|router\.push|redirect|Link)\b[^;]*(search|params):\s*\{[^}]*(email|token|key|secret|q|query|name)\b|\?[\w&=]*(email|token|key|secret)=\$\{/, pattern: 'P-search-as-you-type', category: 'personal?' },
-  { id: 'toast', re: /\btoast(\.\w+)?\(|useToast\(|\bnotify\(|enqueueSnackbar\(/, pattern: 'P-toast', category: 'personal?' },
+  { id: 'toast', re: /\b(toast|enqueueToast|enqueueSnackbar|notify)(\.\w+)?\([^)]*\$\{|\b(children|message|description|title):\s*`[^`]*\$\{/, pattern: 'P-toast', category: 'personal?' },
   { id: 'console', re: /console\.(log|info|debug|warn|error)\(/, pattern: null, category: 'personal?', note: 'Recorded only when a console plugin is on.' },
 
   // Embedded content

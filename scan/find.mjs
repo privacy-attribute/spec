@@ -32,7 +32,7 @@ function files(root, include) {
 
 // Source-first pass: variables that hold fetched data or person-like records, and the markup
 // lines that render them. Finds private data that no field name gives away.
-const SOURCE = /\b(const|let|var)\s+(\{[^}]*\}|[A-Za-z_$][\w$]*)\s*=\s*(await\s+)?(use\w*Query|useSWR|useSuspenseQuery|useLoaderData|useFetcher|useFetch|useAsyncData|fetch|axios(\.\w+)?|api\.\w+|trpc\.[\w.]+|client\.\w+|useSelector|useStore|useRecords|useList)\b/;
+const SOURCE = /\b(const|let|var)\s+(\{[^}]*\}|[A-Za-z_$][\w$]*)\s*=\s*(await\s+)?(use\w*Query|useSWR|useSuspenseQuery|useLoaderData|useFetcher|useFetch|useAsyncData|use(Current)?(User|Viewer|Session|Auth|WorkspaceMember|Member|Profile|Account)\w*|useRecoilValue|useAtomValue|fetch|axios(\.\w+)?|api\.\w+|trpc\.[\w.]+|client\.\w+|useSelector|useStore|useRecords|useList)\b/;
 const PERSON_TYPE = /\b([A-Za-z_$][\w$]*)\s*[?]?:\s*(User|Customer|Member|Contact|Account|Profile|Person|Patient|Client|Employee|Lead|Visitor|Recording|Session|Order|Invoice|Message|Comment|Ticket|Participant|Invitee)(\[\]|<|\b)/g;
 
 function sourceNames(src) {

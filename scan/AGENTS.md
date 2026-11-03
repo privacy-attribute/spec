@@ -35,6 +35,8 @@ Use these rules to find the category:
 2. When an element holds data of two categories, use the more private category.
 3. Free text that a person types is `personal` or more private.
 4. Special categories are `personal` or `third-party` data about health, sex life, sexual orientation, religion, political opinion, ethnic origin, biometrics, union membership or criminal records.
+5. Data about the organization of the user is `personal`. Examples are the workspace name, the billing plan, usage, limits, API key names, and webhook and integration settings.
+6. A URL that gives access is `secret`. Examples are webhook URLs, invite links, password reset links and signed file URLs.
 
 ## What to annotate
 
@@ -50,6 +52,8 @@ Each annotation is one of `mask`, `block`, `ignore` or `unmask`. A recorder trea
 | `public` | none | Use `unmask` only on public content in a masked container, for example a column header in a masked table. |
 
 Annotate the smallest element that holds all of the private data. Do not include public content in it.
+
+Some recorders do not mask attributes. When private data is in an attribute, for example an image `src`, a link `href`, a `title` or an `aria-label`, use `block` on the element. Also use `block` on an avatar of another person.
 
 ## Annotation style
 
@@ -79,10 +83,13 @@ For the `rrweb` style, obey these rules:
    7. Look at the open file for private data that no rule found. Annotate this data. Then add a gap of kind `missed-data`.
 3. Do not open files that have no candidates. Exception: a candidate uses a component from a different file, for example `<CustomerCard>` in a list.
 4. When a shared component (`<Avatar>`, `<UserName>`) shows only private data, annotate the component one time. Do not annotate each use.
-5. Read `recorders/<sdk>.md`. Add the configuration changes that apply to `config` in `annotations.json`. Name the pages that need them.
-6. Run the `patch` command from `PLAYBOOK.md`. The command writes `privacy.patch` and `app-privacy.json`. It also shows the candidates that you did not annotate or dismiss.
-7. Repeat step 2 to step 6 until the `patch` command shows no candidates.
-8. Run the `report` command from `PLAYBOOK.md` when `gaps` is not empty.
+5. When a candidate uses a component for a record or a person, open that component. Examples are `<RecordChip>`, `<MemberAvatar>`, `<RecordPicker>` and `<PhonesDisplay>`. These components show private data on many pages. Annotate them one time.
+6. When a shared layout gets private data as a prop, for example a page title with a person's name, annotate the element in the layout that shows the prop. Do not annotate the full layout.
+7. When you do not know if a component gives `className` to its element, open the component. Annotate the element in the component.
+8. Read `recorders/<sdk>.md`. Add the configuration changes that apply to `config` in `annotations.json`. Name the pages that need them.
+9. Run the `patch` command from `PLAYBOOK.md`. The command writes `privacy.patch` and `app-privacy.json`. It also shows the candidates that you did not annotate or dismiss.
+10. Repeat step 2 to step 9 until the `patch` command shows no candidates.
+11. Run the `report` command from `PLAYBOOK.md` when `gaps` is not empty.
 
 ## annotations.json
 

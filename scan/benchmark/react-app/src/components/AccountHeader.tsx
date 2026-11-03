@@ -2,7 +2,7 @@ import { useCurrentUser } from '../hooks/session';
 import { Avatar } from './Avatar';
 
 export function AccountHeader() {
-  const user = useCurrentUser(); // @expect personal mask
+  const user = useCurrentUser();
   const greeting = `Welcome back, ${user.firstName}`;
   return (
     <header className="account-header">

@@ -2,6 +2,16 @@
 
 The prompts in `README.md` and `scan/PROMPT.md` run a tagged release. A change on `main` reaches users only after a new tag and an update of the tag in the prompts.
 
+## Unreleased
+
+From the first validation run on an open-source CRM front end:
+
+- New rules: record and person components (chips, pickers, field displays), URLs that give access (webhook, invite and reset links), message subjects and bodies, OTP components, secret form field names, and names inside translated text.
+- Quieter rules: `toast` only flags messages built from data, `auth-user` is gone (user hooks feed the data-flow pass), `metadata-render` no longer flags schema metadata, `generic-cell` only flags cells read by a column key, and `secret-copy` only flags copies of secrets.
+- `scan/AGENTS.md`: organization data is personal, access URLs are secret, block private data in attributes and avatars of other people, open record and person components, and annotate inside layouts.
+- `find` skips generated code. `--include` limits a scan to path prefixes. A headless agent may run node only for the scanner's own CLI.
+- The benchmark has a CRM page with these cases and a new baseline.
+
 ## 0.2.0
 
 - The application scan is the primary use. The README and `scan/PROMPT.md` give a prompt for any coding agent.
