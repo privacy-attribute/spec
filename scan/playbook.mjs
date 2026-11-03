@@ -18,7 +18,7 @@ Then do the procedure in AGENTS.md. Start with ${sessionDir}/scan-plan.md. Do no
 - Make the patch and find open candidates: \`${run} patch --out ${sessionDir}\`
 - Write the gap reports: \`${run} report --out ${sessionDir}\`
 
-Run the patch command again until it shows no open candidates. Do all the work in this one session. Subagents read the same files again and increase the cost.
+Run the patch command again until it shows no open candidates. The patch also writes .privacy-scan/decisions.json. Tell the person to commit it with the annotations: the next scan then skips the files that did not change. Do all the work in this one session. Subagents read the same files again and increase the cost.
 
 ## Rules
 

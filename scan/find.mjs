@@ -157,16 +157,20 @@ export function find(root, { include } = {}) {
 // Compact plan for the agent: one section per file, most private category first.
 export function planMarkdown(result) {
   const byFile = new Map();
-  for (const c of result.candidates) {
+  for (const c of result.candidates.filter((x) => !x.cached)) {
     if (!byFile.has(c.file)) byFile.set(c.file, []);
     byFile.get(c.file).push(c);
   }
   const rank = (list) => Math.min(...list.map((c) => CATEGORY_ORDER.indexOf(c.category_hint)));
   const files = [...byFile.entries()].sort((a, b) => rank(a[1]) - rank(b[1]) || a[0].localeCompare(b[0]));
   const count = (k) => result.candidates.filter((c) => c.category_hint.replace('?', '') === k).length;
+  const skipped = result.cache?.units_skipped
+    ? [`${result.cache.units_skipped} candidates in ${result.cache.files_skipped} files are not listed: these files are unchanged since the last scan, so their decisions in .privacy-scan/decisions.json stay. "earlier" shows the decision from the last scan for a unit in a changed file.`, '']
+    : [];
   return [
     '# Scan plan',
     '',
+    ...skipped,
     `${result.candidates.length} candidates in ${byFile.size} of ${result.scanned_files} files (${result.scanned_lines} lines): ${count('secret')} secret, ${count('third-party')} third-party, ${count('personal')} personal. A trailing ? means the category is a guess. "covered" means a masking annotation is already within three lines. "decided" means a rule made the annotation; it is already in annotations.json, so examine it only when the file is open for other candidates.`,
     '',
     ...files.flatMap(([file, list]) => [
@@ -178,7 +182,7 @@ export function planMarkdown(result) {
           `  - renders at L${c.site_lines.slice(0, 12).join(', L')}${c.site_lines.length > 12 ? ' and more' : ''}: ${c.sites.slice(0, 3).map((s) => `<${s.tag}> ${s.kind} \`${s.expr.replace(/`/g, "'").slice(0, 50)}\``).join('; ')}`,
           ...(c.merged.length ? [`  - rule hits at L${c.merged.map((m) => m.line).slice(0, 10).join(', L')}: ${[...new Set(c.merged.flatMap((m) => m.rules))].join(', ')}`] : []),
         ]
-        : [`- ${c.id} L${c.line} ${c.component ? `<${c.component}> ` : ''}[${c.category_hint}; ${c.rules.join(', ')}]${c.covered ? ' covered' : ''}${c.auto ? ` decided: ${c.auto.value}` : ''}: \`${c.snippet.slice(0, 140).replace(/`/g, "'")}\``])),
+        : [`- ${c.id} L${c.line} ${c.component ? `<${c.component}> ` : ''}[${c.category_hint}; ${c.rules.join(', ')}]${c.covered ? ' covered' : ''}${c.auto ? ` decided: ${c.auto.value}` : ''}: \`${c.snippet.slice(0, 140).replace(/`/g, "'")}\``]).map((line, k) => (k === 0 && c.earlier ? `${line} (earlier: ${c.earlier.decision}${c.earlier.value ? ` ${c.earlier.value}` : ''})` : line))),
       '',
     ]),
   ].join('\n');

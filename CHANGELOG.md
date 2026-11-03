@@ -4,6 +4,9 @@ The prompts in `README.md` and `scan/PROMPT.md` run a tagged release. A change o
 
 ## Unreleased
 
+- Component pass: `find` parses TypeScript and JSX with `@babel/parser` (the first dependency, pinned with `npm-shrinkwrap.json`) and follows data from hooks, context, fetches and record-typed props to the elements that render it, across components. The plan lists one unit per component. On the validation sample it finds 29 of 34 reviewer labels without a model (10 with line rules); on the benchmark recall is 92.5% with 55 units (97 before).
+- Decisions cache: `patch` writes `.privacy-scan/decisions.json` into the patch. When it is committed, the next scan skips files that did not change.
+
 From the first validation run on an open-source CRM front end:
 
 - New rules: record and person components (chips, pickers, field displays), URLs that give access (webhook, invite and reset links), message subjects and bodies, OTP components, secret form field names, and names inside translated text.

@@ -28,7 +28,7 @@ Find the data in this application that a session recorder must mask or block.
 
 [`scan/PROMPT.md`](scan/PROMPT.md) has the same prompt with notes, a version without `npx`, and a command that starts Claude Code or Codex for you.
 
-The scan has two passes. A static pass with no model flags every line that may hold private data; on a 260-file app it takes about 0.1 seconds. Your agent then reviews the flagged lines file by file, decides what each one holds, and writes the annotations. A 260-file React app takes about four minutes of agent time.
+The scan has two passes. A static pass with no model parses your components, follows data from hooks, context, fetches and record-typed props to the elements that render it, and lists one unit per component, plus lines for secrets, inputs, URLs and templates. On a 9,500-file app it takes about 3 seconds. Your agent then reviews the flagged lines file by file, decides what each one holds, and writes the annotations. A 260-file React app takes about four minutes of agent time.
 
 What you get:
 
@@ -36,6 +36,7 @@ What you get:
 |------|----------|
 | `privacy.patch` | The `data-privacy` annotations, ready for `git apply` |
 | `app-privacy.json` | Each annotation with its reason, every dismissed candidate, and recorder configuration to add |
+| `.privacy-scan/decisions.json` | Inside the patch: the decision for each reviewed file and unit. Commit it with the annotations; the next scan skips files that did not change, so only new and changed code costs agent time. |
 | `feedback/` | One report for the scan: how each rule performed, as counts only, and gaps with a proposed rule. Recorder weaknesses go to a separate private file. |
 
 Recorders do not all read `data-privacy` yet, so the patch can use the recorder's own classes. With `--sdk rrweb` it writes `rr-block`, `rr-mask` and `rr-ignore`, which rrweb reads with no configuration; add `--annotate data-privacy` to write the standard attribute instead. [`scan/recorders/rrweb.md`](scan/recorders/rrweb.md) explains both and lists the rrweb options to set.

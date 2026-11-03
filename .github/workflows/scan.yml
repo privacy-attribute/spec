@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - name: Install
+        run: npm ci
       - name: Unit tests
         run: node --test scan/test/scan.test.mjs
       - name: Benchmark the scan rules

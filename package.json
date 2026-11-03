@@ -27,7 +27,8 @@
     "README.md",
     "LICENSE",
     "scan/",
-    "audit/runner/lib/agent.mjs"
+    "audit/runner/lib/agent.mjs",
+    "npm-shrinkwrap.json"
   ],
   "publishConfig": {
     "access": "public"

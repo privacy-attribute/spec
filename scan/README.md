@@ -9,7 +9,7 @@ To run it from a coding agent, use the prompt in [PROMPT.md](PROMPT.md). The age
 | Command | What it does |
 |---------|--------------|
 | `privacy-scan find <src> [--sdk rrweb] [--annotate rrweb\|data-privacy] [--include <path,...>] [--out <dir>]` | Static pass with no model. Applies the rules in `rules.mjs` to every source file and writes a session folder: `scan-plan.md` (flagged lines grouped by file, most private first), `candidates.json`, an empty `annotations.json` and `PLAYBOOK.md`. The folder goes in the system temp folder unless you pass `--out`. `--include` limits a large app to path prefixes under `<src>`, for example `--include modules/settings,pages/account`. Generated code is skipped. |
-| `privacy-scan patch --out <dir>` | Turns `annotations.json` into `privacy.patch` (paths relative to the repository root) and `app-privacy.json`. Lists every candidate that is not yet annotated or dismissed. |
+| `privacy-scan patch --out <dir>` | Turns `annotations.json` into `privacy.patch` (paths relative to the repository root) and `app-privacy.json`. The patch also creates or updates `.privacy-scan/decisions.json`. Lists every candidate that is not yet annotated or dismissed. |
 | `privacy-scan report --out <dir>` | Writes one report for the scan to `feedback/`: rule outcomes (counts only), gaps with proposed rules tested against their example, and a link that fills in the scan feedback form. Recorder gaps go to `feedback/private-recorder-gaps.md` for private reporting (see `SECURITY.md`). |
 | `privacy-scan agent <src> [--sdk rrweb] [--agent claude\|codex\|<command>] [--headless] [--model <m>]` | Runs `find`, then starts Claude Code or Codex on the playbook. `--headless` runs without questions and leaves the reports in the session folder. |
 
@@ -20,7 +20,9 @@ From a clone, run `node scan/cli.mjs <command>`. The prompts pin a release tag; 
 | File | Purpose |
 |------|---------|
 | `AGENTS.md` | Instructions for the agent: data categories, what to annotate, the procedure, and how to report gaps |
-| `rules.mjs` | The static rules. Each maps a source line to a pattern and a likely data category. |
+| `components.mjs` | The component pass: parses TypeScript and JSX with `@babel/parser` and follows data from its sources to the elements that render it, across components |
+| `rules.mjs` | The line rules for secrets, inputs, URLs, titles and templates (Vue, Svelte, HTML). Each maps a source line to a pattern and a likely data category. |
+| `cache.mjs` | The decisions cache: `find` skips files whose hash matches `.privacy-scan/decisions.json`, and `patch` writes the cache into the patch |
 | `recorders/<sdk>.md` | How that recorder reads annotations, and the configuration to add |
 | `PROMPT.md` | The prompt to share with implementers |
 

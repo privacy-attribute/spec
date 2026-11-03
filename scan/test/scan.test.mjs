@@ -125,3 +125,38 @@ test('the report counts rule outcomes and keeps recorder gaps private', () => {
   assert.ok(!r.url.includes('secret+weakness') && !r.url.includes('secret%20weakness'));
   assert.match(r.privateText, /secret weakness/);
 });
+
+test('the decisions cache skips unchanged files after the patch is committed', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const cli = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'cli.mjs');
+  const repo = tempApp({
+    'src/Profile.tsx': 'export function Profile() {\n  const user = useCurrentUser();\n  return <p>{user.email}</p>;\n}\n',
+    'src/Team.tsx': 'export function Team() {\n  const { data: people } = useQuery(q);\n  return people.map((p) => <li key={p.id}>{p.handleText}</li>);\n}\n',
+  });
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' });
+  git('init', '-q'); git('-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'init');
+  git('add', '-A'); git('-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'app');
+  const run = (...a) => execFileSync(process.execPath, [cli, ...a], { encoding: 'utf8' });
+  const out1 = path.join(repo, '..', `${path.basename(repo)}-s1`);
+  run('find', path.join(repo, 'src'), '--sdk', 'rrweb', '--out', out1);
+  const scan1 = JSON.parse(fs.readFileSync(path.join(out1, 'candidates.json'), 'utf8'));
+  const profile = scan1.candidates.find((c) => c.file === 'Profile.tsx');
+  const team = scan1.candidates.find((c) => c.file === 'Team.tsx');
+  fs.writeFileSync(path.join(out1, 'annotations.json'), JSON.stringify({
+    annotations: [{ file: 'Profile.tsx', line: 3, match: '<p', value: 'mask', category: 'personal', data: 'email', candidates: [profile.id] }],
+    dismissed: { [team.id]: 'test' }, cached: {}, config: [], gaps: [],
+  }));
+  run('patch', '--out', out1);
+  git('apply', path.join(out1, 'privacy.patch'));
+  assert.ok(fs.existsSync(path.join(repo, '.privacy-scan', 'decisions.json')), 'cache created by the patch');
+  assert.match(fs.readFileSync(path.join(repo, 'src', 'Profile.tsx'), 'utf8'), /className="rr-mask"/);
+  git('add', '-A'); git('-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'annotate');
+
+  const out2 = `${out1}-2`;
+  assert.match(run('find', path.join(repo, 'src'), '--sdk', 'rrweb', '--out', out2), /\(0 to review\)/);
+
+  fs.appendFileSync(path.join(repo, 'src', 'Team.tsx'), '\n');
+  const out3 = `${out1}-3`;
+  assert.match(run('find', path.join(repo, 'src'), '--sdk', 'rrweb', '--out', out3), /\(1 to review\)/);
+  assert.match(fs.readFileSync(path.join(out3, 'scan-plan.md'), 'utf8'), /earlier: dismiss/);
+});

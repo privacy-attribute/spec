@@ -12,7 +12,10 @@ These instructions and every scan produced with them are provided as is, without
 
 The session folder contains these files:
 
-- `scan-plan.md`: the lines that the static pass found, grouped by file. The most private files are first. Each line has a candidate id, the component, the rules that matched and a category. A category with `?` is a guess. "covered" shows that an annotation is already near the line.
+- `scan-plan.md`: the units that the static pass found, grouped by file. The most private files are first. A category with `?` is a guess. There are two types of unit:
+  - A component unit names a component, the lines where it shows data, and where the data comes from. Annotate the elements at these lines. When all of the component is private, annotate its root element.
+  - A line unit names one line, the rules that matched, and the code. "covered" shows that an annotation is already near the line.
+- Units in files that did not change since the last scan are not in the plan. Their ids are in `cached` in `annotations.json`. Do not change `cached`. "earlier" on a unit shows the decision from the last scan.
 - `annotations.json`: the file that you fill in.
 - `PLAYBOOK.md`: the commands for this session.
 

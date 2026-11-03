@@ -20,6 +20,7 @@ import { playbook } from './playbook.mjs';
 import { buildScanReport, writeScanReport } from './report.mjs';
 import { bench, formatBench } from './bench.mjs';
 import { applyAnnotation, unifiedDiff } from './patch.mjs';
+import { CACHE_PATH, loadCache, applyCache, buildCache, cacheDiff } from './cache.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CLI = fileURLToPath(import.meta.url);
@@ -33,6 +34,11 @@ function parseArgs(argv) {
     else args._.push(argv[i]);
   }
   return args;
+}
+
+// The repository root: where the decisions cache lives and where patch paths start.
+function gitTop(dir) {
+  try { return execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return null; }
 }
 
 function gitInfo(dir) {
@@ -58,7 +64,9 @@ function annotateStyle(requested, sdk) {
 
 function runFind(src, out, sdk, headless, annotate, include) {
   const root = path.resolve(src);
-  const result = { ...find(root, { include }), target: { root, ...gitInfo(root) }, sdk: sdk || null, annotate, scan_version: VERSION };
+  const top = gitTop(root) || root;
+  const result = { ...find(root, { include }), target: { root, top, ...gitInfo(root) }, sdk: sdk || null, annotate, scan_version: VERSION };
+  result.cache = applyCache(result, loadCache(top), root, top);
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, 'candidates.json'), JSON.stringify(result, null, 1));
   fs.writeFileSync(path.join(out, 'scan-plan.md'), planMarkdown(result));
@@ -68,11 +76,14 @@ function runFind(src, out, sdk, headless, annotate, include) {
       file: c.file, line: c.auto.line, match: c.auto.match, value: c.auto.value, category: c.auto.category,
       special_category: false, data: `decided by rule ${c.auto.rule}`, candidates: [c.id], auto: true,
     }));
-    fs.writeFileSync(path.join(out, 'annotations.json'), JSON.stringify({ annotations, dismissed: {}, config: [], gaps: [] }, null, 1));
+    // Units in files unchanged since the last scan keep their earlier decision.
+    const cached = Object.fromEntries(result.candidates.filter((c) => c.cached).map((c) => [c.id, `unchanged since the last scan: ${c.cached.decision}${c.cached.value ? ` ${c.cached.value}` : ''}`]));
+    fs.writeFileSync(path.join(out, 'annotations.json'), JSON.stringify({ annotations, dismissed: {}, cached, config: [], gaps: [] }, null, 1));
   }
   const promptFile = path.join(out, 'PLAYBOOK.md');
   fs.writeFileSync(promptFile, playbook({ scanDir: HERE, sessionDir: out, src: root, sdk, annotate, cli: CLI, headless }));
-  console.log(`Scanned ${result.scanned_files} files: ${result.candidates.length} candidates.`);
+  const open = result.candidates.filter((c) => !c.cached).length;
+  console.log(`Scanned ${result.scanned_files} files: ${result.candidates.length} candidates${result.cache.units_skipped ? `, of which ${result.cache.units_skipped} in ${result.cache.files_skipped} unchanged files keep their earlier decision (${open} to review)` : ''}.`);
   console.log(`Session folder: ${out}`);
   console.log(`Next: read ${promptFile} and follow it.`);
   return { result, promptFile };
@@ -93,19 +104,26 @@ function runPatch(out) {
     if (reason) failed.push({ ...a, reason });
   }
   // Paths in the patch are relative to the repository root, so `git apply` works from there.
-  let top = null;
-  try { top = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { /* not a git checkout */ }
+  const top = scan.target.top || gitTop(root) || root;
   let patch = '';
   let changedFiles = 0;
+  const after = new Map();
   for (const [abs, lines] of files) {
     const before = fs.readFileSync(abs, 'utf8');
-    const after = lines.join('\n');
-    if (after === before) continue;
+    const text = lines.join('\n');
+    if (text === before) continue;
     changedFiles++;
-    patch += unifiedDiff(path.relative(top || root, abs), before, after);
+    after.set(abs, text);
+    patch += unifiedDiff(path.relative(top, abs), before, text);
   }
+  // The decisions cache goes into the same patch, so it is committed with the annotations.
+  const oldCache = loadCache(top);
+  const newCache = `${JSON.stringify(buildCache({ cache: oldCache, scan, decisions, after, root, top, version: VERSION }), null, 1)}\n`;
+  fs.writeFileSync(path.join(out, 'decisions.json'), newCache);
+  const oldText = oldCache ? fs.readFileSync(path.join(top, CACHE_PATH), 'utf8') : null;
+  if (oldText !== newCache) patch += oldText === null ? cacheDiff(null, newCache) : unifiedDiff(CACHE_PATH, oldText, newCache);
   fs.writeFileSync(path.join(out, 'privacy.patch'), patch);
-  const settled = new Set([...decisions.annotations.flatMap((a) => a.candidates || []), ...Object.keys(decisions.dismissed || {})]);
+  const settled = new Set([...decisions.annotations.flatMap((a) => a.candidates || []), ...Object.keys(decisions.dismissed || {}), ...Object.keys(decisions.cached || {})]);
   const unreviewed = scan.candidates.filter((c) => !settled.has(c.id)).map((c) => c.id);
   const byValue = {};
   for (const a of decisions.annotations) byValue[`${a.value}/${a.category}`] = (byValue[`${a.value}/${a.category}`] || 0) + 1;
