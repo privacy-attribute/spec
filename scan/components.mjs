@@ -215,7 +215,8 @@ function analyse(comp, taintedProps) {
       const origin = taint.get(id) || 'secret name';
       if (isComp) edges.push({ child: tag, prop: attrName, origin });
       if (!isComp && DOM_DATA_ATTR.test(attrName)) sites.push({ line, tag, kind: `attr ${attrName}`, expr: exprText(attr.value.expression), origin });
-      if (isComp && /^(value|label|title|text|name|email|phone|children|content|description|placeholder|src|href|avatarUrl|url)$/.test(attrName)) sites.push({ line, tag, kind: `prop ${attrName}`, expr: exprText(attr.value.expression), origin });
+      // Data handed to a child component is shown there, whatever the prop is called.
+      if (isComp) sites.push({ line, tag, kind: `prop ${attrName}`, expr: exprText(attr.value.expression), origin });
     }
     for (const child of n.children) {
       if (child.type !== 'JSXExpressionContainer' || child.expression.type === 'JSXEmptyExpression') continue;

@@ -2,12 +2,12 @@
 // must mask or block. Deterministic and model-free; the agent reviews the output.
 import fs from 'node:fs';
 import path from 'node:path';
-import { RULES, COVERAGE, MARKUP, PERSON_FIELD, PUBLIC_OWNER } from './rules.mjs';
+import { RULES, COVERAGE, MARKUP, PERSON_FIELD, PUBLIC_OWNER, TRANSLATION_CALL } from './rules.mjs';
 import { componentPass } from './components.mjs';
 
 // In TypeScript and JSX files the component pass finds rendered data, so these line rules only
 // run on templates (Vue, Svelte, HTML and others).
-const RENDER_RULES = new Set(['person-field', 'person-field-self', 'person-field-others', 'template-binding', 'attribute-data', 'attribute-expr', 'generic-cell', 'metadata-render', 'message-content', 'echo-search', 'avatar-image', 'chart', 'style-from-data']);
+const RENDER_RULES = new Set(['person-field', 'person-field-self', 'person-field-others', 'template-binding', 'attribute-data', 'attribute-expr', 'generic-cell', 'metadata-render', 'message-content', 'echo-search', 'avatar-image', 'chart', 'style-from-data', 'table', 'record-list', 'validation', 'secret-display']);
 const PARSEABLE = /\.(tsx|jsx|ts|js|mjs)$/;
 // Files without markup cannot render; only these rules apply to them.
 const NO_MARKUP_RULES = new Set(['dom-write', 'url-with-data', 'title-from-data', 'console']);
@@ -89,13 +89,14 @@ export function find(root, { include } = {}) {
     lines += src.length;
     let component = null;
     const sources = sourceNames(src);
-    src.forEach((line, i) => {
-      const c = line.match(COMPONENT);
+    src.forEach((raw, i) => {
+      const line = raw.replace(TRANSLATION_CALL, "''");
+      const c = raw.match(COMPONENT);
       if (c) component = c[5];
       if (line.length > 2000 || /^\s*(\/\/|\*|import\b)/.test(line)) return;
       const markup = MARKUP.test(line);
       const publicOwner = PUBLIC_OWNER.test(line);
-      const applies = (r) => (hasMarkup || NO_MARKUP_RULES.has(r.id)) && !(parseable && RENDER_RULES.has(r.id)) && (!r.render || markup) && !(publicOwner && /^(person-field|template-binding|attribute-data|attribute-expr)/.test(r.id)) && r.re.test(line);
+      const applies = (r) => !r.optIn && (hasMarkup || NO_MARKUP_RULES.has(r.id)) && !(parseable && RENDER_RULES.has(r.id)) && (!r.render || markup) && !(publicOwner && /^(person-field|template-binding|attribute-data|attribute-expr)/.test(r.id)) && r.re.test(line);
       const hits = RULES.filter((r) => !r.fallback && applies(r));
       if (!hits.some((h) => h.id.startsWith('person-field'))) {
         const fallback = RULES.filter((r) => r.fallback && applies(r));
@@ -129,7 +130,7 @@ export function find(root, { include } = {}) {
         category_hint: category,
         covered: COVERAGE.test(near),
         auto: COVERAGE.test(near) ? null : auto,
-        snippet: line.trim().slice(0, 200),
+        snippet: raw.trim().slice(0, 200),
       });
     });
   }
@@ -157,13 +158,15 @@ export function find(root, { include } = {}) {
 // Compact plan for the agent: one section per file, most private category first.
 export function planMarkdown(result) {
   const byFile = new Map();
-  for (const c of result.candidates.filter((x) => !x.cached)) {
+  for (const c of result.candidates.filter((x) => !x.cached && !x.settled)) {
     if (!byFile.has(c.file)) byFile.set(c.file, []);
     byFile.get(c.file).push(c);
   }
   const rank = (list) => Math.min(...list.map((c) => CATEGORY_ORDER.indexOf(c.category_hint)));
   const files = [...byFile.entries()].sort((a, b) => rank(a[1]) - rank(b[1]) || a[0].localeCompare(b[0]));
   const count = (k) => result.candidates.filter((c) => c.category_hint.replace('?', '') === k).length;
+  const settledCount = result.candidates.filter((x) => x.settled).length;
+  const settledNote = settledCount ? [`${settledCount} input units are not listed: the recorder masks their values with its input masking option (see the config in annotations.json).`, ''] : [];
   const skipped = result.cache?.units_skipped
     ? [`${result.cache.units_skipped} candidates in ${result.cache.files_skipped} files are not listed: these files are unchanged since the last scan, so their decisions in .privacy-scan/decisions.json stay. "earlier" shows the decision from the last scan for a unit in a changed file.`, '']
     : [];
@@ -171,6 +174,7 @@ export function planMarkdown(result) {
     '# Scan plan',
     '',
     ...skipped,
+    ...settledNote,
     `${result.candidates.length} candidates in ${byFile.size} of ${result.scanned_files} files (${result.scanned_lines} lines): ${count('secret')} secret, ${count('third-party')} third-party, ${count('personal')} personal. A trailing ? means the category is a guess. "covered" means a masking annotation is already within three lines. "decided" means a rule made the annotation; it is already in annotations.json, so examine it only when the file is open for other candidates.`,
     '',
     ...files.flatMap(([file, list]) => [

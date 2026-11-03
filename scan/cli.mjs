@@ -67,6 +67,12 @@ function runFind(src, out, sdk, headless, annotate, include) {
   const top = gitTop(root) || root;
   const result = { ...find(root, { include }), target: { root, top, ...gitInfo(root) }, sdk: sdk || null, annotate, scan_version: VERSION };
   result.cache = applyCache(result, loadCache(top), root, top);
+  // rrweb masks input values with maskAllInputs, so plain input units need no review.
+  if (sdk === 'rrweb') {
+    for (const c of result.candidates) {
+      if (!c.cached && !c.auto && !c.sites && c.rules.every((r) => r === 'input')) c.settled = 'input value: masked by maskAllInputs';
+    }
+  }
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, 'candidates.json'), JSON.stringify(result, null, 1));
   fs.writeFileSync(path.join(out, 'scan-plan.md'), planMarkdown(result));
@@ -78,7 +84,9 @@ function runFind(src, out, sdk, headless, annotate, include) {
     }));
     // Units in files unchanged since the last scan keep their earlier decision.
     const cached = Object.fromEntries(result.candidates.filter((c) => c.cached).map((c) => [c.id, `unchanged since the last scan: ${c.cached.decision}${c.cached.value ? ` ${c.cached.value}` : ''}`]));
-    fs.writeFileSync(path.join(out, 'annotations.json'), JSON.stringify({ annotations, dismissed: {}, cached, config: [], gaps: [] }, null, 1));
+    const settled = Object.fromEntries(result.candidates.filter((c) => c.settled).map((c) => [c.id, c.settled]));
+    const config = Object.keys(settled).length ? ['rrweb on all pages: maskAllInputs: true (input values)'] : [];
+    fs.writeFileSync(path.join(out, 'annotations.json'), JSON.stringify({ annotations, dismissed: {}, cached, settled, config, gaps: [] }, null, 1));
   }
   const promptFile = path.join(out, 'PLAYBOOK.md');
   fs.writeFileSync(promptFile, playbook({ scanDir: HERE, sessionDir: out, src: root, sdk, annotate, cli: CLI, headless }));
@@ -123,7 +131,7 @@ function runPatch(out) {
   const oldText = oldCache ? fs.readFileSync(path.join(top, CACHE_PATH), 'utf8') : null;
   if (oldText !== newCache) patch += oldText === null ? cacheDiff(null, newCache) : unifiedDiff(CACHE_PATH, oldText, newCache);
   fs.writeFileSync(path.join(out, 'privacy.patch'), patch);
-  const settled = new Set([...decisions.annotations.flatMap((a) => a.candidates || []), ...Object.keys(decisions.dismissed || {}), ...Object.keys(decisions.cached || {})]);
+  const settled = new Set([...decisions.annotations.flatMap((a) => a.candidates || []), ...Object.keys(decisions.dismissed || {}), ...Object.keys(decisions.cached || {}), ...Object.keys(decisions.settled || {})]);
   const unreviewed = scan.candidates.filter((c) => !settled.has(c.id)).map((c) => c.id);
   const byValue = {};
   for (const a of decisions.annotations) byValue[`${a.value}/${a.category}`] = (byValue[`${a.value}/${a.category}`] || 0) + 1;

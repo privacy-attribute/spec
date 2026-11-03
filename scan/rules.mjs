@@ -26,7 +26,7 @@ export const RULES = [
   { id: 'secret-pin', re: /\b(pin[-_ ]?code|pinCode|enterPin|PinInput|PinPad|Keypad|NumberPad)\b/, pattern: 'P-pin-pad', category: 'secret' },
   { id: 'secret-display', render: true, re: new RegExp(String.raw`\{[^}]*\b(apiKey|api_key|secretKey|secret|token|accessToken|refreshToken|clientSecret|privateKey|webhookSecret|signingSecret|password|recoveryCodes?|backupCodes?|seedPhrase|plaintext|secretValue)\b[^}]*\}`), pattern: 'P-reveal-secret', category: 'secret' },
   { id: 'secret-reveal-toggle', re: /\b(showPassword|revealed|isRevealed|showSecret|showKey|setShow(Password|Secret|Key))\b/, pattern: 'P-password-reveal', category: 'secret' },
-  { id: 'secret-copy', re: /(copyToClipboard|clipboard\.writeText|useCopy\w*|onCopy)\s*\(\s*[\w?.]*([sS]ecret|[tT]oken|[aA]pi_?[kK]ey|[pP]assword|[rR]ecoveryCode|[pP]rivateKey)\b|<CopyButton\b[^>]*\{[^}]*([sS]ecret|[tT]oken|[kK]ey|[pP]assword)/, pattern: 'P-copy-button', category: 'secret' },
+  { id: 'secret-copy', re: /(copyToClipboard|clipboard\.writeText|useCopy\w*|onCopy)\s*\(\s*[\w?.]*([sS]ecret|[tT]oken|[aA]pi_?[kK]ey|[pP]assword|[rR]ecoveryCode|[pP]rivateKey|[pP]laintext)\b|<CopyButton\b[^>]*\{[^}]*([sS]ecret|[tT]oken|[kK]ey|[pP]assword)/, pattern: 'P-copy-button', category: 'secret' },
   { id: 'secret-qr', re: /\bQRCode|qrcode|otpauth:/, pattern: 'P-qr-secret', category: 'secret' },
   { id: 'secret-gov-id', re: /\b(ssn|socialSecurity|taxId|nationalId|passportNumber|driversLicen[cs]e)\b/i, pattern: 'P-gov-id', category: 'secret' },
 
@@ -68,7 +68,7 @@ export const RULES = [
   { id: 'title-from-data', re: /document\.title\s*=|<title>\{|title:\s*`[^`]*\$\{|use\w*Title\(|head:\s*\(\s*\{/, pattern: 'P-pii-text', category: 'personal?' },
   { id: 'url-with-data', re: /(navigate|router\.push|redirect|Link)\b[^;]*(search|params):\s*\{[^}]*(email|token|key|secret|q|query|name)\b|\?[\w&=]*(email|token|key|secret)=\$\{/, pattern: 'P-search-as-you-type', category: 'personal?' },
   { id: 'toast', re: /\b(toast|enqueueToast|enqueueSnackbar|notify)(\.\w+)?\([^)]*\$\{|\b(children|message|description|title):\s*`[^`]*\$\{/, pattern: 'P-toast', category: 'personal?' },
-  { id: 'console', re: /console\.(log|info|debug|warn|error)\(/, pattern: null, category: 'personal?', note: 'Recorded only when a console plugin is on.' },
+  { id: 'console', optIn: 'console', re: /console\.(log|info|debug|warn|error)\(/, pattern: null, category: 'personal?', note: 'Recorded only when a console plugin is on.' },
 
   // Embedded content
   { id: 'iframe', re: /<iframe\b/, pattern: 'P-embedded-iframe', category: 'personal?' },
@@ -82,6 +82,9 @@ export const MARKUP = /<[A-Za-z]|\/>|<\/|^\s*\{[^}]*\}\s*$|>\s*\{|\}\s*<|=\{[^}]
 
 // Objects that usually hold public content; person-field matches on them are skipped.
 export const PUBLIC_OWNER = /\b(hero|plan|plans|tier|brand|product|feature|features|post|article|page|site|seo|meta|config|copy|content|nav|menu|faq|testimonial|footer|header|link|category|tag|step|section|col)\??\.\w+/;
+
+// Translation calls hold label keys, never data: their text is removed before the rules run.
+export const TRANSLATION_CALL = /(\$t|\bt|\btrans|\b__|\bi18n\.t|\b\$i18n\.t|\bformatMessage|\b_)\(\s*(['"`])[^'"`]*\2[^)]*\)/g;
 
 // Existing masking annotations from the standard and from common vendors.
 export const COVERAGE = /data-privacy=|\brr-(mask|block|ignore)\b|data-rr-(mask|block|ignore)|ph-no-capture|ph-mask|data-hj-(suppress|allow)|fs-(exclude|mask|unmask)|sentry-(mask|block|unmask)|data-sentry-(mask|block)|data-dd-privacy|data-clarity-(mask|unmask)|data-private\b|data-mask\b|lr-(hide|block)|data-(heap|mp|amp)-(redact|mask)/;

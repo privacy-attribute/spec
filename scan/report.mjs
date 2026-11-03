@@ -14,7 +14,7 @@ export function ruleOutcomes(candidates, decisions) {
   for (const a of decisions.annotations || []) for (const id of a.candidates || []) annotatedAs.set(id, a.value);
   const dismissed = new Set(Object.keys(decisions.dismissed || {}));
   const out = {};
-  for (const c of candidates.filter((x) => !x.cached)) {
+  for (const c of candidates.filter((x) => !x.cached && !x.settled)) {
     for (const rule of c.rules) {
       const r = (out[rule] ||= { flagged: 0, annotated: {}, dismissed: 0, open: 0, auto: 0 });
       r.flagged++;

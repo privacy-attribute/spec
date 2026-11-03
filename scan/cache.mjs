@@ -63,6 +63,7 @@ export function buildCache({ cache, scan, decisions, after, root, top, version }
       hash: hash(text),
       units: units.map((c) => {
         if (c.cached) return { fingerprint: fingerprint(c), ...c.cached };
+        if (c.settled) return { fingerprint: fingerprint(c), decision: 'dismiss', reason: c.settled };
         const a = annotatedBy.get(c.id);
         if (a) return { fingerprint: fingerprint(c), decision: 'annotate', value: a.value, category: a.category, reason: (a.data || '').slice(0, 160) };
         return { fingerprint: fingerprint(c), decision: 'dismiss', reason: (dismissed[c.id] || 'not reviewed').slice(0, 160) };
