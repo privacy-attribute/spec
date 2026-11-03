@@ -159,6 +159,7 @@ function analyse(comp, taintedProps) {
   }
   const sites = [];
   const edges = [];
+  const uses = []; // each child component element: its name, and whether it gets private data
   const tainted = (expr) => [...idsIn(expr)].find((id) => taint.has(id)) || (SECRET_NAME.test(exprText(expr)) ? '#secret' : null);
   walk(comp.fn.body, (n) => {
     if (n.type !== 'JSXElement') return true;
@@ -166,6 +167,7 @@ function analyse(comp, taintedProps) {
     const tag = jsxName(opening.name);
     const line = opening.loc.start.line;
     const isComp = isComponentName(tag.split('.')[0]);
+    const edgesBefore = edges.length;
     for (const attr of opening.attributes) {
       if (attr.type === 'JSXSpreadAttribute') {
         const id = tainted(attr.argument);
@@ -190,9 +192,10 @@ function analyse(comp, taintedProps) {
       sites.push({ line: child.loc.start.line, tag, kind: 'text', expr: exprText(child.expression), origin });
       if (isComp) edges.push({ child: tag, prop: 'children', origin });
     }
+    if (isComp) uses.push({ child: tag.split('.').pop(), tainted: edges.length > edgesBefore });
     return true;
   });
-  return { sites, edges };
+  return { sites, edges, uses };
 }
 
 function jsxName(n) {
@@ -269,5 +272,21 @@ export function componentPass(root, files) {
       snippet: `<${c.name}> renders ${r.sites.length} value${r.sites.length === 1 ? '' : 's'} from ${[...new Set(r.sites.map((s) => s.origin))].slice(0, 2).join('; ')}`,
     });
   }
-  return { candidates, parsed, failed, components: comps.length };
+  // Uses of each component across the app, and how many of them pass private data.
+  const usage = {};
+  for (const r of results.values()) {
+    for (const u of r.uses) {
+      const k = (usage[u.child] ||= [0, 0]);
+      k[0]++;
+      if (u.tainted) k[1]++;
+    }
+  }
+  // Where each component sits, and whether it gets data from its own hooks or typed props
+  // (own data) or only from untyped props that its parents pass.
+  const index = {};
+  for (const [c, r] of results) {
+    const own = r.sites.some((s) => !/ via /.test(s.origin) && !/^prop \w+$/.test(s.origin));
+    (index[c.file] ||= []).push([c.name, c.line, c.endLine, own]);
+  }
+  return { candidates, parsed, failed, components: comps.length, usage, index };
 }

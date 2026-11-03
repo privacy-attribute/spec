@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { applyAnnotation, unifiedDiff } from '../patch.mjs';
+import { applyAnnotation, unifiedDiff, overMaskWarnings } from '../patch.mjs';
 import { find } from '../find.mjs';
 import { buildScanReport, ruleOutcomes } from '../report.mjs';
 
@@ -159,4 +159,19 @@ test('the decisions cache skips unchanged files after the patch is committed', a
   const out3 = `${out1}-3`;
   assert.match(run('find', path.join(repo, 'src'), '--sdk', 'rrweb', '--out', out3), /\(1 to review\)/);
   assert.match(fs.readFileSync(path.join(out3, 'scan-plan.md'), 'utf8'), /earlier: dismiss/);
+});
+
+test('over-masking: an annotation in a shared component with public uses is reported', () => {
+  const scan = {
+    component_index: { 'Layout.tsx': [['Layout', 1, 20, false]], 'Chip.tsx': [['Chip', 1, 10, true]], 'Row.tsx': [['Row', 1, 10, false]] },
+    component_usage: { Layout: [10, 3], Chip: [10, 1], Row: [10, 9] },
+  };
+  const w = overMaskWarnings(scan, [
+    { file: 'Layout.tsx', line: 5, value: 'mask' },
+    { file: 'Layout.tsx', line: 6, value: 'mask', accept_shared: 'header only' },
+    { file: 'Chip.tsx', line: 3, value: 'block' },
+    { file: 'Row.tsx', line: 3, value: 'mask' },
+  ]);
+  assert.deepEqual(w.map((x) => `${x.file}:${x.line}`), ['Layout.tsx:5']);
+  assert.equal(w[0].private_uses, 3);
 });

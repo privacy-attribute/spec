@@ -151,7 +151,7 @@ export function find(root, { include } = {}) {
   all.sort((a, b) => CATEGORY_ORDER.indexOf(a.category_hint) - CATEGORY_ORDER.indexOf(b.category_hint)
     || a.file.localeCompare(b.file) || a.line - b.line);
   all.forEach((c, i) => { c.id = `C${i + 1}`; });
-  return { root, include: include || null, scanned_files: scanned, scanned_lines: lines, parsed_files: comp.parsed, components: comp.components, candidates: all };
+  return { root, include: include || null, scanned_files: scanned, scanned_lines: lines, parsed_files: comp.parsed, components: comp.components, component_usage: comp.usage, component_index: comp.index, candidates: all };
 }
 
 // Compact plan for the agent: one section per file, most private category first.

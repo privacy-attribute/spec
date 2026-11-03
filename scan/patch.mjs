@@ -82,3 +82,32 @@ export function unifiedDiff(rel, before, after) {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 }
+
+// Annotations inside a shared component that gets its private data only from some of its parents
+// also cover the uses that show public content. Returns one warning for each such annotation
+// when at least two uses, and at least a quarter of all uses, are public.
+export function overMaskWarnings(scan, annotations) {
+  const index = scan.component_index || {};
+  const usage = scan.component_usage || {};
+  const warnings = [];
+  for (const a of annotations) {
+    if (a.accept_shared || a.auto) continue;
+    const enclosing = (index[a.file] || [])
+      .filter(([, start, end]) => a.line >= start && a.line <= end)
+      .sort((x, y) => (x[2] - x[1]) - (y[2] - y[1]))[0];
+    if (!enclosing) continue;
+    const [name, , , ownData] = enclosing;
+    const [uses = 0, tainted = 0] = usage[name] || [];
+    const publicUses = uses - tainted;
+    if (ownData || publicUses < 2 || publicUses < uses / 4) continue;
+    warnings.push({
+      file: a.file,
+      line: a.line,
+      component: name,
+      uses,
+      private_uses: tainted,
+      message: `<${name}> is used ${uses} times and gets private data in ${tainted} of them: annotate at those uses, or set accept_shared with a reason`,
+    });
+  }
+  return warnings;
+}

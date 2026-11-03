@@ -5,6 +5,7 @@ The prompts in `README.md` and `scan/PROMPT.md` run a tagged release. A change o
 ## Unreleased
 
 - Component pass: `find` parses TypeScript and JSX with `@babel/parser` (the first dependency, pinned with `npm-shrinkwrap.json`) and follows data from hooks, context, fetches and record-typed props to the elements that render it, across components. The plan lists one unit per component. On the validation sample it finds 29 of 34 reviewer labels without a model (10 with line rules); on the benchmark recall is 92.5% with 55 units (97 before).
+- Over-masking check: the component pass records how often each component is used and how many uses pass private data. `patch` reports an annotation inside a shared component when at least two uses, and at least a quarter of all uses, show public content; `accept_shared` keeps it with a reason. `scan/AGENTS.md` asks for `mask` before `block`, blocking only the smallest element (the avatar image, not the chip), and annotating private values where a parent passes them.
 - Decisions cache: `patch` writes `.privacy-scan/decisions.json` into the patch. When it is committed, the next scan skips files that did not change.
 
 From the first validation run on an open-source CRM front end:
