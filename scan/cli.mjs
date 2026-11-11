@@ -158,7 +158,7 @@ function findToasters(result, root) {
 // After the agent answers questions: applies the answers, places again, and rewrites the session files.
 function runPlace(out) {
   const result = JSON.parse(fs.readFileSync(path.join(out, 'candidates.json'), 'utf8'));
-  const decisions = JSON.parse(fs.readFileSync(path.join(out, 'annotations.json'), 'utf8'));
+  const decisions = agentSettled(JSON.parse(fs.readFileSync(path.join(out, 'annotations.json'), 'utf8')));
   const placement = decide(result, result.target.root, result.sdk, result.annotate, decisions.answers || {});
   // Placed annotations are made again; the agent's own annotations and rule decisions stay.
   decisions.annotations = [...placement.annotations, ...decisions.annotations.filter((a) => !(a.auto && /^placed from the scan/.test(a.data || '')))];
@@ -171,9 +171,20 @@ function runPlace(out) {
 }
 
 // Inserts each annotation after its `match` text and writes a unified diff the implementer can apply.
+// Entries in `settled` that the scan did not write are an agent's dismissals: they move to `dismissed`,
+// so the checks on dismissed units apply to them.
+function agentSettled(decisions) {
+  for (const [id, why] of Object.entries(decisions.settled || {})) {
+    if (DECIDED.test(why) || /^input value/.test(why)) continue;
+    (decisions.dismissed ||= {})[id] ??= why;
+    delete decisions.settled[id];
+  }
+  return decisions;
+}
+
 function runPatch(out) {
   const scan = JSON.parse(fs.readFileSync(path.join(out, 'candidates.json'), 'utf8'));
-  const decisions = JSON.parse(fs.readFileSync(path.join(out, 'annotations.json'), 'utf8'));
+  const decisions = agentSettled(JSON.parse(fs.readFileSync(path.join(out, 'annotations.json'), 'utf8')));
   const root = scan.target.root;
   const files = new Map();
   const failed = [];

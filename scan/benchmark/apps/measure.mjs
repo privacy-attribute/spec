@@ -1,5 +1,5 @@
 // Scores the static pass against a labelled sample of a real application.
-//   node scan/benchmark/apps/measure.mjs <app> <source folder> [--answers <answers.json>] [--over]
+//   node scan/benchmark/apps/measure.mjs <app> <source folder> [--answers <answers.json>] [--session <dir>] [--over]
 // <app>/labels.json names the app commit and the labelled elements of each sample file. A label is
 // found when a shown value (a site) or a line rule hit is on the element that the label names.
 // Recall is given for high-confidence sites alone and with the low-confidence residue. The residue
@@ -101,7 +101,11 @@ for (const r of rows.filter((x) => /child|line|site-low/.test(x.how || ''))) con
 // Stage 5: annotations placed from high-confidence sites, without a model. A label is annotated when a
 // placed annotation's element holds it or sits inside it, when it is a text field that maskAllInputs
 // masks, or when it is a child component that has placed annotations of its own.
-const placed = placeAnnotations(scan, source, { sdk: 'rrweb', annotate: 'rrweb' });
+// --session <dir>: score the final annotations of a scan session (placed and the agent's) instead.
+const sessionAt = process.argv.indexOf('--session');
+const placed = sessionAt > 0
+  ? { annotations: JSON.parse(fs.readFileSync(path.join(process.argv[sessionAt + 1], 'annotations.json'), 'utf8')).annotations, placed: new Map(), review: new Map() }
+  : placeAnnotations(scan, source, { sdk: 'rrweb', annotate: 'rrweb' });
 const annEls = placed.annotations.map((a) => {
   const el = spans(a.file).filter(([st, open, , tag]) => a.line >= st && a.line <= open && `<${tag}` === a.match).sort((x, y) => (x[2] - x[0]) - (y[2] - y[0]))[0];
   return { ...a, start: el ? el[0] : a.line, end: el ? el[2] : a.line };
@@ -122,7 +126,7 @@ const outcome = rows.map((r) => {
 });
 const sh = (list, hows) => pct(list.filter((r) => hows.includes(r.placedHow)).length, list.length);
 const preport = (name, list) => console.log(`${name.padEnd(12)} ${String(list.length).padStart(3)} labels: annotated or config ${sh(list, ['annotated', 'config']).padStart(4)} | with child annotations ${sh(list, ['annotated', 'config', 'child']).padStart(4)} | left for review ${sh(list, ['review']).padStart(4)}`);
-console.log(`\nplaced${answersAt > 0 ? ' with the answers' : ' without a model'}: ${placed.annotations.length} annotations in ${annotatedFiles.size} files; units fully placed ${[...placed.placed.keys()].filter((id) => !placed.review.has(id)).length}, with lines for review ${placed.review.size}`);
+console.log(`\n${sessionAt > 0 ? 'session annotations' : `placed${answersAt > 0 ? ' with the answers' : ' without a model'}`}: ${placed.annotations.length} annotations in ${annotatedFiles.size} files; units fully placed ${[...placed.placed.keys()].filter((id) => !placed.review.has(id)).length}, with lines for review ${placed.review.size}`);
 preport('all', outcome);
 for (const c of ['secret', 'personal', 'third-party']) preport(c, outcome.filter((r) => r.category === c));
 const sampleAnns = annEls.filter((a) => sample.has(a.file));
