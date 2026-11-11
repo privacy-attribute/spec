@@ -1,7 +1,9 @@
 // Component pass: parses TypeScript and JSX into components, finds the values that hold data
 // (from data hooks, context, fetches and record-typed props), follows them through derived values
 // and child component props across files, and reports where each component renders them.
-// One candidate per component replaces many line candidates.
+// One candidate per component replaces many line candidates. Fail closed: a hook or awaited call
+// that no list names counts as a data source with low confidence, and a field that the app's schema
+// declares private counts as data wherever it is shown.
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from '@babel/parser';
@@ -143,6 +145,8 @@ function analyse(comp, taintedProps) {
     const why = taintedProps.get(prop) || taintedProps.get('*')
       || (personType(comp.propTypes.get(prop) || '') ? `prop ${prop}: ${comp.propTypes.get(prop)}` : null)
       || (/^(loaderData|actionData)$/.test(prop) ? `prop ${prop}` : null)
+      // A route module gets the URL parameters as a prop, for example a team slug.
+      || (prop === 'params' && /(^|[\\/])(routes|pages|app)[\\/]/.test(comp.file) ? 'route params' : null)
       || (SECRET_NAME.test(prop) ? `prop ${prop}` : null);
     if (why) mark(local, why);
   }
@@ -172,7 +176,12 @@ function analyse(comp, taintedProps) {
           if (name && /^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name) && DATA_HOOK.test(name)) origin = `${name}()`;
           if (name && /^(useRecoilValue|useAtomValue|useRecoilState|useAtom|useSelector|useStore|useContext)$/.test(name)) origin = `${name}(${init.arguments[0] ? [...idsIn(init.arguments[0])][0] || '' : ''})`;
           if (name && /^(fetch|get|post|request|query)$/.test(name)) origin = `${name}()`;
+          // Route parameters hold slugs and names, such as a team URL.
+          if (name === 'useParams') origin = 'route params';
           if (name && awaited && /^(fetch|load|get|query|request|retrieve|find|search|list)[A-Z]\w*$/.test(name)) origin = `${name}()`;
+          // Fail closed: other hooks and awaited calls may return data.
+          if (!origin && name && /^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name)) origin = `unknown ${name}()`;
+          if (!origin && awaited) origin = `unknown await ${name || 'call'}()`;
         }
         if (!origin) {
           const used = [...dataIdsIn(init)].find((id) => taint.has(id));
@@ -188,6 +197,10 @@ function analyse(comp, taintedProps) {
       if (n.type === 'ObjectProperty' && /^(cell|Cell|render|renderCell|cellRenderer|accessorFn)$/.test(n.key?.name || '') && (n.value.type === 'ArrowFunctionExpression' || n.value.type === 'FunctionExpression') && n.value.params[0]) {
         bindingNames(n.value.params[0]).forEach((nm) => { changed = mark(nm, 'table row') || changed; });
       }
+      // Form fields: <FormField render={({ field }) => <Input {...field} />} /> shows what the person typed or chose.
+      if (n.type === 'JSXAttribute' && n.name?.name === 'render' && n.value?.type === 'JSXExpressionContainer' && /^(ArrowFunctionExpression|FunctionExpression)$/.test(n.value.expression.type) && n.value.expression.params[0]) {
+        bindingNames(n.value.expression.params[0]).forEach((nm) => { changed = mark(nm, 'form field') || changed; });
+      }
       // Callback parameters of iterations over tainted values: rows.map((row) => ...).
       if (n.type === 'CallExpression' && n.callee.type === 'MemberExpression' && /^(map|flatMap|forEach|filter|find|some|reduce)$/.test(n.callee.property?.name || '')) {
         const used = [...idsIn(n.callee.object)].find((id) => taint.has(id));
@@ -200,12 +213,28 @@ function analyse(comp, taintedProps) {
     });
     if (!changed) break;
   }
+  // Items of constant lists: FORMATS.map((format) => ...), Object.values(ROLES).map((role) => ...).
+  const constants = new Set();
+  walk(comp.fn.body, (n) => {
+    if (n.type !== 'CallExpression' || n.callee.type !== 'MemberExpression' || !/^(map|flatMap|forEach|filter|find)$/.test(n.callee.property?.name || '')) return true;
+    let list = n.callee.object;
+    if (list.type === 'CallExpression' && list.arguments[0]) list = list.arguments[0];
+    const root = list.type === 'MemberExpression' ? list.object : list;
+    const fn = n.arguments[0];
+    if (root?.type === 'Identifier' && CONSTANT_OBJECT.test(root.name) && !taint.has(root.name) && fn?.params?.[0]) bindingNames(fn.params[0]).forEach((nm) => constants.add(nm));
+    return true;
+  });
   const sites = [];
   const edges = [];
   const uses = []; // each child component element: its name, and whether it gets private data
   const tainted = (expr) => {
+    if (schemaPublic(expr)) return null;
     const ids = [...dataIdsIn(expr)];
-    return ids.find((id) => taint.has(id)) || (ids.some(secretIdentifier) || /\.(\w*(secret|token|password|apiKey|privateKey)\w*)\b/i.test(exprText(expr)) && !/\b(has|is|show)\w*(Token|Secret|Password)/.test(exprText(expr)) ? '#secret' : null);
+    const field = schemaField(expr, constants);
+    const id = ids.find((x) => taint.has(x));
+    // A schema field beats an unknown origin: it names the data.
+    if (field && (!id || UNKNOWN_ORIGIN.test(taint.get(id)))) { taint.set(`#schema ${field[0]}`, `schema ${field[1]} field ${field[0]}`); return `#schema ${field[0]}`; }
+    return id || (ids.some(secretIdentifier) || /\.(\w*(secret|token|password|apiKey|privateKey)\w*)\b/i.test(exprText(expr)) && !/\b(has|is|show)\w*(Token|Secret|Password)/.test(exprText(expr)) ? '#secret' : null);
   };
   walk(comp.fn.body, (n) => {
     if (n.type !== 'JSXElement') return true;
@@ -217,7 +246,10 @@ function analyse(comp, taintedProps) {
     for (const attr of opening.attributes) {
       if (attr.type === 'JSXSpreadAttribute') {
         const id = tainted(attr.argument);
-        if (id && isComp) edges.push({ child: tag, prop: '*', origin: taint.get(id) || 'secret name' });
+        if (id && isComp) {
+          edges.push({ child: tag, prop: '*', origin: taint.get(id) || 'secret name' });
+          sites.push({ line, tag, kind: 'prop *', expr: exprText(attr.argument), origin: taint.get(id) || 'secret name' });
+        }
         continue;
       }
       if (!attr.value || attr.value.type !== 'JSXExpressionContainer') continue;
@@ -269,6 +301,33 @@ function jsxName(n) {
 }
 
 let SOURCE_TEXT = '';
+let SCHEMA = new Map();
+// Origins that the pass could not name: a hook or call that no list knows. Sites from them have low confidence.
+export const UNKNOWN_ORIGIN = /^unknown /;
+const CONSTANT_OBJECT = /^([A-Z][A-Z0-9_]*|[A-Z]\w*(Enum|Status|Type|Role|Kind|Mode|Map|s)|Math|JSON|Object|Number|String|Date|i18n|env|process|config|import)$/;
+
+// The schema field that an expression shows, when the schema declares it: [field, category].
+// `constants` holds names bound to items of constant lists, such as format in FORMATS.map((format) => ...).
+function schemaField(expr, constants = new Set()) {
+  let found = null;
+  walk(expr, (n) => {
+    if (found) return false;
+    if (n !== expr && (n.type === 'JSXElement' || n.type === 'JSXFragment' || n.type === 'ArrowFunctionExpression' || n.type === 'FunctionExpression')) return false;
+    if ((n.type === 'MemberExpression' || n.type === 'OptionalMemberExpression') && !n.computed && n.property.type === 'Identifier' && SCHEMA.has(n.property.name)) {
+      const base = n.object.type === 'Identifier' ? n.object.name : null;
+      const f = SCHEMA.get(n.property.name);
+      if (f.category !== 'public' && !(base && (CONSTANT_OBJECT.test(base) || constants.has(base)))) found = [n.property.name, f.category];
+    }
+    return true;
+  });
+  return found;
+}
+// An expression that shows only a field the schema declares public, such as row.id or doc.status.
+function schemaPublic(expr) {
+  let e = expr;
+  while (e && (e.type === 'TSNonNullExpression' || e.type === 'TSAsExpression')) e = e.expression;
+  return Boolean(e && (e.type === 'MemberExpression' || e.type === 'OptionalMemberExpression') && !e.computed && e.property.type === 'Identifier' && SCHEMA.get(e.property.name)?.category === 'public');
+}
 const exprText = (e) => (e && e.start != null ? SOURCE_TEXT.slice(e.start, e.end).replace(/\s+/g, ' ').slice(0, 120) : '');
 
 export function categoryOf(sites) {
@@ -290,7 +349,9 @@ export function elementSpans(file, code) {
 }
 
 // Runs the pass over files (absolute paths). Returns one candidate per component that renders data.
-export function componentPass(root, files) {
+// `schema` is the field map from readSchemas, when the app has one.
+export function componentPass(root, files, schema = null) {
+  SCHEMA = schema?.fields || new Map();
   const comps = [];
   let parsed = 0;
   let failed = 0;
@@ -339,7 +400,8 @@ export function componentPass(root, files) {
       rules: ['component'],
       patterns: ['P-crm-record'],
       category_hint: categoryOf(r.sites),
-      sites: r.sites.slice(0, 12).map((s) => ({ line: s.line, tag: s.tag, kind: s.kind, expr: s.expr, origin: s.origin })),
+      confidence: r.sites.some((s) => !UNKNOWN_ORIGIN.test(s.origin)) ? 'high' : 'low',
+      sites: r.sites.map((s) => ({ line: s.line, tag: s.tag, kind: s.kind, expr: s.expr, origin: s.origin, confidence: UNKNOWN_ORIGIN.test(s.origin) ? 'low' : 'high' })),
       site_lines: lines,
       snippet: `<${c.name}> renders ${r.sites.length} value${r.sites.length === 1 ? '' : 's'} from ${[...new Set(r.sites.map((s) => s.origin))].slice(0, 2).join('; ')}`,
     });

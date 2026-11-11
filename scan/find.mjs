@@ -5,6 +5,7 @@ import path from 'node:path';
 import { RULES, COVERAGE, MARKUP, PERSON_FIELD, PUBLIC_OWNER, TRANSLATION_CALL } from './rules.mjs';
 import { componentPass } from './components.mjs';
 import { templatePass } from './templates.mjs';
+import { readSchemas } from './schemas.mjs';
 
 // In TypeScript and JSX files the component pass finds rendered data, and in Vue and Svelte files
 // the template pass does, so these line rules only run on other templates (HTML and server views).
@@ -137,7 +138,8 @@ export function find(root, { include } = {}) {
   }
   // Component pass over the whole tree, so data passed from components outside --include is seen.
   const tree = files(root);
-  const jsx = componentPass(root, tree);
+  const schema = readSchemas(root);
+  const jsx = componentPass(root, tree, schema);
   const tpl = templatePass(root, tree);
   const comp = {
     candidates: [...jsx.candidates, ...tpl.candidates],
@@ -166,7 +168,7 @@ export function find(root, { include } = {}) {
   all.sort((a, b) => CATEGORY_ORDER.indexOf(a.category_hint) - CATEGORY_ORDER.indexOf(b.category_hint)
     || a.file.localeCompare(b.file) || a.line - b.line);
   all.forEach((c, i) => { c.id = `C${i + 1}`; });
-  return { root, include: include || null, scanned_files: scanned, scanned_lines: lines, parsed_files: comp.parsed, components: comp.components, component_usage: comp.usage, component_index: comp.index, candidates: all };
+  return { root, include: include || null, schema_files: schema.files, scanned_files: scanned, scanned_lines: lines, parsed_files: comp.parsed, components: comp.components, component_usage: comp.usage, component_index: comp.index, candidates: all };
 }
 
 // Compact plan for the agent: one section per file, most private category first.

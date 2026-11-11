@@ -1,0 +1,621 @@
+{
+ "app": "documenso",
+ "repo": "https://github.com/documenso/documenso",
+ "commit": "f32ab10",
+ "labelled": "2026-11-11, two independent reviewers; labellers=2 marks agreement",
+ "files": {
+  "apps/remix/app/components/dialogs/account-delete-dialog.tsx": [
+   {
+    "line": 116,
+    "category": "personal",
+    "value": "mask",
+    "what": "signed-in user's email in the confirm prompt",
+    "labellers": 2
+   },
+   {
+    "line": 120,
+    "category": "personal",
+    "value": "mask",
+    "what": "typed confirmation email input",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/components/dialogs/envelopes-bulk-delete-dialog.tsx": [],
+  "apps/remix/app/components/dialogs/sign-field-initials-dialog.tsx": [
+   {
+    "line": 62,
+    "category": "personal",
+    "value": "mask",
+    "what": "typed initials input",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/components/embed/embed-sender-disabled.tsx": [],
+  "apps/remix/app/components/embed/multisign/multi-sign-document-signing-view.tsx": [
+   {
+    "line": 237,
+    "category": "third-party",
+    "value": "mask",
+    "what": "document title heading",
+    "labellers": 2
+   },
+   {
+    "line": 257,
+    "category": "third-party",
+    "value": "block",
+    "what": "PDF viewer rendering document contents (data URL built with signing token)",
+    "labellers": 2
+   },
+   {
+    "line": 323,
+    "category": "personal",
+    "value": "mask",
+    "what": "signer full name input",
+    "labellers": 2
+   },
+   {
+    "line": 338,
+    "category": "personal",
+    "value": "mask",
+    "what": "signer email input (disabled)",
+    "labellers": 2
+   },
+   {
+    "line": 347,
+    "category": "personal",
+    "value": "block",
+    "what": "signature pad dialog with the signer's signature",
+    "labellers": 2
+   },
+   {
+    "line": 392,
+    "category": "personal",
+    "value": "block",
+    "what": "pending signing fields the signer fills in",
+    "labellers": 2
+   },
+   {
+    "line": 402,
+    "category": "third-party",
+    "value": "block",
+    "what": "completed fields of other signers with their values",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/components/forms/document-preferences-form.tsx": [
+   {
+    "line": 168,
+    "category": "personal",
+    "value": "mask",
+    "what": "chosen default document visibility setting",
+    "labellers": 1
+   },
+   {
+    "line": 220,
+    "category": "personal",
+    "value": "mask",
+    "what": "chosen default document language setting",
+    "labellers": 1
+   },
+   {
+    "line": 266,
+    "category": "personal",
+    "value": "mask",
+    "what": "chosen default date format setting",
+    "labellers": 1
+   },
+   {
+    "line": 302,
+    "category": "personal",
+    "value": "mask",
+    "what": "chosen default time zone combobox",
+    "labellers": 2
+   },
+   {
+    "line": 334,
+    "category": "personal",
+    "value": "mask",
+    "what": "chosen allowed signature types",
+    "labellers": 1
+   },
+   {
+    "line": 378,
+    "category": "personal",
+    "value": "mask",
+    "what": "inherit or override choice for default recipients",
+    "labellers": 1
+   },
+   {
+    "line": 394,
+    "category": "third-party",
+    "value": "mask",
+    "what": "default recipients multiselect (names and emails)",
+    "labellers": 2
+   },
+   {
+    "line": 407,
+    "category": "third-party",
+    "value": "mask",
+    "what": "default recipient avatar with initials, name and email",
+    "labellers": 2
+   },
+   {
+    "line": 410,
+    "category": "third-party",
+    "value": "mask",
+    "what": "default recipient name or email",
+    "labellers": 1
+   },
+   {
+    "line": 414,
+    "category": "third-party",
+    "value": "mask",
+    "what": "default recipient email",
+    "labellers": 1
+   },
+   {
+    "line": 461,
+    "category": "personal",
+    "value": "mask",
+    "what": "chosen delegate document ownership setting",
+    "labellers": 1
+   },
+   {
+    "line": 509,
+    "category": "personal",
+    "value": "mask",
+    "what": "chosen AI features setting",
+    "labellers": 1
+   }
+  ],
+  "apps/remix/app/components/forms/editor/editor-field-date-form.tsx": [],
+  "apps/remix/app/components/forms/editor/editor-field-dropdown-form.tsx": [
+   {
+    "line": 161,
+    "category": "third-party",
+    "value": "mask",
+    "what": "selected default dropdown option value",
+    "labellers": 2
+   },
+   {
+    "line": 171,
+    "category": "third-party",
+    "value": "mask",
+    "what": "dropdown option values in select list",
+    "labellers": 2
+   },
+   {
+    "line": 217,
+    "category": "third-party",
+    "value": "mask",
+    "what": "dropdown option value input",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/components/general/analytics/analytics-query-error.tsx": [],
+  "apps/remix/app/components/general/analytics/analytics-range-picker.tsx": [],
+  "apps/remix/app/components/general/document-signing/document-signing-auth-set-password.tsx": [],
+  "apps/remix/app/components/general/envelope-editor/envelope-editor-preview-page.tsx": [
+   {
+    "line": 231,
+    "category": "third-party",
+    "value": "mask",
+    "what": "envelope file selector with document item titles",
+    "labellers": 2
+   },
+   {
+    "line": 247,
+    "category": "third-party",
+    "value": "block",
+    "what": "PDF viewer with document contents and recipient-derived field values",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/components/general/envelope-editor/envelope-editor-recipient-form.tsx": [
+   {
+    "line": 443,
+    "category": "personal",
+    "value": "mask",
+    "what": "organisation recipient count limit in alert",
+    "labellers": 2
+   },
+   {
+    "line": 581,
+    "category": "third-party",
+    "value": "mask",
+    "what": "recipient list with names and emails",
+    "labellers": 2
+   },
+   {
+    "line": 597,
+    "category": "third-party",
+    "value": "mask",
+    "what": "AI-detected recipients from the document",
+    "labellers": 1
+   }
+  ],
+  "apps/remix/app/components/general/organisations/organisation-quota-banner.tsx": [
+   {
+    "line": 68,
+    "category": "personal",
+    "value": "mask",
+    "what": "organisation usage quota state in banner",
+    "labellers": 1
+   },
+   {
+    "line": 122,
+    "category": "personal",
+    "value": "mask",
+    "what": "list of organisation quotas exceeded or nearing",
+    "labellers": 1
+   }
+  ],
+  "apps/remix/app/components/general/template/template-edit-form.tsx": [
+   {
+    "line": 299,
+    "category": "third-party",
+    "value": "block",
+    "what": "PDF viewer with template document contents",
+    "labellers": 2
+   },
+   {
+    "line": 321,
+    "category": "third-party",
+    "value": "mask",
+    "what": "template settings form (title, recipients, fields)",
+    "labellers": 2
+   },
+   {
+    "line": 333,
+    "category": "third-party",
+    "value": "mask",
+    "what": "template placeholder recipients form (recipients, direct link)",
+    "labellers": 2
+   },
+   {
+    "line": 347,
+    "category": "third-party",
+    "value": "mask",
+    "what": "template fields form (recipients, field values)",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/components/general/webhook-multiselect-combobox.tsx": [
+   {
+    "line": 31,
+    "category": "personal",
+    "value": "mask",
+    "what": "selected webhook trigger events",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/routes/_authenticated+/admin+/claims.tsx": [
+   {
+    "line": 37,
+    "category": "personal",
+    "value": "mask",
+    "what": "typed claim search query",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/routes/_authenticated+/admin+/teams.$id.tsx": [
+   {
+    "line": 59,
+    "category": "third-party",
+    "value": "mask",
+    "what": "team member name or email link",
+    "labellers": 2
+   },
+   {
+    "line": 63,
+    "category": "third-party",
+    "value": "mask",
+    "what": "team member email",
+    "labellers": 2
+   },
+   {
+    "line": 108,
+    "category": "third-party",
+    "value": "mask",
+    "what": "delete dialog with team name, member name and email",
+    "labellers": 2
+   },
+   {
+    "line": 193,
+    "category": "third-party",
+    "value": "mask",
+    "what": "settings header subtitle with team name",
+    "labellers": 2
+   },
+   {
+    "line": 231,
+    "category": "third-party",
+    "value": "mask",
+    "what": "team URL slug",
+    "labellers": 2
+   },
+   {
+    "line": 239,
+    "category": "third-party",
+    "value": "mask",
+    "what": "team member count",
+    "labellers": 2
+   },
+   {
+    "line": 263,
+    "category": "third-party",
+    "value": "mask",
+    "what": "team email address",
+    "labellers": 2
+   },
+   {
+    "line": 267,
+    "category": "third-party",
+    "value": "mask",
+    "what": "team email display name",
+    "labellers": 2
+   },
+   {
+    "line": 290,
+    "category": "third-party",
+    "value": "mask",
+    "what": "team and organisation global settings",
+    "labellers": 2
+   },
+   {
+    "line": 311,
+    "category": "third-party",
+    "value": "mask",
+    "what": "team members table",
+    "labellers": 2
+   },
+   {
+    "line": 324,
+    "category": "third-party",
+    "value": "mask",
+    "what": "pending invites table with emails",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/routes/_authenticated+/o.$orgUrl._layout.tsx": [],
+  "apps/remix/app/routes/_authenticated+/o.$orgUrl.settings._layout.tsx": [
+   {
+    "line": 44,
+    "category": "personal",
+    "value": "block",
+    "what": "settings layout given the preferred team URL slug",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/routes/_authenticated+/t.$teamUrl+/_index.tsx": [],
+  "apps/remix/app/routes/_authenticated+/t.$teamUrl+/documents.$id._layout.tsx": [
+   {
+    "line": 98,
+    "category": "personal",
+    "value": "block",
+    "what": "back link whose href holds the team URL slug",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/routes/_authenticated+/t.$teamUrl+/templates.$id.legacy_editor.tsx": [
+   {
+    "line": 65,
+    "category": "personal",
+    "value": "block",
+    "what": "back link whose href holds the team URL slug",
+    "labellers": 2
+   },
+   {
+    "line": 73,
+    "category": "third-party",
+    "value": "block",
+    "what": "template title heading, also in title attribute",
+    "labellers": 2
+   },
+   {
+    "line": 84,
+    "category": "secret",
+    "value": "block",
+    "what": "direct link badge with the template direct-link token",
+    "labellers": 2
+   },
+   {
+    "line": 96,
+    "category": "secret",
+    "value": "block",
+    "what": "direct link dialog with direct-link token and recipients",
+    "labellers": 2
+   },
+   {
+    "line": 110,
+    "category": "third-party",
+    "value": "mask",
+    "what": "template edit form with template contents",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/routes/_authenticated+/t.$teamUrl+/templates.f.$folderId._index.tsx": [],
+  "apps/remix/app/routes/_unauthenticated+/verify-email._index.tsx": [],
+  "apps/remix/app/routes/embed+/_v0+/_layout.tsx": [
+   {
+    "line": 57,
+    "category": "personal",
+    "value": "mask",
+    "what": "authentication-required view with the signer's email",
+    "labellers": 2
+   },
+   {
+    "line": 61,
+    "category": "secret",
+    "value": "block",
+    "what": "CSC authentication view given the signing token",
+    "labellers": 1
+   },
+   {
+    "line": 87,
+    "category": "personal",
+    "value": "block",
+    "what": "completed view with signer name and signature",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/routes/embed+/auth+/complete.tsx": [],
+  "apps/remix/app/routes/embed+/v1+/authoring+/document.edit.$id.tsx": [
+   {
+    "line": 305,
+    "category": "third-party",
+    "value": "mask",
+    "what": "configure view with document title, message and signers",
+    "labellers": 2
+   },
+   {
+    "line": 311,
+    "category": "third-party",
+    "value": "mask",
+    "what": "configure fields view with document, signer emails and fields (gets presign token)",
+    "labellers": 2
+   }
+  ],
+  "apps/remix/app/routes/embed+/v2+/authoring+/_layout.tsx": [],
+  "packages/ui/components/document/document-read-only-fields.tsx": [
+   {
+    "line": 117,
+    "category": "third-party",
+    "value": "mask",
+    "what": "recipient initials avatar",
+    "labellers": 2
+   },
+   {
+    "line": 149,
+    "category": "third-party",
+    "value": "mask",
+    "what": "recipient name and email",
+    "labellers": 2
+   },
+   {
+    "line": 164,
+    "category": "third-party",
+    "value": "block",
+    "what": "field content with values and signature images",
+    "labellers": 2
+   }
+  ],
+  "packages/ui/components/document/document-signature-settings-tooltip.tsx": [],
+  "packages/ui/components/field/field-tooltip.tsx": [],
+  "packages/ui/components/recipient/recipient-role-select.tsx": [],
+  "packages/ui/primitives/alert.tsx": [],
+  "packages/ui/primitives/badge.tsx": [],
+  "packages/ui/primitives/document-flow/add-settings.tsx": [
+   {
+    "line": 176,
+    "category": "third-party",
+    "value": "mask",
+    "what": "read-only fields with recipients and values",
+    "labellers": 2
+   },
+   {
+    "line": 195,
+    "category": "third-party",
+    "value": "mask",
+    "what": "document title input",
+    "labellers": 2
+   },
+   {
+    "line": 370,
+    "category": "personal",
+    "value": "mask",
+    "what": "document external ID input",
+    "labellers": 2
+   },
+   {
+    "line": 457,
+    "category": "personal",
+    "value": "mask",
+    "what": "time zone combobox, defaults to the user's local zone",
+    "labellers": 2
+   },
+   {
+    "line": 494,
+    "category": "personal",
+    "value": "mask",
+    "what": "redirect URL input",
+    "labellers": 2
+   }
+  ],
+  "packages/ui/primitives/form/form.tsx": [],
+  "packages/ui/primitives/slider.tsx": [],
+  "packages/ui/primitives/template-flow/add-template-settings.tsx": [
+   {
+    "line": 186,
+    "category": "third-party",
+    "value": "mask",
+    "what": "read-only fields with recipients and values",
+    "labellers": 2
+   },
+   {
+    "line": 205,
+    "category": "third-party",
+    "value": "mask",
+    "what": "template title input",
+    "labellers": 2
+   },
+   {
+    "line": 491,
+    "category": "personal",
+    "value": "mask",
+    "what": "selected organisation sender email",
+    "labellers": 2
+   },
+   {
+    "line": 497,
+    "category": "personal",
+    "value": "mask",
+    "what": "organisation sender email options",
+    "labellers": 2
+   },
+   {
+    "line": 525,
+    "category": "personal",
+    "value": "mask",
+    "what": "reply-to email input",
+    "labellers": 2
+   },
+   {
+    "line": 545,
+    "category": "personal",
+    "value": "mask",
+    "what": "email subject input",
+    "labellers": 2
+   },
+   {
+    "line": 573,
+    "category": "personal",
+    "value": "mask",
+    "what": "email message textarea",
+    "labellers": 2
+   },
+   {
+    "line": 630,
+    "category": "personal",
+    "value": "mask",
+    "what": "template external ID input",
+    "labellers": 2
+   },
+   {
+    "line": 684,
+    "category": "personal",
+    "value": "mask",
+    "what": "time zone combobox, defaults to the user's local zone",
+    "labellers": 2
+   },
+   {
+    "line": 719,
+    "category": "personal",
+    "value": "mask",
+    "what": "redirect URL input",
+    "labellers": 2
+   }
+  ],
+  "packages/ui/primitives/theme-switcher.tsx": []
+ }
+}

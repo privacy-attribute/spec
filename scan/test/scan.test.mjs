@@ -6,6 +6,7 @@ import path from 'node:path';
 import { applyAnnotation, unifiedDiff, overMaskWarnings, uncoveredSites } from '../patch.mjs';
 import { find } from '../find.mjs';
 import { buildScanReport, ruleOutcomes } from '../report.mjs';
+import { readSchemas } from '../schemas.mjs';
 
 const apply = (src, a, style = 'rrweb') => {
   const lines = src.split('\n');
@@ -236,4 +237,26 @@ test('component pass: conditions and mapped elements are not text sites', () => 
   const unit = r.candidates.find((c) => c.component === 'List');
   assert.deepEqual(unit.site_lines, [6]);
   assert.deepEqual(unit.sites.map((s) => s.tag), ['li']);
+});
+
+test('schema reader: Prisma and Rails fields get a category', () => {
+  const dir = tempApp({
+    'prisma/schema.prisma': 'enum Status {\n  DRAFT\n}\nmodel User {\n  id Int @id\n  email String\n  password String?\n  status Status\n  disabled Boolean\n  documentCount Int\n  order Int\n  team Team @relation(fields: [teamId], references: [id])\n}\n',
+    'db/schema.rb': 'create_table "contacts", force: :cascade do |t|\n    t.string "phone_number"\n    t.datetime "last_seen_at"\n    t.jsonb "custom_attributes"\n  end\n',
+  });
+  const f = readSchemas(dir).fields;
+  const cat = (n) => f.get(n)?.category;
+  assert.deepEqual(['email', 'password', 'status', 'disabled', 'documentCount', 'order', 'id', 'phone_number', 'last_seen_at', 'custom_attributes', 'team'].map(cat),
+    ['private', 'secret', 'public', 'public', 'private', 'public', 'public', 'private', 'public', 'private', undefined]);
+});
+
+test('component pass: schema fields and unknown hooks fail closed, schema public fields are skipped', () => {
+  const r = find(tempApp({
+    'prisma/schema.prisma': 'model Envelope {\n  id String @id\n  title String\n  status String\n  completed Boolean\n}\n',
+    'Row.tsx': "export function Row({ item }) {\n  const extra = useExtras();\n  return (\n    <tr>\n      <td>{item.title}</td>\n      <td>{item.completed}</td>\n      <td>{extra.note}</td>\n    </tr>\n  );\n}\n",
+  }));
+  const unit = r.candidates.find((c) => c.component === 'Row');
+  assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence]), [[5, 'high'], [7, 'low']]);
+  assert.match(unit.sites[0].origin, /schema private field title/);
+  assert.equal(unit.confidence, 'high');
 });
