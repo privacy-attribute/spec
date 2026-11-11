@@ -144,7 +144,7 @@ test('the decisions cache skips unchanged files after the patch is committed', a
   const team = scan1.candidates.find((c) => c.file === 'Team.tsx');
   fs.writeFileSync(path.join(out1, 'annotations.json'), JSON.stringify({
     annotations: [{ file: 'Profile.tsx', line: 3, match: '<p', value: 'mask', category: 'personal', data: 'email', candidates: [profile.id] }],
-    dismissed: { [team.id]: 'test' }, cached: {}, config: [], gaps: [],
+    dismissed: { [team.id]: 'test', [`${team.id}:L3`]: 'test' }, cached: {}, config: [], gaps: [],
   }));
   run('patch', '--out', out1);
   git('apply', path.join(out1, 'privacy.patch'));
@@ -215,19 +215,20 @@ test('template pass: Svelte props, each blocks and page data', () => {
   assert.deepEqual(avatar.site_lines, [7, 8]);
 });
 
-test('uncovered sites: lines of an annotated unit outside every annotated element are reported', () => {
+test('uncovered sites: lines of annotated and dismissed units outside every annotated element are reported', () => {
   const scan = {
     sdk: 'rrweb',
     candidates: [
       { id: 'C1', file: 'Card.tsx', component: 'Card', sites: [{ line: 3, tag: 'h3', kind: 'text', expr: 'user.name', origin: 'useUser()' }, { line: 6, tag: 'span', kind: 'text', expr: 'user.email', origin: 'useUser()' }, { line: 7, tag: 'Avatar', kind: 'prop user', expr: 'user', origin: 'useUser()' }, { line: 8, tag: 'input', kind: 'attr value', expr: 'user.phone', origin: 'useUser()' }] },
-      { id: 'C2', file: 'Row.tsx', component: 'Row', sites: [{ line: 4, tag: 'a', kind: 'attr href', expr: '`/sign/${token}`', origin: 'secret name' }, { line: 5, tag: 'p', kind: 'text', expr: 'row.title', origin: 'prop row' }] },
+      { id: 'C2', file: 'Row.tsx', component: 'Row', sites: [{ line: 4, tag: 'a', kind: 'attr href', expr: '`/sign/${token}`', origin: 'secret name' }, { line: 5, tag: 'p', kind: 'text', expr: 'row.title', origin: 'prop row' }, { line: 6, tag: 'td', kind: 'text', expr: 'row.id', origin: 'prop row' }, { line: 7, tag: 'tr', kind: 'attr data-state', expr: 'row.status', origin: 'prop row' }, { line: 8, tag: 'DialogTrigger', kind: 'text', expr: 'trigger', origin: 'prop trigger' }] },
     ],
   };
   const spans = (file) => (file === 'Card.tsx' ? [[2, 2, 4]] : []);
   const decisions = { annotations: [{ file: 'Card.tsx', line: 2, value: 'mask', candidates: ['C1'] }], dismissed: { C2: 'row actions' } };
-  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => [u.id, u.lines, u.dismissed]), [['C1', [6], false], ['C2', [4], true]]);
+  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => [u.id, u.lines, u.dismissed]), [['C1', [6], false], ['C2', [4, 5], true]]);
   decisions.dismissed['C1:L6'] = 'shown only to the user';
-  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => u.id), ['C2']);
+  decisions.dismissed['C2:L5'] = 'shows the template title, the same for all users';
+  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => [u.id, u.lines]), [['C2', [4]]]);
 });
 
 test('component pass: conditions and mapped elements are not text sites', () => {

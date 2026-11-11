@@ -116,11 +116,15 @@ export function overMaskWarnings(scan, annotations) {
 }
 
 const SECRET_SITE = /secret name|token|secret|password|apiKey|api_key/i;
+const ID_EXPR = /(\.id|Id|_id|\.length|Count)$/;
+// Elements passed in by the parent (children, a trigger button) are checked where they are made.
+const NODE_EXPR = /^(props\.)?(children|trigger|icon|actions?)$/;
 
 // Lines where a unit puts data in the page (text and attributes) that no annotation covers: no
 // annotated element contains the line. Data passed to a child component is checked in the child. Checked for
-// every annotated unit, and for dismissed units at lines that show a secret. `spans(file)` returns
-// the element spans of a file (elementSpans); `dismissed` may hold "C12:L40" keys that accept a line.
+// annotated and dismissed units alike: a reason for a whole unit can be wrong for one of its lines.
+// Data attributes and ids are skipped in dismissed units. `spans(file)` returns the element spans of a
+// file (elementSpans); `dismissed` may hold "C12:L40" keys that accept a line.
 export function uncoveredSites(scan, decisions, spans) {
   const annotations = decisions.annotations || [];
   const dismissed = decisions.dismissed || {};
@@ -141,9 +145,10 @@ export function uncoveredSites(scan, decisions, spans) {
     for (const site of c.sites) {
       // Data passed to a child component is checked where the child renders it.
       if (/^prop /.test(site.kind)) continue;
+      if (NODE_EXPR.test(site.expr)) continue;
       // With rrweb, maskAllInputs masks input values.
       if (scan.sdk === 'rrweb' && /^attr (value|defaultValue)$/.test(site.kind) && /^(input|textarea|select|Input|Textarea|TextArea|Select|PasswordInput|PinInput\w*|InputOTP\w*)$/.test(site.tag.split('.').pop())) continue;
-      if (!annotated && !SECRET_SITE.test(`${site.origin} ${site.expr}`)) continue;
+      if (!annotated && !SECRET_SITE.test(`${site.origin} ${site.expr}`) && (/^attr data-/.test(site.kind) || ID_EXPR.test(site.expr))) continue;
       if (`${c.id}:L${site.line}` in dismissed) continue;
       if (ranges.some(([s, e]) => site.line >= s && site.line <= e)) continue;
       lines.add(site.line);

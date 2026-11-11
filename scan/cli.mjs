@@ -169,7 +169,7 @@ function runPatch(out) {
     process.exitCode = 1;
   }
   if (report.uncovered.length) {
-    console.log(`Uncovered: ${report.uncovered.map((u) => `${u.id} <${u.component}> ${u.file} L${u.lines.join(', L')}${u.dismissed ? ' (dismissed unit, shows a secret)' : ''}`).join('; ')}. Annotate these lines, or accept a line with a "${report.uncovered[0].id}:L${report.uncovered[0].lines[0]}" key and a reason in dismissed.`);
+    console.log(`Uncovered: ${report.uncovered.map((u) => `${u.id} <${u.component}> ${u.file} L${u.lines.join(', L')}${u.dismissed ? ' (dismissed unit)' : ''}`).join('; ')}. Annotate these lines, or accept a line with a "${report.uncovered[0].id}:L${report.uncovered[0].lines[0]}" key and a reason in dismissed.`);
     process.exitCode = 1;
   }
   if (unreviewed.length) {
