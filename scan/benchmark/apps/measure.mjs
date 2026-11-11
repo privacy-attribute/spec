@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { find } from '../../find.mjs';
-import { elementSpans } from '../../components.mjs';
+import { spansFor } from '../../templates.mjs';
 
 const [app, source] = process.argv.slice(2);
 const dir = path.join(path.dirname(new URL(import.meta.url).pathname), app);
@@ -25,7 +25,7 @@ const sites = scan.candidates.flatMap((c) => (c.sites || []).map((s) => ({ ...s,
 const lineHits = scan.candidates.filter((c) => !c.sites).map((c) => ({ file: c.file, line: c.line }));
 const spanCache = new Map();
 const spans = (f) => {
-  if (!spanCache.has(f)) spanCache.set(f, elementSpans(f, fs.readFileSync(path.join(source, f), 'utf8')));
+  if (!spanCache.has(f)) spanCache.set(f, spansFor(f, fs.readFileSync(path.join(source, f), 'utf8')));
   return spanCache.get(f);
 };
 // The start line of the innermost element that holds a line.
@@ -37,22 +37,42 @@ const onLabel = (f, line, l) => Math.abs(line - l.line) <= 1 || Math.abs(owner(f
 // A site on an element that contains the labelled element, for example <Select {...field}> around its trigger.
 const onAncestor = (f, line, l) => spans(f).some(([s, , e]) => Math.abs(s - line) <= 1 && l.line > s && l.line <= e && l.line - s <= 8);
 
+// How each label is found, from strict to loose:
+//   site    a shown value on the labelled element, the element around it, or inside it
+//   config  a text field that rrweb's maskAllInputs masks (the scan sets it in the recorder config)
+//   child   the labelled element is a child component that is a unit of its own
+//   line    only a line rule hit near the label
+// Stage 5 places annotations from sites, so "site or config" is the main measure.
+const text = new Map();
+const lineOf = (f, n) => { if (!text.has(f)) text.set(f, fs.readFileSync(path.join(source, f), 'utf8').split('\n')); return text.get(f)[n - 1] || ''; };
 const rows = [];
 for (const [file, ls] of Object.entries(labels.files)) {
   for (const l of ls) {
     let here = sites.filter((s) => s.file === file && onLabel(file, s.line, l));
-    const ancestor = !here.length;
-    if (ancestor) here = sites.filter((s) => s.file === file && onAncestor(file, s.line, l));
-    const high = here.some((s) => s.confidence === 'high');
-    const any = here.length > 0 || lineHits.some((h) => h.file === file && Math.abs(h.line - l.line) <= 1);
-    rows.push({ file, ...l, high, any, ancestor: ancestor && here.length > 0 });
+    if (!here.length) here = sites.filter((s) => s.file === file && onAncestor(file, s.line, l));
+    if (!here.length) {
+      const el = spans(file).find(([st]) => st === l.line);
+      if (el) here = sites.filter((s) => s.file === file && s.line > el[1] && s.line <= el[2] && !/^prop /.test(s.kind));
+    }
+    const src = lineOf(file, l.line);
+    const field = /<(input|textarea|select)\b(?![^>]*type=["'](checkbox|radio|submit|button|hidden))/i.test(src) || /<([\w-]*(input|text-?area)|[\w.]*(Input|TextArea|Textarea))(?=[\s>/]|$)/.test(src);
+    const tag = src.match(/<([A-Z][\w.]*)/)?.[1]?.split('.').pop();
+    let how = null;
+    if (here.some((x) => x.confidence === 'high')) how = 'site';
+    else if (here.length) how = 'site-low';
+    else if (field) how = 'config';
+    else if (tag && scan.candidates.some((c) => c.component === tag && c.sites)) how = 'child';
+    else if (lineHits.some((h) => h.file === file && Math.abs(h.line - l.line) <= 1)) how = 'line';
+    rows.push({ file, ...l, how });
   }
 }
 const pct = (n, d) => (d ? `${Math.round((100 * n) / d)}%` : '-');
-const report = (name, list) => console.log(`${name.padEnd(12)} ${String(list.length).padStart(3)} labels: high ${pct(list.filter((r) => r.high).length, list.length)}, with residue ${pct(list.filter((r) => r.any).length, list.length)}`);
+const share = (list, hows) => pct(list.filter((r) => hows.includes(r.how)).length, list.length);
+const report = (name, list) => console.log(`${name.padEnd(12)} ${String(list.length).padStart(3)} labels: site or config ${share(list, ['site', 'config']).padStart(4)} | with low-confidence sites ${share(list, ['site', 'site-low', 'config']).padStart(4)} | with child units and line rules ${share(list, ['site', 'site-low', 'config', 'child', 'line']).padStart(4)}`);
 console.log(`${app}: ${scan.scanned_files} files scanned in ${(ms / 1000).toFixed(1)} s; schema files: ${(scan.schema_files || []).join(', ') || 'none'}`);
 report('all', rows);
 for (const c of ['secret', 'personal', 'third-party']) report(c, rows.filter((r) => r.category === c));
+report('agreed', rows.filter((r) => r.labellers === 2));
 
 // Precision in the sample: shown values that are not on any labelled element.
 const sample = new Set(Object.keys(labels.files));
@@ -65,11 +85,10 @@ for (const s of sampleSites) {
   elements.set(k, { hit: hit || prev?.hit, high: s.confidence === 'high' || prev?.high, s });
 }
 const els = [...elements.values()];
-console.log(`found on a containing element only (placement must move to the labelled element): ${rows.filter((r) => r.ancestor).length}`);
 console.log(`sample elements flagged: ${els.length}, on a label ${pct(els.filter((e) => e.hit).length, els.length)}; high ${els.filter((e) => e.high).length} (${pct(els.filter((e) => e.high && e.hit).length, els.filter((e) => e.high).length)} on a label)`);
 
 // Residue across the app: low-confidence sites a model would decide.
 const low = sites.filter((s) => s.confidence === 'low');
 console.log(`app: ${sites.length} sites, ${low.length} low confidence in ${new Set(low.map((s) => s.unit)).size} units`);
-for (const r of rows.filter((x) => !x.any)) console.log(`  missed ${r.file.split('/').pop()}:${r.line} [${r.category}] ${r.what.slice(0, 80)}`);
-if (process.argv.includes('--low-only')) for (const r of rows.filter((x) => x.any && !x.high)) console.log(`  low only ${r.file.split('/').pop()}:${r.line} [${r.category}] ${r.what.slice(0, 80)}`);
+for (const r of rows.filter((x) => !x.how)) console.log(`  missed ${r.file.split('/').pop()}:${r.line} [${r.category}] ${r.what.slice(0, 80)}`);
+for (const r of rows.filter((x) => /child|line|site-low/.test(x.how || ''))) console.log(`  ${r.how.padEnd(8)} ${r.file.split('/').pop()}:${r.line} [${r.category}] ${r.what.slice(0, 80)}`);

@@ -20,7 +20,7 @@ import { playbook } from './playbook.mjs';
 import { buildScanReport, writeScanReport } from './report.mjs';
 import { bench, formatBench } from './bench.mjs';
 import { applyAnnotation, unifiedDiff, overMaskWarnings, uncoveredSites } from './patch.mjs';
-import { elementSpans } from './components.mjs';
+import { spansFor } from './templates.mjs';
 import { CACHE_PATH, loadCache, applyCache, buildCache, cacheDiff } from './cache.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -158,7 +158,7 @@ function runPatch(out) {
     failed,
     unreviewed,
     over_masking: overMaskWarnings(scan, decisions.annotations),
-    uncovered: uncoveredSites(scan, decisions, (file) => elementSpans(file, fs.readFileSync(path.join(root, file), 'utf8'))),
+    uncovered: uncoveredSites(scan, decisions, (file) => spansFor(file, fs.readFileSync(path.join(root, file), 'utf8'))),
   };
   fs.writeFileSync(path.join(out, 'app-privacy.json'), JSON.stringify(report, null, 1));
   const applied = decisions.annotations.length - failed.length;

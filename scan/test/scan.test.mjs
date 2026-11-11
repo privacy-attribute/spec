@@ -7,6 +7,7 @@ import { applyAnnotation, unifiedDiff, overMaskWarnings, uncoveredSites } from '
 import { find } from '../find.mjs';
 import { buildScanReport, ruleOutcomes } from '../report.mjs';
 import { readSchemas } from '../schemas.mjs';
+import { templateSpans } from '../templates.mjs';
 
 const apply = (src, a, style = 'rrweb') => {
   const lines = src.split('\n');
@@ -259,4 +260,24 @@ test('component pass: schema fields and unknown hooks fail closed, schema public
   assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence]), [[5, 'high'], [7, 'low']]);
   assert.match(unit.sites[0].origin, /schema private field title/);
   assert.equal(unit.confidence, 'high');
+});
+
+test('template spans: Vue elements with multi-line start tags and bindings that hold >', () => {
+  const vue = '<template>\n  <section\n    v-for="item in rows"\n    :class="a > b ? \'x\' : \'y\'"\n  >\n    <img :src="item.url" />\n    <p>{{ item.name }}</p>\n  </section>\n</template>\n';
+  assert.deepEqual(templateSpans('A.vue', vue), [[6, 6, 6], [7, 7, 7], [2, 5, 8]]);
+});
+
+test('template pass: schema fields, getter arrows and unknown composables', () => {
+  const r = find(tempApp({
+    'db/schema.rb': 'create_table "campaigns", force: :cascade do |t|\n    t.string "title"\n    t.boolean "enabled"\n  end\n',
+    'Card.vue': "<script setup>\nconst props = defineProps({ metrics: { type: Object } });\nconst count = (key) => Number(props.metrics[key] || 0);\nconst { rule } = useAutomation();\n</script>\n<template>\n  <div>\n    <span>{{ count('sent') }}</span>\n    <h3>{{ campaign.title }}</h3>\n    <i>{{ campaign.enabled }}</i>\n    <p>{{ rule.name }}</p>\n  </div>\n</template>\n",
+  }));
+  const unit = r.candidates.find((c) => c.file === 'Card.vue');
+  assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence]), [[8, 'high'], [9, 'high'], [11, 'low']]);
+});
+
+test('component pass: state typed as a named type is a low-confidence source', () => {
+  const r = find(tempApp({ 'Edit.tsx': "export function Edit() {\n  const [config, setConfig] = useState<TFormSchema | null>(null);\n  return <h1>{config.title}</h1>;\n}\n" }));
+  const unit = r.candidates.find((c) => c.component === 'Edit');
+  assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence, s.origin]), [[3, 'low', 'unknown state TFormSchema']]);
 });

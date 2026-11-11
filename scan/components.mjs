@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from '@babel/parser';
+import { schemaFieldIn, schemaPublicIn, CONSTANT_OBJECT } from './schemas.mjs';
 
 const PARSEABLE = /\.(tsx|jsx|ts|js|mjs)$/;
 
@@ -154,12 +155,18 @@ function analyse(comp, taintedProps) {
   // Sources and derived values, repeated until no new names are found.
   // React state and its setter: state holds whatever data its setter receives.
   const setters = new Map();
+  const taintNamed = [];
   walk(comp.fn.body, (n) => {
     if (n.type === 'VariableDeclarator' && n.id.type === 'ArrayPattern' && n.init?.type === 'CallExpression' && /^use(State|Reducer)$/.test(calleeName(n.init) || '')) {
       const [state, setter] = n.id.elements;
       if (state?.type === 'Identifier' && setter?.type === 'Identifier') setters.set(setter.name, state.name);
+      // Fail closed: state typed as a named object type, such as useState<TConfigureFormSchema>(), may hold data.
+      const named = [];
+      walk(n.init.typeParameters, (t) => { if (t.type === 'TSTypeReference' && t.typeName?.type === 'Identifier') named.push(t.typeName.name); });
+      if (state?.type === 'Identifier' && named.length) taintNamed.push([state.name, `unknown state ${named[0]}`]);
     }
   });
+  for (const [nm, why] of taintNamed) mark(nm, why);
   for (let pass = 0; pass < 5; pass++) {
     let changed = false;
     walk(comp.fn.body, (n) => {
@@ -304,30 +311,8 @@ let SOURCE_TEXT = '';
 let SCHEMA = new Map();
 // Origins that the pass could not name: a hook or call that no list knows. Sites from them have low confidence.
 export const UNKNOWN_ORIGIN = /^unknown /;
-const CONSTANT_OBJECT = /^([A-Z][A-Z0-9_]*|[A-Z]\w*(Enum|Status|Type|Role|Kind|Mode|Map|s)|Math|JSON|Object|Number|String|Date|i18n|env|process|config|import)$/;
-
-// The schema field that an expression shows, when the schema declares it: [field, category].
-// `constants` holds names bound to items of constant lists, such as format in FORMATS.map((format) => ...).
-function schemaField(expr, constants = new Set()) {
-  let found = null;
-  walk(expr, (n) => {
-    if (found) return false;
-    if (n !== expr && (n.type === 'JSXElement' || n.type === 'JSXFragment' || n.type === 'ArrowFunctionExpression' || n.type === 'FunctionExpression')) return false;
-    if ((n.type === 'MemberExpression' || n.type === 'OptionalMemberExpression') && !n.computed && n.property.type === 'Identifier' && SCHEMA.has(n.property.name)) {
-      const base = n.object.type === 'Identifier' ? n.object.name : null;
-      const f = SCHEMA.get(n.property.name);
-      if (f.category !== 'public' && !(base && (CONSTANT_OBJECT.test(base) || constants.has(base)))) found = [n.property.name, f.category];
-    }
-    return true;
-  });
-  return found;
-}
-// An expression that shows only a field the schema declares public, such as row.id or doc.status.
-function schemaPublic(expr) {
-  let e = expr;
-  while (e && (e.type === 'TSNonNullExpression' || e.type === 'TSAsExpression')) e = e.expression;
-  return Boolean(e && (e.type === 'MemberExpression' || e.type === 'OptionalMemberExpression') && !e.computed && e.property.type === 'Identifier' && SCHEMA.get(e.property.name)?.category === 'public');
-}
+const schemaField = (expr, constants) => schemaFieldIn(expr, SCHEMA, constants);
+const schemaPublic = (expr) => schemaPublicIn(expr, SCHEMA);
 const exprText = (e) => (e && e.start != null ? SOURCE_TEXT.slice(e.start, e.end).replace(/\s+/g, ' ').slice(0, 120) : '');
 
 export function categoryOf(sites) {

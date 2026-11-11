@@ -140,7 +140,7 @@ export function find(root, { include } = {}) {
   const tree = files(root);
   const schema = readSchemas(root);
   const jsx = componentPass(root, tree, schema);
-  const tpl = templatePass(root, tree);
+  const tpl = templatePass(root, tree, schema);
   const comp = {
     candidates: [...jsx.candidates, ...tpl.candidates],
     parsed: jsx.parsed + tpl.parsed,

@@ -1,0 +1,661 @@
+{
+ "app": "chatwoot",
+ "repo": "https://github.com/chatwoot/chatwoot",
+ "commit": "5dedc3a",
+ "labelled": "2026-11-11, two independent reviewers; labellers=2 marks agreement",
+ "files": {
+  "app/javascript/dashboard/App.vue": [],
+  "app/javascript/dashboard/components-next/Campaigns/Pages/CampaignAnalyticsPage/CampaignDeliveryBreakdown.vue": [
+   {
+    "line": 95,
+    "category": "personal",
+    "value": "mask",
+    "what": "campaign delivery rate of the workspace",
+    "labellers": 2
+   },
+   {
+    "line": 107,
+    "category": "personal",
+    "value": "mask",
+    "what": "delivery breakdown chart bars encoding workspace campaign counts",
+    "labellers": 2
+   },
+   {
+    "line": 128,
+    "category": "personal",
+    "value": "mask",
+    "what": "per-status campaign message counts",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components-next/Companies/CompaniesHeader/CompanyHeader.vue": [
+   {
+    "line": 26,
+    "category": "personal",
+    "value": "mask",
+    "what": "company search query typed by the agent",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components-next/Contacts/ContactsForm/CreateNewContactDialog.vue": [
+   {
+    "line": 49,
+    "category": "third-party",
+    "value": "mask",
+    "what": "new contact form: contact name, email, phone, attributes",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components-next/Contacts/ContactsListLayout.vue": [
+   {
+    "line": 84,
+    "category": "personal",
+    "value": "mask",
+    "what": "contacts header: typed search value, segment or label name as title, active segment",
+    "labellers": 2
+   },
+   {
+    "line": 103,
+    "category": "personal",
+    "value": "mask",
+    "what": "active filter/segment preview with filter values the agent entered",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components-next/Editor/Editor.vue": [
+   {
+    "line": 100,
+    "category": "personal",
+    "value": "mask",
+    "what": "rich text editor content typed by the agent, plus signature",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components-next/HelpCenter/Pages/CategoryPage/CategoriesPage.vue": [
+   {
+    "line": 131,
+    "category": "personal",
+    "value": "mask",
+    "what": "category search query typed by the agent",
+    "labellers": 2
+   },
+   {
+    "line": 146,
+    "category": "personal",
+    "value": "mask",
+    "what": "list of help center categories of the workspace",
+    "labellers": 1
+   },
+   {
+    "line": 167,
+    "category": "personal",
+    "value": "mask",
+    "what": "edit dialog prefilled with selected category",
+    "labellers": 1
+   }
+  ],
+  "app/javascript/dashboard/components-next/call/CallKeypad.vue": [
+   {
+    "line": 30,
+    "category": "secret",
+    "value": "block",
+    "what": "DTMF keypad during a call; clicked digits can be a PIN or account number",
+    "labellers": 1
+   }
+  ],
+  "app/javascript/dashboard/components-next/captain/pageComponents/document/CreateDocumentDialog.vue": [
+   {
+    "line": 59,
+    "category": "personal",
+    "value": "mask",
+    "what": "document form: knowledge source URL or file for the workspace assistant",
+    "labellers": 1
+   }
+  ],
+  "app/javascript/dashboard/components-next/captain/pageComponents/overview/v2/CsatCard.vue": [
+   {
+    "line": 73,
+    "category": "personal",
+    "value": "mask",
+    "what": "workspace CSAT scores and trends",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components-next/captain/pageComponents/response/CreateResponseDialog.vue": [
+   {
+    "line": 83,
+    "category": "personal",
+    "value": "mask",
+    "what": "FAQ response form: question and answer of the workspace assistant",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components-next/captain/pageComponents/response/LimitBanner.vue": [],
+  "app/javascript/dashboard/components-next/feature-spotlight/FeatureSpotlightPopover.vue": [],
+  "app/javascript/dashboard/components/widgets/DashboardApp/Frame.vue": [
+   {
+    "line": 141,
+    "category": "third-party",
+    "value": "block",
+    "what": "dashboard app iframe: workspace-configured URL, receives and shows contact and conversation data",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components/widgets/conversation/EmptyState/FeaturePlaceholder.vue": [],
+  "app/javascript/dashboard/components/widgets/conversation/StripeSubscription.vue": [
+   {
+    "line": 102,
+    "category": "third-party",
+    "value": "block",
+    "what": "contact subscription card: product names in aria-label and text, price, quantity, trial and renewal dates",
+    "labellers": 2
+   },
+   {
+    "line": 110,
+    "category": "third-party",
+    "value": "mask",
+    "what": "subscription item names",
+    "labellers": 1
+   },
+   {
+    "line": 113,
+    "category": "third-party",
+    "value": "mask",
+    "what": "subscription status",
+    "labellers": 1
+   },
+   {
+    "line": 120,
+    "category": "third-party",
+    "value": "mask",
+    "what": "item price and quantity",
+    "labellers": 1
+   },
+   {
+    "line": 129,
+    "category": "third-party",
+    "value": "mask",
+    "what": "trial end date",
+    "labellers": 1
+   },
+   {
+    "line": 130,
+    "category": "third-party",
+    "value": "mask",
+    "what": "cancellation date message",
+    "labellers": 1
+   },
+   {
+    "line": 133,
+    "category": "third-party",
+    "value": "mask",
+    "what": "renewal / period end date",
+    "labellers": 1
+   },
+   {
+    "line": 140,
+    "category": "third-party",
+    "value": "mask",
+    "what": "side panel title with contact subscription product names",
+    "labellers": 2
+   },
+   {
+    "line": 143,
+    "category": "third-party",
+    "value": "mask",
+    "what": "contact subscription status",
+    "labellers": 2
+   },
+   {
+    "line": 149,
+    "category": "third-party",
+    "value": "mask",
+    "what": "contact Stripe subscription id",
+    "labellers": 2
+   },
+   {
+    "line": 165,
+    "category": "third-party",
+    "value": "mask",
+    "what": "trial end date of contact subscription",
+    "labellers": 2
+   },
+   {
+    "line": 166,
+    "category": "third-party",
+    "value": "mask",
+    "what": "cancellation date of contact subscription",
+    "labellers": 2
+   },
+   {
+    "line": 173,
+    "category": "third-party",
+    "value": "mask",
+    "what": "canceled-on date of contact subscription",
+    "labellers": 2
+   },
+   {
+    "line": 183,
+    "category": "third-party",
+    "value": "mask",
+    "what": "subscription items: product name, price, quantity, period dates",
+    "labellers": 1
+   },
+   {
+    "line": 188,
+    "category": "third-party",
+    "value": "mask",
+    "what": "item name per subscription item",
+    "labellers": 1
+   },
+   {
+    "line": 194,
+    "category": "third-party",
+    "value": "mask",
+    "what": "item price",
+    "labellers": 1
+   },
+   {
+    "line": 195,
+    "category": "third-party",
+    "value": "mask",
+    "what": "item quantity",
+    "labellers": 1
+   },
+   {
+    "line": 198,
+    "category": "third-party",
+    "value": "mask",
+    "what": "period start date",
+    "labellers": 1
+   },
+   {
+    "line": 205,
+    "category": "third-party",
+    "value": "mask",
+    "what": "period end / renewal date",
+    "labellers": 1
+   }
+  ],
+  "app/javascript/dashboard/components/widgets/conversation/VoiceCallStatus.vue": [],
+  "app/javascript/dashboard/components/widgets/conversation/WhatsappTemplates/Modal.vue": [
+   {
+    "line": 77,
+    "category": "personal",
+    "value": "mask",
+    "what": "modal subtitle with selected workspace template name",
+    "labellers": 2
+   },
+   {
+    "line": 82,
+    "category": "personal",
+    "value": "mask",
+    "what": "list of the inbox's WhatsApp templates",
+    "labellers": 1
+   },
+   {
+    "line": 88,
+    "category": "personal",
+    "value": "mask",
+    "what": "template reply form with variable values typed by the agent",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/components/widgets/conversation/conversationBulkActions/Index.vue": [
+   {
+    "line": 191,
+    "category": "personal",
+    "value": "mask",
+    "what": "workspace label list for bulk assign",
+    "labellers": 2
+   },
+   {
+    "line": 192,
+    "category": "personal",
+    "value": "mask",
+    "what": "labels applied to the selected conversations",
+    "labellers": 1
+   },
+   {
+    "line": 203,
+    "category": "third-party",
+    "value": "mask",
+    "what": "agent picker with other agents' names and avatars",
+    "labellers": 1
+   },
+   {
+    "line": 208,
+    "category": "personal",
+    "value": "mask",
+    "what": "workspace team names",
+    "labellers": 1
+   },
+   {
+    "line": 212,
+    "category": "personal",
+    "value": "mask",
+    "what": "workspace macro names",
+    "labellers": 1
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/campaigns/pages/LiveChatCampaignsPage.vue": [
+   {
+    "line": 53,
+    "category": "personal",
+    "value": "mask",
+    "what": "new campaign form typed by the agent",
+    "labellers": 1
+   },
+   {
+    "line": 65,
+    "category": "personal",
+    "value": "mask",
+    "what": "campaign list: titles, messages, inbox and sender names",
+    "labellers": 2
+   },
+   {
+    "line": 78,
+    "category": "personal",
+    "value": "mask",
+    "what": "edit campaign form with selected campaign data",
+    "labellers": 2
+   },
+   {
+    "line": 82,
+    "category": "personal",
+    "value": "mask",
+    "what": "delete confirmation for selected campaign",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/captain/assistants/settings/Index.vue": [
+   {
+    "line": 83,
+    "category": "personal",
+    "value": "mask",
+    "what": "assistant settings form: name, description, avatar",
+    "labellers": 2
+   },
+   {
+    "line": 100,
+    "category": "personal",
+    "value": "mask",
+    "what": "delete button label with assistant name",
+    "labellers": 2
+   },
+   {
+    "line": 112,
+    "category": "personal",
+    "value": "mask",
+    "what": "delete dialog naming the assistant",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/conversation/ConversationInfo.vue": [
+   {
+    "line": 103,
+    "category": "third-party",
+    "value": "mask",
+    "what": "conversation attributes panel: custom attributes, IP, browser, OS, referer, start time",
+    "labellers": 2
+   },
+   {
+    "line": 110,
+    "category": "third-party",
+    "value": "mask",
+    "what": "contact detail item value (IP, browser, language, initiated time)",
+    "labellers": 2
+   },
+   {
+    "line": 115,
+    "category": "third-party",
+    "value": "block",
+    "what": "referer link: contact's page URL in href and text",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/assignmentPolicy/pages/AgentAssignmentIndexPage.vue": [
+   {
+    "line": 112,
+    "category": "personal",
+    "value": "mask",
+    "what": "assignment policy cards: policy names, descriptions, inbox names",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/attributes/AddAttribute.vue": [
+   {
+    "line": 181,
+    "category": "personal",
+    "value": "mask",
+    "what": "attribute model select (setting chosen)",
+    "labellers": 1
+   },
+   {
+    "line": 190,
+    "category": "personal",
+    "value": "mask",
+    "what": "attribute display name input",
+    "labellers": 2
+   },
+   {
+    "line": 204,
+    "category": "personal",
+    "value": "mask",
+    "what": "attribute key input",
+    "labellers": 2
+   },
+   {
+    "line": 215,
+    "category": "personal",
+    "value": "mask",
+    "what": "attribute description textarea",
+    "labellers": 2
+   },
+   {
+    "line": 228,
+    "category": "personal",
+    "value": "mask",
+    "what": "attribute type select (setting chosen)",
+    "labellers": 1
+   },
+   {
+    "line": 245,
+    "category": "personal",
+    "value": "mask",
+    "what": "list attribute values tag input",
+    "labellers": 2
+   },
+   {
+    "line": 262,
+    "category": "personal",
+    "value": "mask",
+    "what": "regex enabled checkbox",
+    "labellers": 1
+   },
+   {
+    "line": 269,
+    "category": "personal",
+    "value": "mask",
+    "what": "regex pattern input",
+    "labellers": 2
+   },
+   {
+    "line": 278,
+    "category": "personal",
+    "value": "mask",
+    "what": "regex cue input",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/automation/EditAutomationRule.vue": [
+   {
+    "line": 69,
+    "category": "personal",
+    "value": "mask",
+    "what": "automation rule form: name, conditions, condition values, actions",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/inbox/AddAgents.vue": [
+   {
+    "line": 109,
+    "category": "third-party",
+    "value": "mask",
+    "what": "agent picker: other agents' names and avatar thumbnails",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/inbox/channels/Email.vue": [],
+  "app/javascript/dashboard/routes/dashboard/settings/inbox/channels/Telegram.vue": [
+   {
+    "line": 80,
+    "category": "secret",
+    "value": "block",
+    "what": "Telegram bot token input",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationHooks.vue": [
+   {
+    "line": 131,
+    "category": "personal",
+    "value": "mask",
+    "what": "list of configured integration hooks (inboxes, settings)",
+    "labellers": 1
+   },
+   {
+    "line": 140,
+    "category": "personal",
+    "value": "mask",
+    "what": "single integration hook settings",
+    "labellers": 1
+   },
+   {
+    "line": 149,
+    "category": "secret",
+    "value": "block",
+    "what": "new hook form: integration credentials, keys and URLs",
+    "labellers": 1
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/profile/AudioAlertCondition.vue": [
+   {
+    "line": 31,
+    "category": "personal",
+    "value": "mask",
+    "what": "audio alert condition checkboxes chosen by the agent",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/profile/MfaSettings.vue": [
+   {
+    "line": 161,
+    "category": "secret",
+    "value": "block",
+    "what": "MFA setup wizard: provisioning URI, QR code, secret key, backup codes, OTP input",
+    "labellers": 2
+   },
+   {
+    "line": 175,
+    "category": "secret",
+    "value": "block",
+    "what": "MFA management: backup codes, password and OTP inputs",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/profile/MfaStatusCard.vue": [],
+  "app/javascript/dashboard/routes/dashboard/settings/reports/components/WootReports.vue": [
+   {
+    "line": 177,
+    "category": "third-party",
+    "value": "mask",
+    "what": "report filter with selected agent, team, inbox or label name",
+    "labellers": 2
+   },
+   {
+    "line": 183,
+    "category": "third-party",
+    "value": "mask",
+    "what": "report metrics and charts about the selected agent, team or inbox",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/dashboard/routes/dashboard/settings/reports/monitors/MonitorSlackAlerts.vue": [
+   {
+    "line": 130,
+    "category": "personal",
+    "value": "mask",
+    "what": "Slack channel picker with workspace channel names",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/shared/components/ChatCard.vue": [
+   {
+    "line": 33,
+    "category": "third-party",
+    "value": "block",
+    "what": "card message image URL",
+    "labellers": 2
+   },
+   {
+    "line": 38,
+    "category": "third-party",
+    "value": "mask",
+    "what": "card message title",
+    "labellers": 2
+   },
+   {
+    "line": 43,
+    "category": "third-party",
+    "value": "mask",
+    "what": "card message description",
+    "labellers": 2
+   },
+   {
+    "line": 46,
+    "category": "third-party",
+    "value": "mask",
+    "what": "card message action buttons (titles, links)",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/shared/components/ResizableTextArea.vue": [
+   {
+    "line": 169,
+    "category": "personal",
+    "value": "mask",
+    "what": "message textarea typed by the user, with signature",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/shared/components/StarRating.vue": [
+   {
+    "line": 46,
+    "category": "personal",
+    "value": "mask",
+    "what": "selected CSAT star rating",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/shared/components/ui/label/LabelDropdownItem.vue": [
+   {
+    "line": 50,
+    "category": "personal",
+    "value": "block",
+    "what": "workspace label name in title attribute and text",
+    "labellers": 2
+   }
+  ],
+  "app/javascript/survey/App.vue": [],
+  "app/javascript/widget/components/UserMessageBubble.vue": [
+   {
+    "line": 32,
+    "category": "personal",
+    "value": "mask",
+    "what": "widget user's own message rendered as HTML",
+    "labellers": 2
+   }
+  ]
+ }
+}

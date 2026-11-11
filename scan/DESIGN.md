@@ -42,6 +42,17 @@ Accuracy is measured against labelled samples in `scan/benchmark/apps/<app>/`. E
 | Model tokens, first scan of a 2,000-file app | Under 50k |
 | Static stages, 2,000-file app | Under 2 minutes |
 
+## Status
+
+Measured with `scan/benchmark/apps/measure.mjs`: the share of labels with a shown value on the labelled element, or a text field that the recorder config masks. "Low" adds sites whose origin is unknown, which the residue questions decide.
+
+| App | Before the redesign | High confidence | With low | Residue questions |
+|---|---|---|---|---|
+| Documenso (React, Prisma) | 57% | 94% | 95% | 73 |
+| Chatwoot (Vue, Rails) | 60% | 73% | 82% | about 40 |
+
+The static stages take under 2 seconds for each app.
+
 ## Build order
 
 1. Labelled samples for each validation app, kept in the repository.

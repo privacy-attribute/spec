@@ -5,7 +5,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse, parseExpression } from '@babel/parser';
-import { walk, idsIn, dataIdsIn, bindingNames, calleeName, secretIdentifier, categoryOf, personType, NON_DATA_HOOKS, DATA_HOOK, SECRET_NAME, DOM_DATA_ATTR } from './components.mjs';
+import { walk, idsIn, dataIdsIn, bindingNames, calleeName, secretIdentifier, categoryOf, personType, NON_DATA_HOOKS, DATA_HOOK, SECRET_NAME, DOM_DATA_ATTR, UNKNOWN_ORIGIN, elementSpans } from './components.mjs';
+import { schemaFieldIn, schemaPublicIn } from './schemas.mjs';
+
+let SCHEMA = new Map();
 
 const TEMPLATE_FILE = /\.(vue|svelte|blade\.php)$/;
 // Prop names that say the prop holds a person, a conversation or a record.
@@ -265,10 +268,18 @@ function scriptTaint(blocks, taintedProps) {
             const name = calleeName(init) || '';
             if (name === '$props' || name === 'defineProps' || name === 'withDefaults') return true;
             if (/^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name) && DATA_HOOK.test(name)) origin = `${name}()`;
+            // Fail closed: other composables may return data.
+            else if (/^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name) && !/^use(MapGetter|StoreGetters?|MapState|I18n|Router|Route|Head|Slots|Attrs|Vuelidate|Emitter|Alert|Track|Keyboard\w*|Event\w*|Element\w*|Window\w*|Mouse\w*|Media\w*|Breakpoints|Dark|Toggle|Clipboard|Debounce\w*|Throttle\w*|Intersection\w*|Resize\w*|Policy|Branding|Ui\w*)$/.test(name)) origin = `unknown ${name}()`;
             if (/^(useMapGetter|useStoreGetters?|useMapState)$/.test(name) && !FLAG_NAME.test(String(init.arguments[0]?.value || '').split('/').pop())) origin = `${name}(${init.arguments[0]?.value || ''})`;
             if (/^(fetch|get|post|request|query)$/.test(name)) origin = `${name}()`;
             // In a component script, an awaited call almost always returns data from the server.
             if (awaited && !/^(nextTick|tick|sleep|delay|wait|confirm|validate|\$validate|writeText|copy\w*|open\w*|close\w*|navigate|goto|push|replace|invalidate\w*)$/.test(name)) origin = `${name}()`;
+          }
+          // A getter such as const count = (key) => props.metrics[key] returns the data it reads.
+          // Handlers such as () => emit('close', props.id) are left out.
+          if (!origin && init.type === 'ArrowFunctionExpression' && init.body.type !== 'BlockStatement' && !(init.body.type === 'CallExpression' && /^(\$?emit|push|replace|navigate|router|dispatch|commit|track|on[A-Z]\w*|handle\w*|set\w*|toggle\w*|open\w*|close\w*|copy\w*)$/.test(calleeName(init.body) || ''))) {
+            const used = [...idsIn(init.body)].find((x) => taint.has(x));
+            if (used) origin = taint.get(used);
           }
           if (!origin && init.type !== 'ArrowFunctionExpression' && init.type !== 'FunctionExpression') {
             const used = usedIn(init);
@@ -328,8 +339,13 @@ function analyse(file, text, taintedProps) {
     return [...dataIdsIn(ast)].map((id) => id.replace(/^\$/, ''));
   };
   const hit = (b) => {
+    const ast = parseExpr(b.expr);
+    if (ast && schemaPublicIn(ast, SCHEMA)) return null;
     const ids = exprIds(b);
     const id = ids.find((x) => taint.has(x));
+    const field = ast && schemaFieldIn(ast, SCHEMA);
+    // A schema field beats an unknown origin: it names the data.
+    if (field && (!id || UNKNOWN_ORIGIN.test(taint.get(id)))) return `schema ${field[1]} field ${field[0]}`;
     if (id) return taint.get(id);
     if (ids.some(secretIdentifier) || (/\.(\w*(secret|token|password|apiKey|privateKey)\w*)\b/i.test(b.expr) && !/\b(has|is|show)\w*(Token|Secret|Password)/.test(b.expr))) return 'secret name';
     return null;
@@ -472,7 +488,51 @@ function bladeHit(expr, publicAlias, component) {
 
 // Runs the pass over files (absolute paths). Returns one candidate per file that renders data,
 // in the same form as the component pass.
-export function templatePass(root, files) {
+// `schema` is the field map from readSchemas, when the app has one.
+const VOID_TAG = /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/i;
+// The elements of a Vue, Svelte or Blade template as [start line, last line of the start tag, end
+// line], like elementSpans for JSX. Attribute values are skipped with their quotes, so `a > b` in a
+// binding does not end a tag.
+export function templateSpans(file, text) {
+  const region = file.endsWith('.blade.php') ? { start: 0, end: text.length } : templateRegion(text, file);
+  if (!region) return [];
+  const out = [];
+  const stack = [];
+  let i = region.start;
+  while (i < region.end) {
+    const lt = text.indexOf('<', i);
+    if (lt < 0 || lt >= region.end) break;
+    if (text.startsWith('<!--', lt)) { i = text.indexOf('-->', lt) + 3 || region.end; continue; }
+    const close = text.slice(lt).match(/^<\/([\w.:-]+)\s*>/);
+    if (close) {
+      const k = stack.map((e) => e.name).lastIndexOf(close[1]);
+      if (k >= 0) { for (const e of stack.splice(k)) out.push([e.start, e.openEnd, lineAt(text, lt)]); }
+      i = lt + close[0].length;
+      continue;
+    }
+    const open = text.slice(lt).match(/^<([A-Za-z][\w.:-]*)/);
+    if (!open) { i = lt + 1; continue; }
+    let j = lt + open[0].length;
+    let quote = null;
+    while (j < region.end) {
+      const ch = text[j];
+      if (quote) { if (ch === quote) quote = null; } else if (ch === '"' || ch === "'") quote = ch; else if (ch === '>') break;
+      j++;
+    }
+    const start = lineAt(text, lt);
+    const openEnd = lineAt(text, j);
+    if (text[j - 1] === '/' || VOID_TAG.test(open[1])) out.push([start, openEnd, openEnd]);
+    else stack.push({ name: open[1], start, openEnd });
+    i = j + 1;
+  }
+  return out;
+}
+
+// Element spans for any file the passes read.
+export const spansFor = (file, text) => (TEMPLATE_FILE.test(file) ? templateSpans(file, text) : elementSpans(file, text));
+
+export function templatePass(root, files, schema = null) {
+  SCHEMA = schema?.fields || new Map();
   const comps = files.filter((f) => TEMPLATE_FILE.test(f)).map((abs) => ({ abs, file: path.relative(root, abs), name: pascal(path.basename(abs).replace(TEMPLATE_FILE, '')), text: fs.readFileSync(abs, 'utf8') }));
   const byName = new Map();
   for (const c of comps) {
@@ -525,7 +585,8 @@ export function templatePass(root, files) {
       rules: ['component'],
       patterns: ['P-crm-record'],
       category_hint: categoryOf(r.sites),
-      sites: r.sites.slice(0, 12),
+      confidence: r.sites.some((s) => !UNKNOWN_ORIGIN.test(s.origin)) ? 'high' : 'low',
+      sites: r.sites.map((s) => ({ ...s, confidence: UNKNOWN_ORIGIN.test(s.origin) ? 'low' : 'high' })),
       site_lines: lines,
       snippet: `<${c.name}> renders ${r.sites.length} value${r.sites.length === 1 ? '' : 's'} from ${[...new Set(r.sites.map((s) => s.origin))].slice(0, 2).join('; ')}`,
     });

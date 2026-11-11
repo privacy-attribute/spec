@@ -6,6 +6,43 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
+// Walks an AST without importing components.mjs, which imports this module.
+function walk(node, visit) {
+  if (!node || typeof node.type !== 'string') return;
+  if (visit(node) === false) return;
+  for (const key of Object.keys(node)) {
+    if (key === 'loc' || key === 'start' || key === 'end' || key === 'leadingComments' || key === 'trailingComments') continue;
+    const v = node[key];
+    if (Array.isArray(v)) v.forEach((x) => x && typeof x.type === 'string' && walk(x, visit));
+    else if (v && typeof v.type === 'string') walk(v, visit);
+  }
+}
+
+export const CONSTANT_OBJECT = /^([A-Z][A-Z0-9_]*|[A-Z]\w*(Enum|Status|Type|Role|Kind|Mode|Map|s)|Math|JSON|Object|Number|String|Date|i18n|env|process|config|import)$/;
+
+// The schema field that an expression shows, when the schema declares it: [field, category].
+// `constants` holds names bound to items of constant lists, such as format in FORMATS.map((format) => ...).
+export function schemaFieldIn(expr, fields, constants = new Set()) {
+  let found = null;
+  walk(expr, (n) => {
+    if (found) return false;
+    if (n !== expr && (n.type === 'JSXElement' || n.type === 'JSXFragment' || n.type === 'ArrowFunctionExpression' || n.type === 'FunctionExpression')) return false;
+    if ((n.type === 'MemberExpression' || n.type === 'OptionalMemberExpression') && !n.computed && n.property.type === 'Identifier' && fields.has(n.property.name)) {
+      const base = n.object.type === 'Identifier' ? n.object.name : null;
+      const f = fields.get(n.property.name);
+      if (f.category !== 'public' && !(base && (CONSTANT_OBJECT.test(base) || constants.has(base)))) found = [n.property.name, f.category];
+    }
+    return true;
+  });
+  return found;
+}
+// An expression that shows only a field the schema declares public, such as row.id or doc.status.
+export function schemaPublicIn(expr, fields) {
+  let e = expr;
+  while (e && (e.type === 'TSNonNullExpression' || e.type === 'TSAsExpression')) e = e.expression;
+  return Boolean(e && (e.type === 'MemberExpression' || e.type === 'OptionalMemberExpression') && !e.computed && e.property.type === 'Identifier' && fields.get(e.property.name)?.category === 'public');
+}
+
 const SKIP_DIR = new Set(['node_modules', '.git', 'dist', 'build', '.next', 'coverage', 'vendor']);
 const SECRET_FIELD = /(secret|token|password|passwd|hash|salt|apikey|api_key|privatekey|private_key|backupcodes?|recoverycodes?|otp|cvv|cvc|iban|cardnumber|credential)/i;
 const ID_FIELD = /^(id|uuid|cuid|\w+Id|\w+_id|\w+Ids)$/;
