@@ -193,6 +193,16 @@ export function planMarkdown(result) {
     ...settledNote,
     `${result.candidates.length} candidates in ${byFile.size} of ${result.scanned_files} files (${result.scanned_lines} lines): ${count('secret')} secret, ${count('third-party')} third-party, ${count('personal')} personal. A trailing ? means the category is a guess. "covered" means a masking annotation is already within three lines. "decided" means a rule made the annotation; it is already in annotations.json, so examine it only when the file is open for other candidates.`,
     '',
+    ...(result.questions?.length
+      ? [
+        '## Questions',
+        '',
+        `The scan could not name these sources. Answer each one in "answers" in annotations.json, for example "${result.questions[0].source}": "data", then run the place command. "data": the source returns data about people or an organization. "public": it returns only public content or UI state.`,
+        '',
+        ...result.questions.map((q) => `- ${q.id} \`${q.source}\`${q.defined_in ? ` defined in ${q.defined_in}` : ''}: ${q.sites} lines in ${q.units} units${q.shown.length ? `, for example ${q.shown.map((x) => `\`${x.expr.replace(/`/g, "'")}\` at ${x.file}:${x.line}`).join('; ')}` : ''}`),
+        '',
+      ]
+      : []),
     ...files.flatMap(([file, list]) => [
       `## ${file}`,
       '',

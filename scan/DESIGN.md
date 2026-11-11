@@ -60,6 +60,13 @@ Stage 5 places annotations without a model. Share of labels inside an annotated 
 | Documenso | 61% | 87% | 3% | 70% |
 | Chatwoot | 57% | 81% | 6% | 78% |
 
+With the residue questions answered by a small model (Haiku), the open work for the review agent drops sharply:
+
+| App | Candidates | Questions | Open after placement and answers | High-confidence site coverage before and after answers |
+|---|---|---|---|---|
+| Documenso | 806 | 48, answered in 90 s | 178 (88 units, 90 lines) | 94% to 95% |
+| Chatwoot | 1,039 | 37, answered in 48 s | 187 (103 units, 84 lines) | 73% to 82% |
+
 Most of the gap is values that a component passes to a child of its own, which the labels mark at the parent. The lines left for review are mostly values from unknown sources: 73 distinct sources in Documenso, 43 in Chatwoot.
 
 ## Build order
@@ -67,7 +74,7 @@ Most of the gap is values that a component passes to a child of its own, which t
 1. Labelled samples for each validation app, kept in the repository.
 2. Stage 3 schema reader and stage 4 fail-closed propagation with confidence.
 3. Stage 5 placement from the syntax tree (built).
-4. The residue questions and their cache.
+4. The residue questions and their cache (built).
 5. Canary replay.
 
 The current review agent stays in use until stages 3 to 5 beat it on the labelled samples.

@@ -15,6 +15,7 @@ Then do the procedure in AGENTS.md. Start with ${sessionDir}/scan-plan.md. Do no
 
 ## Commands
 
+- After you answer the questions in scan-plan.md, place the annotations again: \`${run} place --out ${sessionDir}\`
 - Make the patch and find open candidates: \`${run} patch --out ${sessionDir}\`
 - Write the gap reports: \`${run} report --out ${sessionDir}\`
 

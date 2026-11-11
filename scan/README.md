@@ -9,6 +9,7 @@ To run it from a coding agent, use the prompt in [PROMPT.md](PROMPT.md). The age
 | Command | What it does |
 |---------|--------------|
 | `privacy-scan find <src> [--sdk rrweb] [--annotate rrweb\|data-privacy] [--include <path,...>] [--out <dir>]` | Static pass with no model. Applies the rules in `rules.mjs` to every source file and writes a session folder: `scan-plan.md` (flagged lines grouped by file, most private first), `candidates.json`, an empty `annotations.json` and `PLAYBOOK.md`. The folder goes in the system temp folder unless you pass `--out`. `--include` limits a large app to path prefixes under `<src>`, for example `--include modules/settings,pages/account`. Generated code is skipped. |
+| `privacy-scan place --out <dir>` | Applies the answers in `annotations.json` to the questions about unknown sources, places annotations again and writes a new plan. Answers go into the decisions cache, so a later scan does not ask again. |
 | `privacy-scan patch --out <dir>` | Turns `annotations.json` into `privacy.patch` (paths relative to the repository root) and `app-privacy.json`. The patch also creates or updates `.privacy-scan/decisions.json`. Lists every candidate that is not yet annotated or dismissed. |
 | `privacy-scan report --out <dir>` | Writes one report for the scan to `feedback/`: rule outcomes (counts only), gaps with proposed rules tested against their example, and a link that fills in the scan feedback form. Recorder gaps go to `feedback/private-recorder-gaps.md` for private reporting (see `SECURITY.md`). |
 | `privacy-scan agent <src> [--sdk rrweb] [--agent claude\|codex\|<command>] [--headless] [--model <m>]` | Runs `find`, then starts Claude Code or Codex on the playbook. `--headless` runs without questions and leaves the reports in the session folder. |
@@ -22,6 +23,7 @@ From a clone, run `node scan/cli.mjs <command>`. The prompts pin a release tag; 
 | `AGENTS.md` | Instructions for the agent: data categories, what to annotate, the procedure, and how to report gaps |
 | `components.mjs` | The component pass: parses TypeScript and JSX with `@babel/parser` and follows data from its sources to the elements that render it, across components |
 | `place.mjs` | Stage 5: places annotations from high-confidence sites on the element that shows each value, with class edits where the class is an expression; lines it cannot decide stay for review |
+| `residue.mjs` | The residue: one question per source the scan could not name, and the answers that upgrade or drop its sites |
 | `schemas.mjs` | The schema reader: the field categories that the app's Prisma schema or Rails `db/schema.rb` declares |
 | `templates.mjs` | The template pass: the same analysis for Vue and Svelte single-file components (script blocks parsed with `@babel/parser`, props followed to child components and slot scopes) and for Laravel Blade views |
 | `rules.mjs` | The line rules for secrets, inputs, URLs, titles and other templates (HTML and server views). Each maps a source line to a pattern and a likely data category. |

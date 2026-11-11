@@ -1,5 +1,5 @@
 // Scores the static pass against a labelled sample of a real application.
-//   node scan/benchmark/apps/measure.mjs <app> <source folder>
+//   node scan/benchmark/apps/measure.mjs <app> <source folder> [--answers <answers.json>] [--over]
 // <app>/labels.json names the app commit and the labelled elements of each sample file. A label is
 // found when a shown value (a site) or a line rule hit is on the element that the label names.
 // Recall is given for high-confidence sites alone and with the low-confidence residue. The residue
@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { find } from '../../find.mjs';
 import { spansFor } from '../../templates.mjs';
 import { placeAnnotations } from '../../place.mjs';
+import { applyAnswers } from '../../residue.mjs';
 
 const [app, source] = process.argv.slice(2);
 const dir = path.join(path.dirname(new URL(import.meta.url).pathname), app);
@@ -22,6 +23,9 @@ try {
 const t0 = Date.now();
 const scan = find(source);
 const ms = Date.now() - t0;
+// --answers <file>: answers to the residue questions, applied as the place command applies them.
+const answersAt = process.argv.indexOf('--answers');
+if (answersAt > 0) applyAnswers(scan, JSON.parse(fs.readFileSync(process.argv[answersAt + 1], 'utf8')));
 const sites = scan.candidates.flatMap((c) => (c.sites || []).map((s) => ({ ...s, file: c.file, unit: c.id })));
 const lineHits = scan.candidates.filter((c) => !c.sites).map((c) => ({ file: c.file, line: c.line }));
 const spanCache = new Map();
@@ -118,7 +122,7 @@ const outcome = rows.map((r) => {
 });
 const sh = (list, hows) => pct(list.filter((r) => hows.includes(r.placedHow)).length, list.length);
 const preport = (name, list) => console.log(`${name.padEnd(12)} ${String(list.length).padStart(3)} labels: annotated or config ${sh(list, ['annotated', 'config']).padStart(4)} | with child annotations ${sh(list, ['annotated', 'config', 'child']).padStart(4)} | left for review ${sh(list, ['review']).padStart(4)}`);
-console.log(`\nplaced without a model: ${placed.annotations.length} annotations in ${annotatedFiles.size} files; units fully placed ${[...placed.placed.keys()].filter((id) => !placed.review.has(id)).length}, with lines for review ${placed.review.size}`);
+console.log(`\nplaced${answersAt > 0 ? ' with the answers' : ' without a model'}: ${placed.annotations.length} annotations in ${annotatedFiles.size} files; units fully placed ${[...placed.placed.keys()].filter((id) => !placed.review.has(id)).length}, with lines for review ${placed.review.size}`);
 preport('all', outcome);
 for (const c of ['secret', 'personal', 'third-party']) preport(c, outcome.filter((r) => r.category === c));
 const sampleAnns = annEls.filter((a) => sample.has(a.file));

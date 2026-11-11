@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse, parseExpression } from '@babel/parser';
-import { walk, idsIn, dataIdsIn, bindingNames, calleeName, secretIdentifier, categoryOf, personType, NON_DATA_HOOKS, DATA_HOOK, SECRET_NAME, DOM_DATA_ATTR, UNKNOWN_ORIGIN, elementSpans } from './components.mjs';
+import { walk, idsIn, dataIdsIn, bindingNames, calleeName, secretIdentifier, categoryOf, personType, NON_DATA_HOOKS, DATA_HOOK, SECRET_NAME, DOM_DATA_ATTR, UNKNOWN_ORIGIN, CONFIG_HOOK, elementSpans } from './components.mjs';
 import { schemaFieldIn, schemaPublicIn } from './schemas.mjs';
 
 let SCHEMA = new Map();
@@ -269,7 +269,7 @@ function scriptTaint(blocks, taintedProps) {
             if (name === '$props' || name === 'defineProps' || name === 'withDefaults') return true;
             if (/^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name) && DATA_HOOK.test(name)) origin = `${name}()`;
             // Fail closed: other composables may return data.
-            else if (/^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name) && !/^use(MapGetter|StoreGetters?|MapState|I18n|Router|Route|Head|Slots|Attrs|Vuelidate|Emitter|Alert|Track|Keyboard\w*|Event\w*|Element\w*|Window\w*|Mouse\w*|Media\w*|Breakpoints|Dark|Toggle|Clipboard|Debounce\w*|Throttle\w*|Intersection\w*|Resize\w*|Policy|Branding|Ui\w*)$/.test(name)) origin = `unknown ${name}()`;
+            else if (/^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name) && !CONFIG_HOOK.test(name) && !/^use(MapGetter|StoreGetters?|MapState|TemplateRef|Model|Id|Slots|Attrs|CssModule|I18n|Router|Route|Head|Slots|Attrs|Vuelidate|Emitter|Alert|Track|Keyboard\w*|Event\w*|Element\w*|Window\w*|Mouse\w*|Media\w*|Breakpoints|Dark|Toggle|Clipboard|Debounce\w*|Throttle\w*|Intersection\w*|Resize\w*|Policy|Branding|Ui\w*)$/.test(name)) origin = `unknown ${name}()`;
             if (/^(useMapGetter|useStoreGetters?|useMapState)$/.test(name) && !FLAG_NAME.test(String(init.arguments[0]?.value || '').split('/').pop())) origin = `${name}(${init.arguments[0]?.value || ''})`;
             if (/^(fetch|get|post|request|query)$/.test(name)) origin = `${name}()`;
             // In a component script, an awaited call almost always returns data from the server.

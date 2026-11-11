@@ -9,6 +9,7 @@ import { buildScanReport, ruleOutcomes } from '../report.mjs';
 import { readSchemas } from '../schemas.mjs';
 import { templateSpans } from '../templates.mjs';
 import { placeAnnotations } from '../place.mjs';
+import { buildQuestions, applyAnswers } from '../residue.mjs';
 
 const apply = (src, a, style = 'rrweb') => {
   const lines = src.split('\n');
@@ -299,5 +300,21 @@ test('placement: block secrets and attributes, mask text, annotate in the child,
   assert.equal(at('Card.tsx', 2).value, 'mask');
   assert.equal(at('Page.tsx', 10), undefined, 'maskAllInputs masks the input value');
   assert.equal(at('Page.tsx', 12).match, '<SelectTrigger');
+  assert.equal(review.size, 0);
+});
+
+test('residue: one question per unknown source; answers upgrade or drop its sites', () => {
+  const dir = tempApp({
+    'hooks/use-limits.ts': 'export const useLimits = () => useContext(LimitsContext);\n',
+    'Usage.tsx': "export function Usage() {\n  const limits = useLimits();\n  const nonce = usePanelState();\n  return (\n    <div>\n      <p>{limits.remaining}</p>\n      <span>{limits.total}</span>\n      <i>{nonce.value}</i>\n    </div>\n  );\n}\n",
+  });
+  const scan = find(dir);
+  const qs = buildQuestions(scan, dir);
+  assert.deepEqual(qs.map((q) => [q.source, q.sites, q.defined_in]), [['useLimits()', 2, 'hooks/use-limits.ts:1'], ['usePanelState()', 1, null]]);
+  applyAnswers(scan, { 'useLimits()': 'data', 'usePanelState()': 'public' });
+  const unit = scan.candidates.find((c) => c.component === 'Usage');
+  assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence]), [[6, 'high'], [7, 'high']]);
+  const { annotations, review } = placeAnnotations(scan, dir, { sdk: 'rrweb' });
+  assert.deepEqual(annotations.map((a) => a.line), [6, 7]);
   assert.equal(review.size, 0);
 });

@@ -117,5 +117,5 @@ export function readSchemas(root) {
       }
     }
   }
-  return { fields, models: [...models], files: files.map((f) => path.relative(root, f)) };
+  return { fields, models: [...models], enums: [...enums], files: files.map((f) => path.relative(root, f)) };
 }

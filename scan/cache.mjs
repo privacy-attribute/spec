@@ -70,7 +70,9 @@ export function buildCache({ cache, scan, decisions, after, root, top, version }
       }),
     };
   }
-  return { version: 1, scan_version: version, files };
+  // Answers about unknown sources hold for the whole app, so a later scan does not ask again.
+  const answers = { ...(cache?.answers || {}), ...(decisions.answers || {}) };
+  return { version: 1, scan_version: version, ...(Object.keys(answers).length ? { answers } : {}), files };
 }
 
 // A diff that creates or replaces the cache file.

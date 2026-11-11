@@ -163,7 +163,9 @@ function analyse(comp, taintedProps) {
       // Fail closed: state typed as a named object type, such as useState<TConfigureFormSchema>(), may hold data.
       const named = [];
       walk(n.init.typeParameters, (t) => { if (t.type === 'TSTypeReference' && t.typeName?.type === 'Identifier') named.push(t.typeName.name); });
-      if (state?.type === 'Identifier' && named.length) taintNamed.push([state.name, `unknown state ${named[0]}`]);
+      // An enum or a setting type, such as FieldType or TabMode, holds no data.
+      const dataType = named.find((t) => !SCHEMA_ENUMS.has(t) && !/(Type|Types|Kind|Mode|Status|Role|Step|Tab|Variant|Size|Color|Enum|Option|Options|Direction|Theme|Locale|Language|Format)$/.test(t));
+      if (state?.type === 'Identifier' && dataType) taintNamed.push([state.name, `unknown state ${dataType}`]);
     }
   });
   for (const [nm, why] of taintNamed) mark(nm, why);
@@ -187,7 +189,7 @@ function analyse(comp, taintedProps) {
           if (name === 'useParams') origin = 'route params';
           if (name && awaited && /^(fetch|load|get|query|request|retrieve|find|search|list)[A-Z]\w*$/.test(name)) origin = `${name}()`;
           // Fail closed: other hooks and awaited calls may return data.
-          if (!origin && name && /^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name)) origin = `unknown ${name}()`;
+          if (!origin && name && /^use[A-Z]/.test(name) && !NON_DATA_HOOKS.test(name) && !CONFIG_HOOK.test(name)) origin = `unknown ${name}()`;
           if (!origin && awaited) origin = `unknown await ${name || 'call'}()`;
         }
         if (!origin) {
@@ -309,8 +311,11 @@ function jsxName(n) {
 
 let SOURCE_TEXT = '';
 let SCHEMA = new Map();
+let SCHEMA_ENUMS = new Set();
 // Origins that the pass could not name: a hook or call that no list knows. Sites from them have low confidence.
 export const UNKNOWN_ORIGIN = /^unknown /;
+// Hooks named for settings or UI configuration, which return no data.
+export const CONFIG_HOOK = /(Types|Options|Config|Columns|Steps|Tabs|Settings?Form|Nonce|Sort|Range|Filters?|Icons?|Labels?)$/;
 const schemaField = (expr, constants) => schemaFieldIn(expr, SCHEMA, constants);
 const schemaPublic = (expr) => schemaPublicIn(expr, SCHEMA);
 const exprText = (e) => (e && e.start != null ? SOURCE_TEXT.slice(e.start, e.end).replace(/\s+/g, ' ').slice(0, 120) : '');
@@ -337,6 +342,7 @@ export function elementSpans(file, code) {
 // `schema` is the field map from readSchemas, when the app has one.
 export function componentPass(root, files, schema = null) {
   SCHEMA = schema?.fields || new Map();
+  SCHEMA_ENUMS = new Set(schema?.enums || []);
   const comps = [];
   let parsed = 0;
   let failed = 0;

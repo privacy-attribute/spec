@@ -71,7 +71,8 @@ function classEdit(lines, el, cls, jsx) {
       }
       // className={cn(\n ... )} over several lines: add the class as the first argument.
       const call = lines[k].slice(at).match(/^className=\{(cn|clsx|classNames|classnames|twMerge|cx|tw)\(/);
-      if (call) return { line: k + 1, from: call[0], to: `${call[0]}'${cls}', ` };
+      // At the end of the line, the next argument is on the next line: no trailing space.
+      if (call) return { line: k + 1, from: call[0], to: `${call[0]}'${cls}',${lines[k].slice(at + call[0].length).trim() ? ' ' : ''}` };
       return 'review';
     }
     return 'review';

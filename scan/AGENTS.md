@@ -16,6 +16,7 @@ The session folder contains these files:
   - A component unit names a component, the lines where it shows data, and where the data comes from. Annotate the elements at these lines. When all of the component is private, annotate its root element. In Vue, Svelte and Blade files, the unit is the full file.
   - A line unit names one line, the rules that matched, and the code. "covered" shows that an annotation is already near the line.
 - The scan places annotations for the units that it can decide. These annotations are in `annotations.json` with `"auto": true`. Their units are not in the plan. Do not change these annotations. When an annotation is wrong, remove it and give the reason in `dismissed` with the unit and the line, for example `"C12:L40": "shows a public product name"`.
+- "Questions" at the start of the plan names the sources that the scan could not identify, for example `useLimits()`. Answer the questions first. For each source, open the file where it is defined and find what it returns. Write `"data"` in `answers` in `annotations.json` when it returns data about a person or an organization, or data that a person typed. Write `"public"` when it returns only public content, configuration or UI state. When you are not sure, write `"data"`. Then run the place command from `PLAYBOOK.md`. It annotates the values of each `data` source, removes the values of each `public` source from the plan, and writes a new plan.
 - "review" on a unit gives the lines that the scan could not decide. Examine only these lines. The scan placed the other lines of the unit.
 - Units in files that did not change since the last scan are not in the plan. Their ids are in `cached` in `annotations.json`. Do not change `cached`. "earlier" on a unit shows the decision from the last scan.
 - `annotations.json`: the file that you fill in.
@@ -120,6 +121,7 @@ For the `rrweb` style, obey these rules:
     }
   ],
   "dismissed": { "C13": "copies a public code sample from a blog post", "C12:L40": "shows the role label" },
+  "answers": { "useLimits()": "data", "useCspNonce()": "public" },
   "config": ["rrweb on all pages: blockSelector '[data-privacy=\"block\"]'"],
   "gaps": [
     {

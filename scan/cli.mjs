@@ -3,6 +3,7 @@
 //
 //   privacy-scan find   <app-source-dir> [--sdk rrweb] [--annotate rrweb|data-privacy] [--include <path,...>] [--out <dir>]
 //                                                                      static pass; prints the session folder and its PLAYBOOK.md
+//   privacy-scan place  --out <dir>                                    applies the answers in annotations.json and places annotations again
 //   privacy-scan patch  --out <dir>                                    annotations.json -> privacy.patch and app-privacy.json
 //   privacy-scan report --out <dir> [--post <url>]                     one feedback report for the scan, and private recorder gaps;
 //                                                                      --post sends the public report to a feedback endpoint
@@ -22,6 +23,7 @@ import { bench, formatBench } from './bench.mjs';
 import { applyAnnotation, unifiedDiff, overMaskWarnings, uncoveredSites } from './patch.mjs';
 import { spansFor } from './templates.mjs';
 import { placeAnnotations } from './place.mjs';
+import { buildQuestions, applyAnswers } from './residue.mjs';
 import { CACHE_PATH, loadCache, applyCache, buildCache, cacheDiff } from './cache.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -68,21 +70,17 @@ function runFind(src, out, sdk, headless, annotate, include) {
   const root = path.resolve(src);
   const top = gitTop(root) || root;
   const result = { ...find(root, { include }), target: { root, top, ...gitInfo(root) }, sdk: sdk || null, annotate, scan_version: VERSION };
-  result.cache = applyCache(result, loadCache(top), root, top);
+  const cache = loadCache(top);
+  result.cache = applyCache(result, cache, root, top);
   // rrweb masks input values with maskAllInputs, so plain input units need no review.
   if (sdk === 'rrweb') {
     for (const c of result.candidates) {
       if (!c.cached && !c.auto && !c.sites && c.rules.every((r) => r === 'input')) c.settled = 'input value: masked by maskAllInputs';
     }
   }
-  // Stage 5: annotations placed from high-confidence sites. A unit with no lines left for review is settled.
-  const placement = placeAnnotations(result, root, { sdk, annotate });
-  for (const c of result.candidates) {
-    if (!c.sites || c.cached || c.settled || c.earlier?.decision === 'dismiss') continue;
-    const review = placement.review.get(c.id);
-    if (review) c.review_lines = review;
-    else c.settled = placement.placed.get(c.id) ? `placed from the scan: ${placement.placed.get(c.id)} annotation${placement.placed.get(c.id) === 1 ? '' : 's'}` : 'decided by the scan: its values are annotated in child components or masked as input values';
-  }
+  // Answers from earlier scans decide their sources again; then stage 5 places the annotations.
+  const answers = { ...(cache?.answers || {}) };
+  const placement = decide(result, root, sdk, annotate, answers);
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, 'candidates.json'), JSON.stringify(result, null, 1));
   fs.writeFileSync(path.join(out, 'scan-plan.md'), planMarkdown(result));
@@ -96,7 +94,7 @@ function runFind(src, out, sdk, headless, annotate, include) {
     const cached = Object.fromEntries(result.candidates.filter((c) => c.cached).map((c) => [c.id, `unchanged since the last scan: ${c.cached.decision}${c.cached.value ? ` ${c.cached.value}` : ''}`]));
     const settled = Object.fromEntries(result.candidates.filter((c) => c.settled).map((c) => [c.id, c.settled]));
     const config = sdk === 'rrweb' && Object.keys(settled).length ? ['rrweb on all pages: maskAllInputs: true (input values)'] : [];
-    fs.writeFileSync(path.join(out, 'annotations.json'), JSON.stringify({ annotations, dismissed: {}, cached, settled, config, gaps: [] }, null, 1));
+    fs.writeFileSync(path.join(out, 'annotations.json'), JSON.stringify({ annotations, dismissed: {}, answers, cached, settled, config, gaps: [] }, null, 1));
   }
   const promptFile = path.join(out, 'PLAYBOOK.md');
   fs.writeFileSync(promptFile, playbook({ scanDir: HERE, sessionDir: out, src: root, sdk, annotate, cli: CLI, headless }));
@@ -105,6 +103,71 @@ function runFind(src, out, sdk, headless, annotate, include) {
   console.log(`Session folder: ${out}`);
   console.log(`Next: read ${promptFile} and follow it.`);
   return { result, promptFile };
+}
+
+const DECIDED = /^(placed from the scan|decided by the scan|answered:)/;
+
+// Applies answers about unknown sources, places annotations from the high-confidence sites (stage 5),
+// settles the units with nothing left to decide, and lists the questions that are still open.
+function decide(result, root, sdk, annotate, answers) {
+  applyAnswers(result, answers);
+  for (const c of result.candidates) {
+    if (c.settled && DECIDED.test(c.settled)) delete c.settled;
+    delete c.review_lines;
+  }
+  const placement = placeAnnotations(result, root, { sdk, annotate });
+  for (const c of result.candidates) {
+    if (!c.sites || c.cached || c.settled || c.earlier?.decision === 'dismiss') continue;
+    if (!c.sites.length) { c.settled = 'answered: its sources hold no private data'; continue; }
+    const review = placement.review.get(c.id);
+    const n = placement.placed.get(c.id);
+    if (review) c.review_lines = review;
+    else c.settled = n ? `placed from the scan: ${n} annotation${n === 1 ? '' : 's'}` : 'decided by the scan: its values are annotated in child components or masked as input values';
+  }
+  // Line units that code can settle: type declarations never render; rrweb masks password and code
+  // fields; toast messages render inside the app's <Toaster>, which gets one mask annotation.
+  const toasters = sdk ? findToasters(result, root) : [];
+  for (const c of result.candidates) {
+    if (c.sites || c.cached || c.settled || c.auto || c.earlier?.decision === 'dismiss') continue;
+    const code = c.snippet.trim();
+    if (/^(export\s+)?(type|interface)\s|^\w+\??:\s*(Pick|Omit|Partial|Record)<|^\w+\??:\s*[A-Z]\w*(\[\])?;$/.test(code)) c.settled = 'decided by the scan: a type declaration, not shown';
+    else if (sdk === 'rrweb' && c.rules.every((r) => /^(secret-input-password|secret-input-otp|input)$/.test(r)) && /<(input|Input|PasswordInput|PinInput|InputOTP)\b|type=["']password/.test(code)) c.settled = 'input value: rrweb masks password fields and maskAllInputs masks the others';
+    else if (toasters.length && c.rules.every((r) => /^(toast|title-from-data)$/.test(r)) && c.rules.includes('toast')) c.settled = `decided by the scan: toasts render inside <Toaster>, which is masked`;
+  }
+  if (toasters.length && result.candidates.some((c) => /toasts render inside/.test(c.settled || ''))) {
+    for (const t of toasters) placement.annotations.push({ file: t.file, line: t.line, match: t.match, value: 'mask', category: 'personal', special_category: false, data: 'placed from the scan: toast messages can name people and records', candidates: [], auto: true });
+  }
+  result.questions = buildQuestions(result, root);
+  return placement;
+}
+
+// Elements that render the app's toast messages: <Toaster /> in JSX, Vue or Svelte files.
+function findToasters(result, root) {
+  const out = [];
+  for (const file of new Set(Object.keys(result.component_index || {}))) {
+    let text;
+    try { text = fs.readFileSync(path.join(root, file), 'utf8'); } catch { continue; }
+    text.split('\n').forEach((line, i) => {
+      const m = line.match(/<(Toaster|Toaster\.Root|Sonner|Toasts?|woot-snackbar-box|SnackbarContainer)\b/);
+      if (m && !/^\s*(\/\/|\*)/.test(line)) out.push({ file, line: i + 1, match: `<${m[1]}` });
+    });
+  }
+  return out.slice(0, 3);
+}
+
+// After the agent answers questions: applies the answers, places again, and rewrites the session files.
+function runPlace(out) {
+  const result = JSON.parse(fs.readFileSync(path.join(out, 'candidates.json'), 'utf8'));
+  const decisions = JSON.parse(fs.readFileSync(path.join(out, 'annotations.json'), 'utf8'));
+  const placement = decide(result, result.target.root, result.sdk, result.annotate, decisions.answers || {});
+  // Placed annotations are made again; the agent's own annotations and rule decisions stay.
+  decisions.annotations = [...placement.annotations, ...decisions.annotations.filter((a) => !(a.auto && /^placed from the scan/.test(a.data || '')))];
+  decisions.settled = { ...Object.fromEntries(Object.entries(decisions.settled || {}).filter(([, v]) => !DECIDED.test(v))), ...Object.fromEntries(result.candidates.filter((c) => c.settled && DECIDED.test(c.settled)).map((c) => [c.id, c.settled])) };
+  fs.writeFileSync(path.join(out, 'candidates.json'), JSON.stringify(result, null, 1));
+  fs.writeFileSync(path.join(out, 'annotations.json'), JSON.stringify(decisions, null, 1));
+  fs.writeFileSync(path.join(out, 'scan-plan.md'), planMarkdown(result));
+  const open = result.candidates.filter((c) => !c.cached && !c.settled);
+  console.log(`Placed ${placement.annotations.length} annotations. Open: ${open.length} candidates, ${result.questions.length} questions. Next: examine the open candidates in scan-plan.md, then run the patch command.`);
 }
 
 // Inserts each annotation after its `match` text and writes a unified diff the implementer can apply.
@@ -196,6 +259,9 @@ const includeArg = typeof args.include === 'string' ? args.include.split(',').ma
 
 if (cmd === 'find') {
   runFind(args._[1] || '.', path.resolve(typeof args.out === 'string' ? args.out : defaultOut('privacy-scan')), sdkArg, false, annotateArg, includeArg);
+} else if (cmd === 'place') {
+  if (typeof args.out !== 'string') throw new Error('place needs --out <session folder>');
+  runPlace(path.resolve(args.out));
 } else if (cmd === 'patch') {
   if (typeof args.out !== 'string') throw new Error('patch needs --out <session folder>');
   runPatch(path.resolve(args.out));
