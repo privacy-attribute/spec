@@ -40,6 +40,8 @@ export function schemaFieldIn(expr, fields, constants = new Set()) {
 export function schemaPublicIn(expr, fields) {
   let e = expr;
   while (e && (e.type === 'TSNonNullExpression' || e.type === 'TSAsExpression')) e = e.expression;
+  // A formatter around a public field, such as i18n.date(team.createdAt) or formatDate(row.updatedAt).
+  if (e?.type === 'CallExpression' && e.arguments.length >= 1 && /^(date|time|format\w*|toLocale\w*|relative\w*|dayjs|moment|DateTime)$/i.test(e.callee.type === 'MemberExpression' ? e.callee.property?.name || '' : e.callee.name || '')) return schemaPublicIn(e.arguments[0], fields);
   return Boolean(e && (e.type === 'MemberExpression' || e.type === 'OptionalMemberExpression') && !e.computed && e.property.type === 'Identifier' && fields.get(e.property.name)?.category === 'public');
 }
 

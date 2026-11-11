@@ -15,6 +15,8 @@ The session folder contains these files:
 - `scan-plan.md`: the units that the static pass found, grouped by file. The most private files are first. A category with `?` is a guess. There are two types of unit:
   - A component unit names a component, the lines where it shows data, and where the data comes from. Annotate the elements at these lines. When all of the component is private, annotate its root element. In Vue, Svelte and Blade files, the unit is the full file.
   - A line unit names one line, the rules that matched, and the code. "covered" shows that an annotation is already near the line.
+- The scan places annotations for the units that it can decide. These annotations are in `annotations.json` with `"auto": true`. Their units are not in the plan. Do not change these annotations. When an annotation is wrong, remove it and give the reason in `dismissed` with the unit and the line, for example `"C12:L40": "shows a public product name"`.
+- "review" on a unit gives the lines that the scan could not decide. Examine only these lines. The scan placed the other lines of the unit.
 - Units in files that did not change since the last scan are not in the plan. Their ids are in `cached` in `annotations.json`. Do not change `cached`. "earlier" on a unit shows the decision from the last scan.
 - `annotations.json`: the file that you fill in.
 - `PLAYBOOK.md`: the commands for this session.

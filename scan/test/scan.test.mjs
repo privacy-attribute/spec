@@ -8,6 +8,7 @@ import { find } from '../find.mjs';
 import { buildScanReport, ruleOutcomes } from '../report.mjs';
 import { readSchemas } from '../schemas.mjs';
 import { templateSpans } from '../templates.mjs';
+import { placeAnnotations } from '../place.mjs';
 
 const apply = (src, a, style = 'rrweb') => {
   const lines = src.split('\n');
@@ -264,7 +265,7 @@ test('component pass: schema fields and unknown hooks fail closed, schema public
 
 test('template spans: Vue elements with multi-line start tags and bindings that hold >', () => {
   const vue = '<template>\n  <section\n    v-for="item in rows"\n    :class="a > b ? \'x\' : \'y\'"\n  >\n    <img :src="item.url" />\n    <p>{{ item.name }}</p>\n  </section>\n</template>\n';
-  assert.deepEqual(templateSpans('A.vue', vue), [[6, 6, 6], [7, 7, 7], [2, 5, 8]]);
+  assert.deepEqual(templateSpans('A.vue', vue).map((e) => e.slice(0, 4)), [[6, 6, 6, 'img'], [7, 7, 7, 'p'], [2, 5, 8, 'section']]);
 });
 
 test('template pass: schema fields, getter arrows and unknown composables', () => {
@@ -280,4 +281,23 @@ test('component pass: state typed as a named type is a low-confidence source', (
   const r = find(tempApp({ 'Edit.tsx': "export function Edit() {\n  const [config, setConfig] = useState<TFormSchema | null>(null);\n  return <h1>{config.title}</h1>;\n}\n" }));
   const unit = r.candidates.find((c) => c.component === 'Edit');
   assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence, s.origin]), [[3, 'low', 'unknown state TFormSchema']]);
+});
+
+test('placement: block secrets and attributes, mask text, annotate in the child, edit class expressions, skip inputs', () => {
+  const dir = tempApp({
+    'Page.tsx': "export function Page() {\n  const user = useCurrentUser();\n  const { data: keys } = useQuery(q);\n  return (\n    <div>\n      <h1 className={cn('title', big)}>{user.name}</h1>\n      <img src={user.avatarUrl} alt=\"\" />\n      <code>{keys[0].token}</code>\n      <Card person={user} />\n      <input value={user.email} />\n      <Select value={user.locale}>\n        <SelectTrigger>\n          <SelectValue />\n        </SelectTrigger>\n      </Select>\n    </div>\n  );\n}\n",
+    'Card.tsx': "export function Card({ person }) {\n  return <p className=\"card\">{person.email}</p>;\n}\n",
+  });
+  const scan = find(dir);
+  const { annotations, review } = placeAnnotations(scan, dir, { sdk: 'rrweb', annotate: 'rrweb' });
+  const at = (file, line) => annotations.find((a) => a.file === file && a.line === line);
+  assert.equal(at('Page.tsx', 6).value, 'mask');
+  assert.deepEqual(at('Page.tsx', 6).edit, { from: "className={cn('title', big)}", to: "className={`rr-mask ${cn('title', big) ?? ''}`}" });
+  assert.equal(at('Page.tsx', 7).value, 'block');
+  assert.equal(at('Page.tsx', 8).category, 'secret');
+  assert.equal(at('Page.tsx', 9), undefined, 'the child Card annotates the person');
+  assert.equal(at('Card.tsx', 2).value, 'mask');
+  assert.equal(at('Page.tsx', 10), undefined, 'maskAllInputs masks the input value');
+  assert.equal(at('Page.tsx', 12).match, '<SelectTrigger');
+  assert.equal(review.size, 0);
 });

@@ -53,11 +53,20 @@ Measured with `scan/benchmark/apps/measure.mjs`: the share of labels with a show
 
 The static stages take under 2 seconds for each app.
 
+Stage 5 places annotations without a model. Share of labels inside an annotated element, a text field that `maskAllInputs` masks, or a child component that has annotations of its own:
+
+| App | Annotated or input-masked | With child annotations | Lines left for review | Placed annotations on labelled elements |
+|---|---|---|---|---|
+| Documenso | 61% | 87% | 3% | 70% |
+| Chatwoot | 57% | 81% | 6% | 78% |
+
+Most of the gap is values that a component passes to a child of its own, which the labels mark at the parent. The lines left for review are mostly values from unknown sources: 73 distinct sources in Documenso, 43 in Chatwoot.
+
 ## Build order
 
 1. Labelled samples for each validation app, kept in the repository.
 2. Stage 3 schema reader and stage 4 fail-closed propagation with confidence.
-3. Stage 5 placement from the syntax tree.
+3. Stage 5 placement from the syntax tree (built).
 4. The residue questions and their cache.
 5. Canary replay.
 

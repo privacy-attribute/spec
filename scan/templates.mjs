@@ -339,7 +339,13 @@ function analyse(file, text, taintedProps) {
     return [...dataIdsIn(ast)].map((id) => id.replace(/^\$/, ''));
   };
   const hit = (b) => {
-    const ast = parseExpr(b.expr);
+    let ast = parseExpr(b.expr);
+    // $t('KEY', { value }) shows a translated label; only the values passed after the key can hold data.
+    if (ast?.type === 'CallExpression' && /^(\$t|t|\$tc|tc|\$te)$/.test(calleeName(ast) || '')) {
+      if (ast.arguments.length < 2) return null;
+      ast = ast.arguments[1];
+      b = { ...b, expr: b.expr.slice(ast.start, ast.end) };
+    }
     if (ast && schemaPublicIn(ast, SCHEMA)) return null;
     const ids = exprIds(b);
     const id = ids.find((x) => taint.has(x));
@@ -347,7 +353,7 @@ function analyse(file, text, taintedProps) {
     // A schema field beats an unknown origin: it names the data.
     if (field && (!id || UNKNOWN_ORIGIN.test(taint.get(id)))) return `schema ${field[1]} field ${field[0]}`;
     if (id) return taint.get(id);
-    if (ids.some(secretIdentifier) || (/\.(\w*(secret|token|password|apiKey|privateKey)\w*)\b/i.test(b.expr) && !/\b(has|is|show)\w*(Token|Secret|Password)/.test(b.expr))) return 'secret name';
+    if (ids.some(secretIdentifier) || (/\.(\w*(secret|token|password|apiKey|privateKey)\w*)\b/i.test(b.expr.replace(/(["'`])(?:\\.|(?!\1).)*\1/g, '""')) && !/\b(has|is|show)\w*(Token|Secret|Password)/.test(b.expr))) return 'secret name';
     return null;
   };
   // Loop aliases and local constants, until no new names are found.
@@ -491,7 +497,7 @@ function bladeHit(expr, publicAlias, component) {
 // `schema` is the field map from readSchemas, when the app has one.
 const VOID_TAG = /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/i;
 // The elements of a Vue, Svelte or Blade template as [start line, last line of the start tag, end
-// line], like elementSpans for JSX. Attribute values are skipped with their quotes, so `a > b` in a
+// line, tag name, start column], like elementSpans for JSX. Attribute values are skipped with their quotes, so `a > b` in a
 // binding does not end a tag.
 export function templateSpans(file, text) {
   const region = file.endsWith('.blade.php') ? { start: 0, end: text.length } : templateRegion(text, file);
@@ -506,7 +512,7 @@ export function templateSpans(file, text) {
     const close = text.slice(lt).match(/^<\/([\w.:-]+)\s*>/);
     if (close) {
       const k = stack.map((e) => e.name).lastIndexOf(close[1]);
-      if (k >= 0) { for (const e of stack.splice(k)) out.push([e.start, e.openEnd, lineAt(text, lt)]); }
+      if (k >= 0) { for (const e of stack.splice(k)) out.push([e.start, e.openEnd, lineAt(text, lt), e.name, e.column]); }
       i = lt + close[0].length;
       continue;
     }
@@ -521,8 +527,9 @@ export function templateSpans(file, text) {
     }
     const start = lineAt(text, lt);
     const openEnd = lineAt(text, j);
-    if (text[j - 1] === '/' || VOID_TAG.test(open[1])) out.push([start, openEnd, openEnd]);
-    else stack.push({ name: open[1], start, openEnd });
+    const column = lt - text.lastIndexOf('\n', lt - 1) - 1;
+    if (text[j - 1] === '/' || VOID_TAG.test(open[1])) out.push([start, openEnd, openEnd, open[1], column]);
+    else stack.push({ name: open[1], start, openEnd, column });
     i = j + 1;
   }
   return out;

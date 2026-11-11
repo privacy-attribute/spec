@@ -21,6 +21,7 @@ import { buildScanReport, writeScanReport } from './report.mjs';
 import { bench, formatBench } from './bench.mjs';
 import { applyAnnotation, unifiedDiff, overMaskWarnings, uncoveredSites } from './patch.mjs';
 import { spansFor } from './templates.mjs';
+import { placeAnnotations } from './place.mjs';
 import { CACHE_PATH, loadCache, applyCache, buildCache, cacheDiff } from './cache.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -74,19 +75,27 @@ function runFind(src, out, sdk, headless, annotate, include) {
       if (!c.cached && !c.auto && !c.sites && c.rules.every((r) => r === 'input')) c.settled = 'input value: masked by maskAllInputs';
     }
   }
+  // Stage 5: annotations placed from high-confidence sites. A unit with no lines left for review is settled.
+  const placement = placeAnnotations(result, root, { sdk, annotate });
+  for (const c of result.candidates) {
+    if (!c.sites || c.cached || c.settled || c.earlier?.decision === 'dismiss') continue;
+    const review = placement.review.get(c.id);
+    if (review) c.review_lines = review;
+    else c.settled = placement.placed.get(c.id) ? `placed from the scan: ${placement.placed.get(c.id)} annotation${placement.placed.get(c.id) === 1 ? '' : 's'}` : 'decided by the scan: its values are annotated in child components or masked as input values';
+  }
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, 'candidates.json'), JSON.stringify(result, null, 1));
   fs.writeFileSync(path.join(out, 'scan-plan.md'), planMarkdown(result));
   if (!fs.existsSync(path.join(out, 'annotations.json'))) {
     // Candidates decided by an `auto` rule start out annotated; the agent skips them.
-    const annotations = result.candidates.filter((c) => c.auto).map((c) => ({
+    const annotations = [...placement.annotations, ...result.candidates.filter((c) => c.auto).map((c) => ({
       file: c.file, line: c.auto.line, match: c.auto.match, value: c.auto.value, category: c.auto.category,
       special_category: false, data: `decided by rule ${c.auto.rule}`, candidates: [c.id], auto: true,
-    }));
+    }))];
     // Units in files unchanged since the last scan keep their earlier decision.
     const cached = Object.fromEntries(result.candidates.filter((c) => c.cached).map((c) => [c.id, `unchanged since the last scan: ${c.cached.decision}${c.cached.value ? ` ${c.cached.value}` : ''}`]));
     const settled = Object.fromEntries(result.candidates.filter((c) => c.settled).map((c) => [c.id, c.settled]));
-    const config = Object.keys(settled).length ? ['rrweb on all pages: maskAllInputs: true (input values)'] : [];
+    const config = sdk === 'rrweb' && Object.keys(settled).length ? ['rrweb on all pages: maskAllInputs: true (input values)'] : [];
     fs.writeFileSync(path.join(out, 'annotations.json'), JSON.stringify({ annotations, dismissed: {}, cached, settled, config, gaps: [] }, null, 1));
   }
   const promptFile = path.join(out, 'PLAYBOOK.md');

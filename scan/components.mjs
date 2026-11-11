@@ -323,13 +323,13 @@ export function categoryOf(sites) {
   return 'personal?';
 }
 
-// The JSX elements of a file as [start line, last line of the start tag, end line], for checking
-// which lines an annotated element covers. Empty for files that are not JSX.
+// The JSX elements of a file as [start line, last line of the start tag, end line, tag name, start
+// column], for checking which lines an annotated element covers. Empty for files that are not JSX.
 export function elementSpans(file, code) {
   if (!PARSEABLE.test(file)) return [];
   const ast = parseFile(file, code);
   const out = [];
-  if (ast) walk(ast, (n) => { if (n.type === 'JSXElement') out.push([n.loc.start.line, n.openingElement.loc.end.line, n.loc.end.line]); });
+  if (ast) walk(ast, (n) => { if (n.type === 'JSXElement') out.push([n.loc.start.line, n.openingElement.loc.end.line, n.loc.end.line, jsxName(n.openingElement.name), n.openingElement.loc.start.column]); });
   return out;
 }
 

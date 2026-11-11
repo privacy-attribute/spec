@@ -182,7 +182,7 @@ export function planMarkdown(result) {
   const files = [...byFile.entries()].sort((a, b) => rank(a[1]) - rank(b[1]) || a[0].localeCompare(b[0]));
   const count = (k) => result.candidates.filter((c) => c.category_hint.replace('?', '') === k).length;
   const settledCount = result.candidates.filter((x) => x.settled).length;
-  const settledNote = settledCount ? [`${settledCount} input units are not listed: the recorder masks their values with its input masking option (see the config in annotations.json).`, ''] : [];
+  const settledNote = settledCount ? [`${settledCount} units are not listed: the scan placed their annotations (in annotations.json with "auto": true), or the recorder masks their input values (see the config in annotations.json).`, ''] : [];
   const skipped = result.cache?.units_skipped
     ? [`${result.cache.units_skipped} candidates in ${result.cache.files_skipped} files are not listed: these files are unchanged since the last scan, so their decisions in .privacy-scan/decisions.json stay. "earlier" shows the decision from the last scan for a unit in a changed file.`, '']
     : [];
@@ -199,7 +199,9 @@ export function planMarkdown(result) {
       ...list.flatMap((c) => (c.sites
         ? [
           `- ${c.id} L${c.line}-${c.end_line} component <${c.component}> [${c.category_hint}]: data from ${[...new Set(c.sites.map((s) => s.origin.split(' via ')[0]))].slice(0, 2).join('; ').slice(0, 110)}`,
-          `  - renders at L${c.site_lines.slice(0, 12).join(', L')}${c.site_lines.length > 12 ? ' and more' : ''}: ${c.sites.slice(0, 3).map((s) => `<${s.tag}> ${s.kind} \`${s.expr.replace(/`/g, "'").slice(0, 50)}\``).join('; ')}`,
+          ...(c.review_lines
+            ? [`  - review L${c.review_lines.slice(0, 12).join(', L')}: ${c.sites.filter((s) => c.review_lines.includes(s.line)).slice(0, 3).map((s) => `<${s.tag}> ${s.kind} \`${s.expr.replace(/`/g, "'").slice(0, 50)}\` from ${s.origin.split(' via ')[0].slice(0, 40)}`).join('; ')}; the scan placed the other lines`]
+            : [`  - renders at L${c.site_lines.slice(0, 12).join(', L')}${c.site_lines.length > 12 ? ' and more' : ''}: ${c.sites.slice(0, 3).map((s) => `<${s.tag}> ${s.kind} \`${s.expr.replace(/`/g, "'").slice(0, 50)}\``).join('; ')}`]),
           ...(c.merged.length ? [`  - rule hits at L${c.merged.map((m) => m.line).slice(0, 10).join(', L')}: ${[...new Set(c.merged.flatMap((m) => m.rules))].join(', ')}`] : []),
         ]
         : [`- ${c.id} L${c.line} ${c.component ? `<${c.component}> ` : ''}[${c.category_hint}; ${c.rules.join(', ')}]${c.covered ? ' covered' : ''}${c.auto ? ` decided: ${c.auto.value}` : ''}: \`${c.snippet.slice(0, 140).replace(/`/g, "'")}\``]).map((line, k) => (k === 0 && c.earlier ? `${line} (earlier: ${c.earlier.decision}${c.earlier.value ? ` ${c.earlier.value}` : ''})` : line))),
