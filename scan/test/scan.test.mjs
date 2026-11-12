@@ -52,7 +52,7 @@ test('rrweb style keeps a static class next to a Vue binding', () => {
 
 test('an existing rrweb class is kept when equal and upgraded when different', () => {
   assert.equal(apply("<Input className='x rr-mask' />", { match: '<Input', value: 'mask' }).out, "<Input className='x rr-mask' />");
-  assert.equal(apply("<Input className='x rr-mask' />", { match: '<Input', value: 'block' }).out, "<Input className='x rr-block' />");
+  assert.equal(apply("<Input className='x rr-mask' />", { match: '<Input', value: 'block' }).out, "<Input className='rr-block x rr-mask' />");
 });
 
 test('unmask has no rrweb class', () => {
@@ -60,14 +60,14 @@ test('unmask has no rrweb class', () => {
 });
 
 test('an edit replaces exact text near the line, and reports a miss', () => {
-  const src = "<div className={cn('row', a)}>";
+  const src = "<div className={cn('row', a)}></div>";
   const ok = apply(src, { match: '<div', value: 'mask', edit: { from: "cn('row'", to: "cn('row rr-mask'" } });
-  assert.equal(ok.out, "<div className={cn('row rr-mask', a)}>");
+  assert.equal(ok.out, "<div className={cn('row rr-mask', a)}></div>");
   assert.match(apply(src, { match: '<div', value: 'mask', edit: { from: 'nope', to: 'x' } }).reason, /not found/);
 });
 
 test('a match that is not near the line is reported', () => {
-  assert.match(apply('<p>x</p>', { match: '<Input', value: 'mask' }).reason, /not found near line 1/);
+  assert.match(apply('<p>x</p>', { match: '<Input', value: 'mask' }).reason, /not found uniquely on line 1/);
 });
 
 test('unifiedDiff uses forward-slash paths relative to the repository root', () => {
@@ -126,7 +126,8 @@ test('the report counts rule outcomes and keeps recorder gaps private', () => {
   assert.equal(r.payload.gaps[0].proposed_rule.tested, true);
   assert.equal(r.payload.gaps[1].proposed_rule.tested, false);
   assert.ok(!JSON.stringify(r.payload).includes('secret weakness'));
-  assert.ok(!r.url.includes('secret+weakness') && !r.url.includes('secret%20weakness'));
+  assert.equal(r.url, 'https://github.com/privacy-attribute/spec/issues/new?template=scan-feedback.yml');
+  assert.match(r.markdown, /KeyField/);
   assert.match(r.privateText, /secret weakness/);
 });
 
@@ -161,8 +162,10 @@ test('the decisions cache skips unchanged files after the patch is committed', a
 
   fs.appendFileSync(path.join(repo, 'src', 'Team.tsx'), '\n');
   const out3 = `${out1}-3`;
-  assert.match(run('find', path.join(repo, 'src'), '--sdk', 'rrweb', '--out', out3), /\(1 to review\)/);
-  assert.match(fs.readFileSync(path.join(out3, 'scan-plan.md'), 'utf8'), /earlier: dismiss/);
+  run('find', path.join(repo, 'src'), '--sdk', 'rrweb', '--out', out3);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(out3, 'candidates.json'))).cache.units_skipped, 0);
+  const fresh = JSON.parse(fs.readFileSync(path.join(out3, 'annotations.json')));
+  assert.ok(fresh.annotations.some((annotation) => annotation.file === 'Team.tsx' && annotation.value === 'mask' && annotation.auto));
 });
 
 test('over-masking: an annotation in a shared component with public uses is reported', () => {
@@ -229,10 +232,11 @@ test('uncovered sites: lines of annotated and dismissed units outside every anno
   };
   const spans = (file) => (file === 'Card.tsx' ? [[2, 2, 4]] : []);
   const decisions = { annotations: [{ file: 'Card.tsx', line: 2, value: 'mask', candidates: ['C1'] }], dismissed: { C2: 'row actions' } };
-  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => [u.id, u.lines, u.dismissed]), [['C1', [6], false], ['C2', [4, 5], true]]);
+  // The scan cannot verify native input masking from a suggested recorder configuration.
+  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => [u.id, u.lines, u.dismissed]), [['C1', [6, 7, 8], false], ['C2', [4, 5, 6, 7], true]]);
   decisions.dismissed['C1:L6'] = 'shown only to the user';
   decisions.dismissed['C2:L5'] = 'shows the template title, the same for all users';
-  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => [u.id, u.lines]), [['C2', [4]]]);
+  assert.deepEqual(uncoveredSites(scan, decisions, spans).map((u) => [u.id, u.lines]), [['C1', [7, 8]], ['C2', [4, 6, 7]]]);
 });
 
 test('component pass: conditions and mapped elements are not text sites', () => {
@@ -244,23 +248,26 @@ test('component pass: conditions and mapped elements are not text sites', () => 
 
 test('schema reader: Prisma and Rails fields get a category', () => {
   const dir = tempApp({
-    'prisma/schema.prisma': 'enum Status {\n  DRAFT\n}\nmodel User {\n  id Int @id\n  email String\n  password String?\n  status Status\n  disabled Boolean\n  documentCount Int\n  order Int\n  team Team @relation(fields: [teamId], references: [id])\n}\n',
+    'prisma/schema.prisma': 'enum Status {\n  DRAFT\n}\nmodel User {\n  id Int @id\n  email String\n  password String?\n  status Status\n  disabled Boolean\n  hasDiabetes Boolean\n  documentCount Int\n  order Int\n  team Team @relation(fields: [teamId], references: [id])\n}\n',
     'db/schema.rb': 'create_table "contacts", force: :cascade do |t|\n    t.string "phone_number"\n    t.datetime "last_seen_at"\n    t.jsonb "custom_attributes"\n  end\n',
   });
   const f = readSchemas(dir).fields;
   const cat = (n) => f.get(n)?.category;
-  assert.deepEqual(['email', 'password', 'status', 'disabled', 'documentCount', 'order', 'id', 'phone_number', 'last_seen_at', 'custom_attributes', 'team'].map(cat),
-    ['private', 'secret', 'public', 'public', 'private', 'public', 'public', 'private', 'public', 'private', undefined]);
+  assert.deepEqual(['email', 'password', 'status', 'disabled', 'hasDiabetes', 'documentCount', 'order', 'id', 'phone_number', 'last_seen_at', 'custom_attributes', 'team'].map(cat),
+    ['personal', 'secret', 'personal', 'personal', 'personal', 'personal', 'personal', 'personal', 'personal', 'personal', 'personal', undefined]);
+  assert.equal(f.get('hasDiabetes').special_category, true);
+  assert.equal(f.get('disabled').special_category, false);
+  assert.equal(f.get('last_seen_at').special_category, false);
 });
 
-test('component pass: schema fields and unknown hooks fail closed, schema public fields are skipped', () => {
+test('component pass: schema fields and unknown hooks fail closed, stored scalar fields remain private', () => {
   const r = find(tempApp({
     'prisma/schema.prisma': 'model Envelope {\n  id String @id\n  title String\n  status String\n  completed Boolean\n}\n',
     'Row.tsx': "export function Row({ item }) {\n  const extra = useExtras();\n  return (\n    <tr>\n      <td>{item.title}</td>\n      <td>{item.completed}</td>\n      <td>{extra.note}</td>\n    </tr>\n  );\n}\n",
   }));
   const unit = r.candidates.find((c) => c.component === 'Row');
-  assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence]), [[5, 'high'], [7, 'low']]);
-  assert.match(unit.sites[0].origin, /schema private field title/);
+  assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence]), [[5, 'high'], [6, 'high'], [7, 'low']]);
+  assert.match(unit.sites[0].origin, /schema personal field title/);
   assert.equal(unit.confidence, 'high');
 });
 
@@ -275,7 +282,7 @@ test('template pass: schema fields, getter arrows and unknown composables', () =
     'Card.vue': "<script setup>\nconst props = defineProps({ metrics: { type: Object } });\nconst count = (key) => Number(props.metrics[key] || 0);\nconst { rule } = useAutomation();\n</script>\n<template>\n  <div>\n    <span>{{ count('sent') }}</span>\n    <h3>{{ campaign.title }}</h3>\n    <i>{{ campaign.enabled }}</i>\n    <p>{{ rule.name }}</p>\n  </div>\n</template>\n",
   }));
   const unit = r.candidates.find((c) => c.file === 'Card.vue');
-  assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence]), [[8, 'high'], [9, 'high'], [11, 'low']]);
+  assert.deepEqual(unit.sites.map((s) => [s.line, s.confidence]), [[8, 'high'], [9, 'high'], [10, 'high'], [11, 'low']]);
 });
 
 test('component pass: state typed as a named type is a low-confidence source', () => {
@@ -300,7 +307,7 @@ test('placement: block secrets and attributes, mask text, annotate in the child,
   assert.equal(at('Card.tsx', 2).value, 'mask');
   assert.equal(at('Page.tsx', 10), undefined, 'maskAllInputs masks the input value');
   assert.equal(at('Page.tsx', 12).match, '<SelectTrigger');
-  assert.equal(review.size, 0);
+  assert.deepEqual([...review.values()], [[9]], 'parent prop needs a verified render destination');
 });
 
 test('residue: one question per unknown source; answers upgrade or drop its sites', () => {

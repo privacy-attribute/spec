@@ -1,8 +1,12 @@
 {
  "app": "documenso",
  "repo": "https://github.com/documenso/documenso",
- "commit": "f32ab10",
- "labelled": "2026-11-11, two independent reviewers; labellers=2 marks agreement",
+ "commit": "f32ab10dc7189d3c375fc112469cbb156c9adb6f",
+ "held_out": [],
+ "review": {
+  "status": "unverified-legacy",
+  "note": "Historical labeller counts have no retained submissions or auditable reviewer provenance. Added public anchors were model-authored."
+ },
  "files": {
   "apps/remix/app/components/dialogs/account-delete-dialog.tsx": [
    {
@@ -30,7 +34,22 @@
     "labellers": 2
    }
   ],
-  "apps/remix/app/components/embed/embed-sender-disabled.tsx": [],
+  "apps/remix/app/components/embed/embed-sender-disabled.tsx": [
+   {
+    "line": 27,
+    "tag": "h3",
+    "category": "public",
+    "value": "none",
+    "what": "Public disabled-embed heading."
+   },
+   {
+    "line": 39,
+    "tag": "p",
+    "category": "public",
+    "value": "none",
+    "what": "Public explanation for an unavailable embed."
+   }
+  ],
   "apps/remix/app/components/embed/multisign/multi-sign-document-signing-view.tsx": [
    {
     "line": 237,

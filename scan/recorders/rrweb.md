@@ -1,40 +1,44 @@
 # rrweb
 
-This file tells you how rrweb reads annotations and the configuration to add. It applies to rrweb 2.x and to rrweb Cloud (`@rrweb/browser-client`).
+Choose the annotation style for the rrweb build and configuration you deploy. The scanner selects rrweb classes when you pass `--sdk rrweb`. Add `--annotate data-privacy` to generate the [draft core attribute](../../spec/core.md).
 
-## Annotation style `rrweb`
+## rrweb classes
 
-rrweb reads these classes with no configuration:
+| Class | Default rrweb control |
+|-------|----------------------|
+| `rr-block` | Replace the element with a layout placeholder in the DOM snapshot. |
+| `rr-mask` | Mask text in the element and its descendants. |
+| `rr-ignore` | Suppress input events. |
 
-| Annotation | Class | Effect in rrweb |
-|------------|-------|-----------------|
-| `block` | `rr-block` | rrweb records a placeholder of the same size. rrweb records nothing in the element. |
-| `mask` | `rr-mask` | rrweb masks the text in the element and in its descendants. |
-| `ignore` | `rr-ignore` | rrweb does not record input events from the element. |
-| `unmask` | none | rrweb has no class for this. Move the public content out of the masked element. |
+`rr-mask` covers DOM text. Set `maskAllInputs: true` or the appropriate `maskInputOptions` in `record()` to mask field values. Verify the options your wrapper supplies. The rrweb audit adapter models `@rrweb/browser-client` with `maskAllInputs: true`.
 
-- `rr-mask` does not mask input values. rrweb masks input values only with `maskAllInputs` or `maskInputOptions`. `@rrweb/browser-client` sets `maskAllInputs: true` by default. With core rrweb, set it in `record()`.
-- To protect a secret field completely, use `rr-block` on the field or on its container.
+Use `rr-block` for a secret field or a private value in an attribute. Keep public content outside the protected element. Test live updates and events with the deployed build and options.
 
-## Annotation style `data-privacy`
+Matching core attributes can accompany rrweb classes, for example `class="rr-mask" data-privacy="mask confidential"`. Classification is optional and uses a token in the same attribute. It supplies no recording control: any `block` token supersedes `mask`, regardless of order. See [annotation authoring](../skill/references/annotation-style.md) and the [pinned compatibility check](../../ANNOTATION_COMPATIBILITY.md). The CLI still emits one selected style; combined annotations use exact source proposals.
 
-rrweb does not read the `data-privacy` attribute. Add these options to `record()`:
+## Native `data-privacy` support
+
+For a build that supports `privacyPolicy`, use `privacyPolicy: { version: 1, preset: 'balanced' }` in `record()`. The previously tested commit `a4abb9478bd56bcf8ec9658bd7eb0a6c8c6b78f4` recognizes only exact `block`; combined block values require the token-support patch described in the compatibility check or verified token-aware selectors. Native policy support alone does not prove token support. Check the exact SDK build with the [core browser check](../../audit/runner/README.md#check-the-privacy-attribute).
+
+## Legacy selectors
+
+For older builds, the selectors below request block for matching elements and mask for text. The mask selector also matches empty and unrecognized attribute values.
 
 ```js
+const mask = '[data-privacy]:not([data-privacy~="block"])';
+
 record({
-  blockSelector: '[data-privacy="block"]',
-  maskTextSelector: '[data-privacy="mask"], [data-privacy="mask"] *',
-  ignoreSelector: '[data-privacy="ignore"], [data-privacy="ignore"] input, [data-privacy="ignore"] textarea, [data-privacy="ignore"] select',
+  blockSelector: '[data-privacy~="block"]',
+  maskTextSelector: `${mask}, ${mask} *`,
   maskAllInputs: true,
 });
 ```
 
-## Configuration for both styles
+This configuration requests global input masking. Older builds can expose `title`, `placeholder`, and `aria-label`, and may handle live updates or shadow roots differently. Use a verified block for private values in those attributes and test each capture path you depend on. Use a separate rrweb control when you need to suppress input events.
 
-Add these options when they apply:
+## Other recorder options
 
-| Option | Add it when |
-|--------|-------------|
-| `maskAllInputs: true` | Always with core rrweb. `@rrweb/browser-client` sets it by default. |
-| `maskInputFn: () => '*'` and `maskTextFn: () => '*'` | The page has secret fields or masked numbers. The default masks write one `*` for each character. |
-| `slimDOMOptions: { comment: true }` | The page has HTML comments in private areas. |
+| Option | When to use it |
+|--------|----------------|
+| `maskInputFn: () => '*'` and `maskTextFn: () => '*'` | Use a fixed replacement to hide value length in the replacement text. |
+| `slimDOMOptions: { comment: true }` | Omit HTML comments when the page contains comments with private data. |

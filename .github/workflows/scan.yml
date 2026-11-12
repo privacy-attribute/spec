@@ -24,9 +24,73 @@ jobs:
       - name: Install
         run: npm ci
       - name: Unit tests
-        run: node --test scan/test/scan.test.mjs
+        run: node --test
       - name: Benchmark the scan rules
         run: node scan/cli.mjs bench
+
+  real-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [documenso, chatwoot, immich, akaunting]
+    env:
+      APP: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request' || github.event.before != '0000000000000000000000000000000000000000'
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.before }}
+          path: .benchmark-base
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Check out the labelled upstream revision
+        shell: bash
+        run: |
+          read -r repo revision < <(node -e '
+            const { repo, commit } = require(`./scan/benchmark/apps/${process.env.APP}/labels.json`);
+            if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(repo) || !/^[0-9a-f]{40}$/.test(commit)) process.exit(1);
+            console.log(repo, commit);
+          ')
+          mkdir -p "$RUNNER_TEMP/upstream" "$RUNNER_TEMP/scan-measurement"
+          git -C "$RUNNER_TEMP/upstream" init --quiet
+          git -C "$RUNNER_TEMP/upstream" fetch --quiet --depth=1 --no-tags "$repo" "$revision"
+          git -C "$RUNNER_TEMP/upstream" -c advice.detachedHead=false checkout --quiet --detach FETCH_HEAD
+      - name: Measure the previous scanner
+        if: github.event_name == 'pull_request' || github.event.before != '0000000000000000000000000000000000000000'
+        run: |
+          node scan/benchmark/apps/measure.mjs "$APP" "$RUNNER_TEMP/upstream" --scanner-root .benchmark-base/scan --json > "$RUNNER_TEMP/scan-measurement/base.json"
+      - name: Measure the scanner on the pinned app
+        shell: bash
+        run: |
+          compare=()
+          if [[ -f "$RUNNER_TEMP/scan-measurement/base.json" ]]; then
+            compare=(--compare "$RUNNER_TEMP/scan-measurement/base.json")
+          fi
+          node scan/benchmark/apps/measure.mjs "$APP" "$RUNNER_TEMP/upstream" --json "${compare[@]}" > "$RUNNER_TEMP/scan-measurement/current.json"
+      - name: Show measurement results
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const filename = `${process.env.RUNNER_TEMP}/scan-measurement/current.json`;
+          if (!fs.existsSync(filename) || !fs.statSync(filename).size) process.exit(0);
+          const { app, revision, groups, patch_application, placement_failures, replay, regressions } = JSON.parse(fs.readFileSync(filename, 'utf8'));
+          const totals = Object.fromEntries(Object.entries(groups).map(([split, group]) => [split, group.all]));
+          console.log({ app, revision, patch_application, placement_failures, replay, totals, regressions });
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scan-measurement-${{ matrix.app }}
+          path: ${{ runner.temp }}/scan-measurement/
 
   style:
     runs-on: ubuntu-latest

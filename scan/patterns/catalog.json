@@ -1,0 +1,523 @@
+{
+  "families": [
+    {"id": "audience", "title": "Subject and audience", "scope": "The viewer, record owner, and intended audience can differ."},
+    {"id": "inference", "title": "Indirect disclosure", "scope": "Structure, ordering, dimensions, or summaries can reveal the underlying value."},
+    {"id": "producer", "title": "Value producers and derivations", "scope": "The rendered expression does not identify every source or transformation."},
+    {"id": "representation", "title": "Parallel representations", "scope": "A value can have several copies, including outside visible text."},
+    {"id": "boundary", "title": "Runtime DOM ownership", "scope": "Source component boundaries and actual recorder boundaries can differ."},
+    {"id": "lifecycle", "title": "Lifecycle and changing identity", "scope": "A transition can expose a value even when the settled view is protected."},
+    {"id": "interaction", "title": "Editing and interaction", "scope": "User actions and events can disclose private input or choices."},
+    {"id": "navigation", "title": "Navigation and resource metadata", "scope": "Location, document metadata, links, or resources can carry private data."},
+    {"id": "integration", "title": "Capture outside native DOM", "scope": "Recorder integrations can emit payloads independently of DOM annotations."},
+    {"id": "controls", "title": "Control selection and fidelity", "scope": "An annotation needs the right placement, recorder support, and public boundary."},
+    {"id": "evidence", "title": "Verification and attribution", "scope": "A clean replay, accepted patch, or passing fixture can leave a claim unverified."}
+  ],
+  "cards": [
+    {
+      "id": "audience-01",
+      "family": "audience",
+      "title": "Delegated access changes the subject",
+      "cues": "A person can switch workspaces, act as a delegate, or view the same profile form from an admin route.",
+      "trace": "Join the session actor, selected record, and organization relationship using the route and query. Identify which fields concern the viewer and which concern somebody else.",
+      "treatment": "Protect private values while ownership is unresolved. Record the open category distinction and the evidence needed to settle it.",
+      "counterexample": "A staff member editing their own profile through the same form is the subject of those fields.",
+      "verify": "Compare two authorized roles using distinct synthetic identities and confirm that the decision follows the record subject.",
+      "composes_with": ["audience-03", "producer-04", "lifecycle-02"],
+      "evidence": [
+        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "The Documenso signing title's audience was corrected using the sender/recipient query. Several Akaunting organization labels remained disputed."}
+      ]
+    },
+    {
+      "id": "audience-02",
+      "family": "audience",
+      "title": "Private preview shares a public renderer",
+      "cues": "A public page, draft preview, and signed review link render a common component with similar props.",
+      "trace": "Follow the publication condition and each route's query. Identify which fields, versions, and people the general audience can actually see.",
+      "treatment": "Keep confirmed public fields clear in the published context. Protect private fields and draft or restricted variants at their actual destinations.",
+      "counterexample": "A published profile can deliberately expose a display name while its preview also contains an internal note.",
+      "verify": "Use a public revision and an unpublished revision with different markers. Check the preview route and public endpoint independently.",
+      "composes_with": ["boundary-04", "navigation-03", "lifecycle-01"],
+      "evidence": []
+    },
+    {
+      "id": "audience-03",
+      "family": "audience",
+      "title": "A record contains several subjects",
+      "cues": "A thread, timeline, or combined record displays messages, draft notes, automated notices, and imported metadata together.",
+      "trace": "Identify author, subject, and audience per entry or field. An operator's typed search and the customer address it returns have different producers and subjects.",
+      "treatment": "Carry each supported classification to its own destination. If a shared boundary protects several private entries, verify what fixed controls it also affects.",
+      "counterexample": "A fixed service announcement can be public in the same list as an operator's draft and a customer's reply.",
+      "verify": "Use separate markers per subject and a fixed announcement. Confirm which channels each entry contributes.",
+      "composes_with": ["audience-01", "producer-01", "controls-05"],
+      "evidence": [
+        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "frozen-prediction-comparisons", "scope": "The Twenty comparison found a disagreement over the operator's typed search category. Both reviews required masking."}
+      ]
+    },
+    {
+      "id": "inference-01",
+      "family": "inference",
+      "title": "A summary exposes a narrow group",
+      "cues": "A count, subtotal, percentage, or empty-state indicator is computed from a filtered set of private records.",
+      "trace": "Determine whose records are in the denominator, what the viewer already sees, and what changing one person's state does to the output.",
+      "treatment": "Protect a summary when its recorded value discloses a private fact. Review its number, heading, empty state, and associated tooltip or link independently.",
+      "counterexample": "A published all-catalog item count can be public even when an adjacent per-customer total is private.",
+      "verify": "Vary membership in a small synthetic cohort and check what survives in text, attributes, and emitted structural changes.",
+      "composes_with": ["inference-02", "navigation-03", "representation-01"],
+      "evidence": []
+    },
+    {
+      "id": "inference-02",
+      "family": "inference",
+      "title": "Order and presence encode a private state",
+      "cues": "Row order, badge styling, enabled actions, or the presence of a section changes when a record property changes.",
+      "trace": "Read the predicate, comparator, or style mapping. Ask whether a recording can associate the change with a person or record even after text is masked.",
+      "treatment": "Protect the smallest recorded structure or interaction that reveals the condition. Check retained position, classes, and surrounding public context.",
+      "counterexample": "Alphabetical order over a published directory and an invariant decorative badge may remain public.",
+      "verify": "Keep visible strings fixed while changing a private predicate. Compare emitted structure and events under the exact recorder configuration.",
+      "composes_with": ["inference-01", "inference-03", "interaction-02"],
+      "evidence": []
+    },
+    {
+      "id": "inference-03",
+      "family": "inference",
+      "title": "Length and dimensions survive masking",
+      "cues": "A field uses length-preserving masking, grows to fit its content, or leaves a measured block placeholder.",
+      "trace": "Identify dimensions or masked lengths influenced by the value and check what the deployed recorder emits. Include nearby elements whose positions change with the private content.",
+      "treatment": "Use protection sufficient for the relevant disclosure. Where fixed geometry or recorder configuration is needed, document its scope and fidelity cost.",
+      "counterexample": "A verified fixed-size placeholder can preserve placement while revealing no content-dependent dimension within the tested states.",
+      "verify": "Compare different-length synthetic values and raw events. Use a browser for claims about real layout.",
+      "composes_with": ["representation-04", "controls-04", "evidence-02"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "In the Twenty DOM emulator, two API key lengths yielded different masked input lengths before blocking. Actual browser geometry was outside the test."}
+      ]
+    },
+    {
+      "id": "producer-01",
+      "family": "producer",
+      "title": "A schema supplies labels and values",
+      "cues": "A registry maps field descriptors to renderers, and the immediate template only refers to a generic field or value.",
+      "trace": "Find the active descriptors, value producer, and renderer implementation for each mode. Determine whether labels and option captions are fixed configuration or user-authored records.",
+      "treatment": "Classify and place protection from the resolved bindings. If the schema or renderer is unavailable, name that dependency and record unresolved decisions at the affected destinations.",
+      "counterexample": "A public product filter can use the same field factory as a private integration settings editor.",
+      "verify": "Exercise representative descriptor types and confirm which values, attributes, and interactions the native renderer produces.",
+      "composes_with": ["producer-04", "boundary-01", "interaction-02"],
+      "evidence": [
+        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "The Chatwoot review left dynamic integration forms unresolved pending catalog and FormKit implementation evidence."}
+      ]
+    },
+    {
+      "id": "producer-02",
+      "family": "producer",
+      "title": "Fallbacks switch the value's meaning",
+      "cues": "An empty, invalid, or unavailable value selects another expression for a placeholder, suggestion, preview, or error.",
+      "trace": "Follow the selection predicate and each fallback producer. Determine whether any branch carries stored data, input, or a fixed instruction, and where each branch renders.",
+      "treatment": "Protect private branches at every destination. Record the fidelity cost if a verified shared boundary also hides a fixed fallback.",
+      "counterexample": "A fixed instruction can stay public while a record-derived default shown in the same place is private.",
+      "verify": "Start populated, clear the field, supply an invalid value, and restore it. Inspect the emitted destination for every supported branch.",
+      "composes_with": ["representation-04", "lifecycle-03", "controls-05"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "The Twenty emulator recorded a private placeholder in the hidden autogrow measurement copy before the follow-up. The malformed email fallback was exercised separately."}
+      ]
+    },
+    {
+      "id": "producer-03",
+      "family": "producer",
+      "title": "A transformation retains identifying information",
+      "cues": "The UI truncates, formats, hashes, aliases, or abbreviates a value before placing it in text or an attribute.",
+      "trace": "Identify retained fragments, whether the output repeats across records or sessions, and what other visible fields let an observer associate it with a subject.",
+      "treatment": "Protect a derived value that still reveals a private fact or stable private reference. Check full-value copies and interpolation sites separately.",
+      "counterexample": "A fixed synthetic example or a label independently intended for public display can use the same formatting helper.",
+      "verify": "Compare multiple inputs and repeated visits. Check whether the serialized representation changes with or consistently identifies the underlying private record.",
+      "composes_with": ["inference-03", "representation-01", "navigation-03"],
+      "evidence": []
+    },
+    {
+      "id": "producer-04",
+      "family": "producer",
+      "title": "A child fetches its own records",
+      "cues": "A dialog, row, or page title receives only an ID, visibility flag, or callback at the parent call site.",
+      "trace": "Follow the child through its context, store, route state, or query hooks. Identify the loaded record and descend to each element that emits its fields.",
+      "treatment": "Classify child destinations from their producer evidence. Keep fixed parent controls clear where possible and track destinations absent from the structural inventory.",
+      "counterexample": "A help dialog can receive the same open flag and callback while rendering fixed copy.",
+      "verify": "Open the child with distinct synthetic records. Inspect loading, resolved, and portal content and identify any dynamically created output.",
+      "composes_with": ["audience-01", "boundary-03", "lifecycle-02"],
+      "evidence": [
+        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "The Documenso follow-up added missed title, hover, recipient, autocomplete, and inferred-recipient destinations loaded inside children."}
+      ]
+    },
+    {
+      "id": "representation-01",
+      "family": "representation",
+      "title": "Accessible names reference separate nodes",
+      "cues": "A field sets a title, accessible name, description, or live announcement. Its visible text may already be masked.",
+      "trace": "Trace literal attributes and ID references such as `aria-labelledby` to their source and referenced node. Check where tooltip and announcement content is mounted.",
+      "treatment": "Protect private text and attributes at the destinations the recorder serializes. Preserve fixed instructions and relationships where possible.",
+      "counterexample": "A static accessibility label such as Search can stay clear beside a record-derived field value.",
+      "verify": "Inspect attributes, referenced text nodes, tooltip mounts, and announcements before and after a value or focus change.",
+      "composes_with": ["boundary-03", "controls-02", "controls-03"],
+      "evidence": []
+    },
+    {
+      "id": "representation-02",
+      "family": "representation",
+      "title": "Styles carry private values",
+      "cues": "A renderer populates style properties, generated text, class names, or background images from record data.",
+      "trace": "Identify which style attribute, stylesheet rule, CSS variable, or referenced attribute contains the value. Check the recorder's support for these channels and for style mutations.",
+      "treatment": "Protect the actual carrier with a supported control. If a shared stylesheet is captured independently, verify a recorder or application-level control for that channel.",
+      "counterexample": "A fixed icon class and a public branding image can use the same style mechanism without conveying private data.",
+      "verify": "Change a private style input and inspect emitted attributes, rule changes, and URLs independently.",
+      "composes_with": ["inference-02", "navigation-04", "integration-03"],
+      "evidence": []
+    },
+    {
+      "id": "representation-03",
+      "family": "representation",
+      "title": "An editor mirrors source into several views",
+      "cues": "A rich editor has editable content, a source tab, a preview pane, or a read-only representation after save.",
+      "trace": "Follow the model and submitted value into each native control, contenteditable mount, rendered preview, and error or confirmation echo. Include asynchronous plugins that mount outside the editor.",
+      "treatment": "Apply supported protection per output. Preserve fixed toolbar labels where the boundary and interaction channel permit.",
+      "counterexample": "The same editor can render a published help article in read-only mode and a private draft in another context.",
+      "verify": "Edit, preview, save, and reopen with synthetic text and a private URL. Inspect each emitted carrier separately.",
+      "composes_with": ["boundary-03", "interaction-01", "navigation-04"],
+      "evidence": [
+        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "The Chatwoot source review followed rich-editor content to its mount. It did not verify editor recordings."}
+      ]
+    },
+    {
+      "id": "representation-04",
+      "family": "representation",
+      "title": "A hidden sibling measures private content",
+      "cues": "An autosizing field copies the selected content into a visually hidden node used to measure height or width.",
+      "trace": "Read the measurement expression, including value and placeholder selection. Resolve the measuring node and its ancestry independently of the primary field.",
+      "treatment": "Apply the required control to each private copy while preserving unannotated callers and existing layout behavior. Document loss if the same boundary covers fixed placeholder text.",
+      "counterexample": "A fixed public example in the same shared autosizing component can retain its measurement text.",
+      "verify": "Check initial, changed, empty, placeholder, and restored states in snapshots and mutations at the measurement node.",
+      "composes_with": ["producer-02", "inference-03", "evidence-01"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "why-the-hidden-copy-finding-matters", "scope": "The Twenty autogrow sibling exposed private measurement text in a snapshot and mutation. The follow-up covered exercised value and placeholder states in the DOM emulator."}
+      ]
+    },
+    {
+      "id": "boundary-01",
+      "family": "boundary",
+      "title": "One component renders several native hosts",
+      "cues": "A field accepts a slot, render function, or element type and chooses different hosts for edit, view, or error modes.",
+      "trace": "Follow privacy and styling props through each slot, alias, or branch to the final host. Inspect native descendants and where the value actually lives.",
+      "treatment": "Place protection on supported hosts for all private modes. Keep placement unresolved when a renderer or forwarding definition is unavailable.",
+      "counterexample": "A shared styled native element can forward the same privacy attribute in every mode when its implementation establishes that behavior.",
+      "verify": "Toggle each mode and inspect the emitted attribute, protected value, and any public branch using the same renderer.",
+      "composes_with": ["producer-01", "boundary-04", "controls-01"],
+      "evidence": []
+    },
+    {
+      "id": "boundary-02",
+      "family": "boundary",
+      "title": "An embedded root has its own capture boundary",
+      "cues": "An iframe, web component, or separately mounted application contains a private record or interactive tool.",
+      "trace": "Identify the actual document or shadow root, how content enters it, and whether an outer recorder or separate integration can capture that content.",
+      "treatment": "Verify the control honored at each capture boundary. Check frame URLs or host metadata even when internal content capture is disabled.",
+      "counterexample": "An embedded fixed public illustration can use the same hosting mechanism while carrying no private content.",
+      "verify": "Inspect emitted roots and mutations for the host and embedded content. Include the enabled and disabled modes that the deployment actually supports.",
+      "composes_with": ["navigation-04", "integration-03", "controls-02"],
+      "evidence": []
+    },
+    {
+      "id": "boundary-03",
+      "family": "boundary",
+      "title": "Overlays mount outside the annotated ancestor",
+      "cues": "A tooltip, dropdown, modal, toast, or menu moves its content to a portal or independently managed root.",
+      "trace": "Read how the UI obtains the value and mounts each instance. Verify actual ancestry for closed, open, and remounted states.",
+      "treatment": "Protect the private overlay destination separately if the call-site boundary cannot reach it. Keep the trigger and fixed controls clear when they carry no private value.",
+      "counterexample": "A native child inside the same DOM subtree can inherit a verified ancestor control.",
+      "verify": "Open, close, and reopen the overlay. Inspect additions and updates using the overlay's recorded identity.",
+      "composes_with": ["producer-04", "representation-01", "lifecycle-03"],
+      "evidence": [
+        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "Twenty proposals traced private email links through the overflow portal. The runtime fixture did not exercise that parent route."}
+      ]
+    },
+    {
+      "id": "boundary-04",
+      "family": "boundary",
+      "title": "Public and private callers share a renderer",
+      "cues": "A shared badge, link, avatar, or field shows different kinds of data depending on which feature calls it.",
+      "trace": "Inspect representative callers, prop shapes, and the shared implementation. Resolve the native destination for private uses and establish what the public uses intentionally disclose.",
+      "treatment": "Choose a private call-site boundary or explicit privacy prop. Annotate the shared implementation globally only when the affected destinations all require it or the documented fidelity tradeoff is accepted.",
+      "counterexample": "A public support address and a private customer email can both render with the same link component.",
+      "verify": "Compare both callers across initial values, updates, and fallbacks.",
+      "composes_with": ["audience-02", "controls-01", "evidence-03"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "Twenty's shared email fixture preserved public text and URLs while protecting exercised private variants. The fixture supplied the privacy prop directly."}
+      ]
+    },
+    {
+      "id": "lifecycle-01",
+      "family": "lifecycle",
+      "title": "Initial markup precedes the client boundary",
+      "cues": "Server rendering, streaming, or bootstrap markup is visible before hydration installs client behavior.",
+      "trace": "Determine which private data is in the first document and when recording begins. Check whether initial markup and later client renders carry equivalent privacy controls.",
+      "treatment": "Protect every captured initial destination or verify a recording start policy that excludes it. Check serialized bootstrap data only when an enabled recorder can capture that channel.",
+      "counterexample": "A fixed public skeleton can appear before an already protected client-rendered record.",
+      "verify": "Observe the first actual recording snapshot and streaming mutations, then compare after hydration with synthetic data.",
+      "composes_with": ["audience-02", "lifecycle-03", "evidence-01"],
+      "evidence": []
+    },
+    {
+      "id": "lifecycle-02",
+      "family": "lifecycle",
+      "title": "Previous data survives a record switch",
+      "cues": "A screen retains cached or optimistic data during query changes, account switches, or a failed save.",
+      "trace": "Follow record identity, cache keys, and pending or rollback values. Identify which version appears in the main view, overlays, titles, and notices before the next response.",
+      "treatment": "Keep protection aligned with the data actually displayed throughout the transition. Resolve destinations for the outgoing, pending, and restored records.",
+      "counterexample": "An invariant loading skeleton without record-derived attributes can remain clear while the query changes.",
+      "verify": "Use two identities with different markers. Exercise delayed success, failure, and rollback, and inspect the emitted sequence.",
+      "composes_with": ["audience-01", "navigation-02", "lifecycle-03"],
+      "evidence": []
+    },
+    {
+      "id": "lifecycle-03",
+      "family": "lifecycle",
+      "title": "A transient update precedes protection",
+      "cues": "Reveal, lazy rendering, node reuse, or an imperative update adds a value before a selector or marker may take effect.",
+      "trace": "Identify when the destination mounts, receives the private content, and gains protection relative to recorder observation. Check the transition back to the original state.",
+      "treatment": "Keep the required control in place when the private node or mutation first becomes observable. Use an independently verified recorder control where a native marker cannot cover that timing.",
+      "counterexample": "A node created with its final supported protection can keep the same boundary across value changes.",
+      "verify": "Check first additions and mutations and subsequent reuse, as well as the settled snapshot.",
+      "composes_with": ["lifecycle-01", "controls-04", "evidence-01"],
+      "evidence": []
+    },
+    {
+      "id": "interaction-01",
+      "family": "interaction",
+      "title": "Editing paths emit different events",
+      "cues": "A field can be changed by typing, autofill, paste, composition, selection, or a scripted update.",
+      "trace": "Determine how each supported path changes the native value and which events or mutations the deployed recorder emits. Check validation and notifications that echo the input.",
+      "treatment": "Apply supported value protection and an independent event control when an event can still disclose the value. Keep fixed validation instructions clear.",
+      "counterexample": "An unbound demonstration control can show fixed public text, while the same widget can collect private data in a working form.",
+      "verify": "Exercise relevant trusted interactions in a browser and inspect recorded value and event channels separately.",
+      "composes_with": ["controls-05", "representation-03", "evidence-03"],
+      "evidence": []
+    },
+    {
+      "id": "interaction-02",
+      "family": "interaction",
+      "title": "A public caption identifies a private choice",
+      "cues": "Fixed survey options, lookup results, or keypad buttons display ordinary captions while a selection or sequence carries meaning.",
+      "trace": "Follow the selected state and events. Check whether recorded target IDs, coordinates, order, or selected classes can be associated with the answer or entered secret.",
+      "treatment": "Protect or suppress the revealing structure or interaction using supported controls. Preserve public captions when doing so leaves the private choice unobservable.",
+      "counterexample": "A fixed link to public help can record the same click shape without representing a private choice.",
+      "verify": "Compare different choices under fixed captions and inspect event sequences and related attributes.",
+      "composes_with": ["inference-02", "controls-02", "controls-04"],
+      "evidence": [
+        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "Chatwoot source review distinguished public keypad captions from a potentially private interaction sequence. Recorder behavior remained open."}
+      ]
+    },
+    {
+      "id": "interaction-03",
+      "family": "interaction",
+      "title": "An action exports a private payload",
+      "cues": "Copy, download, or drag uses private data while its button displays fixed public text.",
+      "trace": "Follow the action to its callback, clipboard or transfer data, URL, and filename. Identify what the recorder can observe about the action, metadata, and any confirmation.",
+      "treatment": "Protect captured private destinations and preserve action behavior. Check separate recorder integrations when the payload bypasses native DOM protection.",
+      "counterexample": "A fixed Copy button can remain visible while its underlying credential field is blocked.",
+      "verify": "Use synthetic values to check the exact action output and emitted payload separately. State which platform integrations were exercised.",
+      "composes_with": ["controls-04", "navigation-04", "integration-01"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "fidelity-and-function", "scope": "Twenty's exercised Copy control survived and the real hook passed the exact key to a synthetic clipboard sink. Operating-system clipboard remained untested."}
+      ]
+    },
+    {
+      "id": "navigation-01",
+      "family": "navigation",
+      "title": "Location and route events repeat private data",
+      "cues": "A route stores a record ID, search term, selected state, or token in the pathname, query string, or fragment.",
+      "trace": "Follow location writes and determine which location fields, navigation events, or referrers the recording integration emits. Trace the initiating link and global metadata independently.",
+      "treatment": "Use a verified route or recorder metadata control for any private location value. Protect rendered anchors separately where required.",
+      "counterexample": "A static public help route can remain in recorded navigation metadata.",
+      "verify": "Exercise direct load and in-app navigation with distinct synthetic values. Inspect first snapshot metadata and later route events.",
+      "composes_with": ["navigation-02", "navigation-03", "integration-01"],
+      "evidence": []
+    },
+    {
+      "id": "navigation-02",
+      "family": "navigation",
+      "title": "Document metadata lies outside a component",
+      "cues": "A feature writes a record name or status into a document title, head element, or route metadata.",
+      "trace": "Find server and client writers, including shared layout fallbacks. Determine when document-level values change and which recorder channels serialize them.",
+      "treatment": "Protect or remove the private metadata from the captured channel using a verified control. Keep fixed product or navigation text where feasible.",
+      "counterexample": "A fixed product title can accompany a private heading because the two destinations have different producers.",
+      "verify": "Switch records and navigate away. Inspect initial document metadata, updates, and any stale intermediate titles.",
+      "composes_with": ["lifecycle-01", "lifecycle-02", "navigation-01"],
+      "evidence": []
+    },
+    {
+      "id": "navigation-03",
+      "family": "navigation",
+      "title": "A link may identify a record or grant access",
+      "cues": "A URL includes an opaque segment, signature, record key, or slug, while its visible label is ordinary text.",
+      "trace": "Read the route and access contract. Determine whether the URL grants access on possession, points to a record behind separate authorization, or identifies intentionally public content.",
+      "treatment": "Block a rendered bearer URL as a secret. Independently classify ordinary private identifiers and protect their URL channel as supported by the recorder.",
+      "counterexample": "A published product slug can resemble a private record identifier while having a public purpose.",
+      "verify": "Check the source contract and inspect href, navigation metadata, and any copied form with synthetic values.",
+      "composes_with": ["audience-02", "navigation-01", "controls-04"],
+      "evidence": []
+    },
+    {
+      "id": "navigation-04",
+      "family": "navigation",
+      "title": "Media and rich content carry private resources",
+      "cues": "A link, image, embed, or rendered rich text uses private text, attributes, or resource URLs.",
+      "trace": "Find the original values and each serialized carrier, including href, src, srcset, inline styles, and embedded output. Determine what sanitization changes and what recorder channels remain.",
+      "treatment": "Block the smallest native boundary that covers a private resource or unsupported rich-content channel. Protect related text or separately captured resources independently.",
+      "counterexample": "A fixed public branding image can use the same rendering and sanitization pipeline.",
+      "verify": "Inspect emitted attributes, additions, and updates. Retain a public resource that uses the same component as a control.",
+      "composes_with": ["representation-02", "boundary-02", "navigation-03"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "The Twenty emulator captured private mailto URLs before the source proposal. In the exercised fixture, blocking removed private links and the public caller's URLs remained."}
+      ]
+    },
+    {
+      "id": "integration-01",
+      "family": "integration",
+      "title": "Custom event metadata has its own policy",
+      "cues": "The application sends replay tags, identification fields, or custom action metadata to a recorder API.",
+      "trace": "Follow each configured payload field to its producer. Establish whether the integration emits it into a recording and whether a transform removes or changes it first.",
+      "treatment": "Protect private custom metadata at its source or through a verified recorder transform. Resolve DOM placement separately for any copies shown in the interface.",
+      "counterexample": "A fixed event name such as Help opened can remain if the payload and event timing carry no private context.",
+      "verify": "Trigger representative events and inspect the complete emitted fields.",
+      "composes_with": ["interaction-03", "navigation-01", "evidence-01"],
+      "evidence": []
+    },
+    {
+      "id": "integration-02",
+      "family": "integration",
+      "title": "An enabled integration captures diagnostic data",
+      "cues": "Network, console, or error instrumentation is configured alongside session recording.",
+      "trace": "Identify the deployed plugins, allowlists, and transformations. Check which request paths, headers, bodies, exceptions, or log arguments enter recording payloads and when.",
+      "treatment": "Use the applicable application or recorder filtering controls for captured private diagnostic values. A DOM decision covers only the destinations within its verified scope.",
+      "counterexample": "A value used only in server processing may have no recording destination when no enabled integration emits it.",
+      "verify": "Exercise synthetic success and failure paths under deployment settings. Check exact recorded diagnostic fields rather than the developer console alone.",
+      "composes_with": ["integration-01", "producer-02", "evidence-02"],
+      "evidence": []
+    },
+    {
+      "id": "integration-03",
+      "family": "integration",
+      "title": "Pixel capture bypasses text masking",
+      "cues": "A chart, map, canvas, screen share, or screenshot can display private values outside ordinary text nodes.",
+      "trace": "Determine whether recorder plugins collect drawing commands, pixels, frames, hover text, or surrounding DOM. Locate any separately rendered labels or accessibility content.",
+      "treatment": "Protect private graphics and independent overlays through verified controls for each enabled capture path. Preserve fixed controls and public legends where possible.",
+      "counterexample": "A decorative canvas can contain public content, and a disabled pixel capture plugin leaves independently recorded labels to review.",
+      "verify": "Compare raw graphics events and overlays across synthetic private and public cases, using actual recorder options.",
+      "composes_with": ["representation-01", "boundary-02", "evidence-03"],
+      "evidence": []
+    },
+    {
+      "id": "controls-01",
+      "family": "controls",
+      "title": "Prop merges drop or override protection",
+      "cues": "A component accepts outer props, nested native props, defaults, or a computed class alongside an existing privacy marker.",
+      "trace": "Read spread and merge order and locate the native receiver. Check whether defaults, slot props, or state-specific classes replace a stronger control or place it on a different element.",
+      "treatment": "Forward protection through the supported API and preserve stronger existing controls. Resolve any duplicate or contradictory values at the actual native destination.",
+      "counterexample": "A styled native element can forward extra props as intended when the implementation and DOM confirm it.",
+      "verify": "Inspect final native attributes in every relevant branch.",
+      "composes_with": ["boundary-01", "boundary-04", "controls-02"],
+      "evidence": [
+        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "Twenty source proposals followed nested props after finding that TextInput does not forward arbitrary top-level attributes to the input."}
+      ]
+    },
+    {
+      "id": "controls-02",
+      "family": "controls",
+      "title": "A control has recorder-specific scope",
+      "cues": "A recorder recognizes a marker, class, selector, option, or adapter setting that appears to provide privacy protection.",
+      "trace": "Identify the exact implementation and deployment configuration. Check precedence, inheritance, text and attribute support, and which events and embedded roots are handled.",
+      "treatment": "Choose controls whose demonstrated scope covers every private carrier. Keep independent channels open when support is unknown or configuration is unavailable.",
+      "counterexample": "Two integrations can use the same word mask while applying it to different attributes or event types.",
+      "verify": "Run an exercised positive and private case for each relevant channel under the same deployment settings.",
+      "composes_with": ["boundary-02", "interaction-02", "evidence-02"],
+      "evidence": []
+    },
+    {
+      "id": "controls-03",
+      "family": "controls",
+      "title": "A wrapper changes function or public fidelity",
+      "cues": "A new wrapper or ancestor control would cover a private field along with public hints, buttons, rows, or associated labels.",
+      "trace": "Inspect native semantics, form association, layout, focus, and event wiring. Identify the smallest existing valid host and which public material would share its boundary.",
+      "treatment": "Use an adequate boundary that preserves behavior and useful public content. Document an unavoidable public loss with its scope.",
+      "counterexample": "An existing native wrapper containing only a private value may provide the required protection without adding markup.",
+      "verify": "Check public labels and actions, focus, keyboard behavior, and layout alongside recording protection.",
+      "composes_with": ["representation-01", "controls-05", "evidence-03"],
+      "evidence": []
+    },
+    {
+      "id": "controls-04",
+      "family": "controls",
+      "title": "Credentials require blocking across states",
+      "cues": "A field or widget handles passwords, API keys, recovery codes, signed access links, or other values that grant access.",
+      "trace": "Follow creation, hidden and revealed views, regeneration, and copy or download. Include input events, error echoes, and other outputs carrying the same credential.",
+      "treatment": "Block each rendered credential destination. Verify separate controls for captured interactions, resource metadata, or exported payloads that the block cannot cover.",
+      "counterexample": "A fixed documentation sample can remain public once its nonfunctional purpose is established.",
+      "verify": "Exercise distinct synthetic secrets across states. Check blocked structure, input events, and surviving fixed public controls.",
+      "composes_with": ["inference-03", "interaction-03", "navigation-03"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "Twenty's blocked API-key input and its scripted input events disappeared in the DOM emulator. The adjacent Copy control survived."}
+      ]
+    },
+    {
+      "id": "controls-05",
+      "family": "controls",
+      "title": "Mask private text and supported input values",
+      "cues": "A native text node or text-entry control shows or collects information about the viewer or another party.",
+      "trace": "Locate the element containing the text or value. Check how the recorder handles text, native values, input events, placeholders, and accessible descriptions.",
+      "treatment": "Mask private text and supported input values at the smallest adequate native boundary. Add supported protection where attributes or event channels remain readable.",
+      "counterexample": "A fixed prompt or public navigation label can remain clear beside an internal record or private search query.",
+      "verify": "Check initial content, updates, relevant editing events, and a nearby public control.",
+      "composes_with": ["interaction-01", "representation-04", "controls-02"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "Twenty's malformed private email fallback was masked as text. The balanced preset independently masked input values and selected attributes."}
+      ]
+    },
+    {
+      "id": "evidence-01",
+      "family": "evidence",
+      "title": "Final replay omits an earlier emitted value",
+      "cues": "The final DOM or playback appears protected, while initial snapshots, mutations, or plugins may have emitted different content.",
+      "trace": "Connect each claim to the destination's recorded identity and the phase that exercised it. Inspect complete emitted payloads for independently captured channels.",
+      "treatment": "Report protection for the specific channels and phases with evidence. Track missing emissions or unrelated marker matches as unverified.",
+      "counterexample": "A scoped first snapshot and identified update event can establish protection for those two exercised observations.",
+      "verify": "Check snapshots, deltas, and relevant plugin events. Confirm the scorer rejects substituted data from unrelated nodes.",
+      "composes_with": ["representation-04", "lifecycle-03", "evidence-02"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "why-the-hidden-copy-finding-matters", "scope": "The Twenty scorer was challenged with unrelated text substitutions and now follows recorded measurement node identities."}
+      ]
+    },
+    {
+      "id": "evidence-02",
+      "family": "evidence",
+      "title": "A recorder preset can hide patch impact",
+      "cues": "A marker is absent both before and after a source patch, or the patch and recorder settings changed together.",
+      "trace": "Compare baseline and patched source under the same recorder configuration. Establish that each relevant channel and phase was exercised and distinguish exact values from masked lengths, structure, or events.",
+      "treatment": "Attribute existing protection and fidelity losses to the controls that produced them. Record the patch contribution only where the comparison supports it.",
+      "counterexample": "A source block can remove a native node and its events even when a preset already masks its value.",
+      "verify": "Use matching runs, baseline positives, and public controls.",
+      "composes_with": ["inference-03", "controls-02", "evidence-01"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "fidelity-and-function", "scope": "The balanced Twenty preset already masked input values. The source block's observed contribution was removal of the key input subtree and scripted input events."}
+      ]
+    },
+    {
+      "id": "evidence-03",
+      "family": "evidence",
+      "title": "A fixture bypasses part of the real flow",
+      "cues": "A runtime fixture supplies props directly, replaces an integration, or uses a scripted event in place of a platform interaction.",
+      "trace": "Identify the component and recorder revisions, adapters, omitted producers, and actual events exercised. Tie every result to that execution scope.",
+      "treatment": "Keep source, fixture, browser, and complete application results explicit. Record which claims still need the real route, platform behavior, or deployment configuration.",
+      "counterexample": "A fixture that runs a real component and recorder can establish an emitted result for the component's supplied inputs.",
+      "verify": "Check output and callbacks, preserve public controls, and rerun unresolved claims through their real entry points.",
+      "composes_with": ["boundary-03", "interaction-01", "evidence-01"],
+      "evidence": [
+        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "execution-and-provenance", "scope": "The Twenty fixture used pinned components and recorder with declared adapters. It did not exercise the production route or operating-system clipboard."}
+      ]
+    }
+  ]
+}

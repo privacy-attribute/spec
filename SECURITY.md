@@ -2,13 +2,13 @@
 
 ## Weaknesses in a recorder
 
-A scan or an audit can show that a session recorder leaks data that no annotation or configuration protects. Report this privately. Do not open a public issue for it.
+If a scan or audit shows that a recorder captures private data despite its available protections, use these private reporting channels:
 
-1. Report it to the recorder's maintainers through their own security contact first.
-2. Also send it to this project through a [private security advisory](https://github.com/privacy-attribute/spec/security/advisories/new), so the scan and the audit can take it into account.
+1. Send the recorder maintainers a report through their security contact.
+2. To share a synthetic reproduction with this project, use a [private security advisory](https://github.com/privacy-attribute/spec/security/advisories/new).
 
-The `privacy-scan report` command writes such findings to `feedback/private-recorder-gaps.md` and leaves them out of the public scan report.
+`privacy-scan report` saves recorder weaknesses in `feedback/private-recorder-gaps.md`. Keep that file private and use synthetic values in the reproduction.
 
 ## Weaknesses in this project
 
-To report a problem in the scanner or the audit runner themselves, for example a command that writes outside its session folder, use a [private security advisory](https://github.com/privacy-attribute/spec/security/advisories/new).
+For a vulnerability in the scanner or audit runner, use a [private security advisory](https://github.com/privacy-attribute/spec/security/advisories/new).

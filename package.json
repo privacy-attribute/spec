@@ -1,6 +1,6 @@
 {
   "name": "@privacy-attribute/spec",
-  "version": "0.2.0",
+  "version": "0.3.0-dev.0",
   "description": "Privacy Attribute Standard (PAS): the data-privacy attribute for session recorders and other capture SDKs, and a scanner that finds what an application must mask or block.",
   "license": "MIT",
   "author": "rrweb B.V.",
@@ -26,9 +26,10 @@
   "files": [
     "README.md",
     "LICENSE",
+    "spec/",
     "scan/",
-    "audit/runner/lib/agent.mjs",
-    "npm-shrinkwrap.json"
+    "npm-shrinkwrap.json",
+    "audit/runner/"
   ],
   "publishConfig": {
     "access": "public"
@@ -41,7 +42,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test scan/test/scan.test.mjs",
+    "test": "node --test",
     "bench": "node scan/cli.mjs bench"
   },
   "dependencies": {

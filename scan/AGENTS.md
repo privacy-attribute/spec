@@ -1,29 +1,30 @@
 # Front-end privacy scan
 
-Use these instructions to scan the front-end code of a web application. The scan finds the elements that a session recorder must mask or block. The scan then proposes `data-privacy` annotations for these elements.
+For the skill-led `inventory`, `review-context`, `review-patch` and `review-proposals` workflow, follow [skill/SKILL.md](skill/SKILL.md) and its decision format. Semantic decisions come from source and product context. Keep unresolved meanings separate from unresolved placement. The instructions below describe the earlier `find`, `place` and `patch` workflow and its file formats.
 
-The goal is a recording with the highest fidelity that keeps the people on the page private. Each annotation removes some fidelity. Thus, add the smallest annotation that protects the data. Do not annotate public content.
+Use these instructions to scan the front-end code of a web application. The scan finds the elements that a session recorder must mask or block. The scan proposes annotations in the style named in `PLAYBOOK.md`.
+
+Use the smallest annotation that protects each private value. Keep public content outside the protected element.
 
 ## Responsibility
 
-These instructions and every scan produced with them are provided as is, without warranty. A scan can miss data that needs protecting and can propose annotations that are wrong. Its output is not legal advice and not a certification of compliance with any privacy law. The implementer (whoever integrates, configures or ships the recorder) is responsible for the final output: what their recordings contain, how the recorder is configured, and whether that meets their legal and contractual obligations. You must report gaps in these instructions as described in "Report gaps" below.
+These instructions and scan results are provided as is, without warranty. A scan can miss private data and propose incorrect annotations. Review the patch, test emitted events and verify that the recorder meets your legal and contractual obligations. The implementer is responsible for the recorder configuration and the content of its recordings. Save feedback drafts locally. The person running the scan can choose to share them.
 
 ## Inputs
 
-The session folder contains these files:
+| File | Contents |
+|------|----------|
+| `scan-plan.md` | Units grouped by file, with the most private files first. A component unit gives the lines that show data and the source of the data. For Vue, Svelte and Blade, the unit is the full file. A line unit gives a source line and the rules it matches. A `?` marks a proposed category. |
+| `annotations.json` | Proposed annotations and your review decisions. |
+| `PLAYBOOK.md` | Commands and recorder settings for the session. |
 
-- `scan-plan.md`: the units that the static pass found, grouped by file. The most private files are first. A category with `?` is a guess. There are two types of unit:
-  - A component unit names a component, the lines where it shows data, and where the data comes from. Annotate the elements at these lines. When all of the component is private, annotate its root element. In Vue, Svelte and Blade files, the unit is the full file.
-  - A line unit names one line, the rules that matched, and the code. "covered" shows that an annotation is already near the line.
-- The scan places annotations for the units that it can decide. These annotations are in `annotations.json` with `"auto": true`. Their units are not in the plan. Do not change these annotations. When an annotation is wrong, remove it and give the reason in `dismissed` with the unit and the line, for example `"C12:L40": "shows a public product name"`.
-- "Questions" at the start of the plan names the sources that the scan could not identify, for example `useLimits()`. Answer the questions first. For each source, open the file where it is defined and find what it returns. Write `"data"` in `answers` in `annotations.json` when it returns data about a person or an organization, or data that a person typed. Write `"public"` when it returns only public content, configuration or UI state. When you are not sure, write `"data"`. Then run the place command from `PLAYBOOK.md`. It annotates the values of each `data` source, removes the values of each `public` source from the plan, and writes a new plan.
-- "review" on a unit gives the lines that the scan could not decide. Examine only these lines. The scan placed the other lines of the unit.
-- The scan writes `settled`. Do not write to `settled`. Put each candidate that you do not annotate in `dismissed`.
-- Units in files that did not change since the last scan are not in the plan. Their ids are in `cached` in `annotations.json`. Do not change `cached`. "earlier" on a unit shows the decision from the last scan.
-- `annotations.json`: the file that you fill in.
-- `PLAYBOOK.md`: the commands for this session.
+Review source questions first. Open the source definition and identify the data it returns. In `answers`, use the question key from the plan, with its module path and source name. Give the `category` and the `evidence` for it. Keep uncertain values in a private category. Then run `place` to update the plan.
 
-When the recorder is known, also read `recorders/<sdk>.md` in the scan folder. It tells you how the recorder reads annotations, and the configuration to add.
+The `review` lines in a component unit need a decision. The scanner marks automatic annotations with `"auto": true`. If an automatic annotation is wrong, remove it and record the reason in `dismissed`. Use the unit and the line, for example `"C12:L40": "shows a public product name"`.
+
+Leave `settled` and `cached` to the scanner. Put your review decisions in `annotations` or `dismissed`. For a source URL, address capture at the source or in the recorder configuration, or record an explicit reviewed dismissal. Start a new session when the source changes. Run `place` again after changing an answer.
+
+When the recorder is known, read its guide in [recorders](recorders/).
 
 ## Data categories
 
@@ -38,7 +39,7 @@ Each value on a page has one of these four categories.
 
 Use these rules to find the category:
 
-1. The data sets the category. The element type does not.
+1. Set the category from the value that the element shows or collects.
 2. When an element holds data of two categories, use the more private category.
 3. Free text that a person types is `personal` or more private.
 4. Special categories are `personal` or `third-party` data about health, sex life, sexual orientation, religion, political opinion, ethnic origin, biometrics, union membership or criminal records.
@@ -47,42 +48,36 @@ Use these rules to find the category:
 
 ## What to annotate
 
-Each annotation is one of `mask`, `block`, `ignore` or `unmask`. A recorder treats each other value as `mask`.
+The [draft core](../spec/core.md) defines `mask` and `block`. Choose the treatment for the channel that carries the private value.
 
-| Category | Annotation | Where |
-|----------|------------|-------|
-| `secret` | `block` | On the field or widget. Also keep the secret out of attributes, URLs and page titles. |
-| `personal`, shown as text | `mask` | On the element that shows it. When a container holds only personal values, mask the container. |
-| `personal`, typed into a field | `mask` | On the field. Use `ignore` when the input events also tell too much, for example in a symptom checker. |
-| `personal`, special category | `block` for choices, `mask` for text | A recording shows which option a person clicked. A mask does not hide this. |
-| `third-party` | `mask` | On the row, list or panel. Use `block` on an embedded session replay or screen share. |
-| `public` | none | Use `unmask` only on public content in a masked container, for example a column header in a masked table. |
+| Category and channel | Treatment | Where to apply it |
+|----------------------|-----------|-------------------|
+| `secret` | `block` | On the field or widget. Review other copies in attributes, URLs and page titles. |
+| `personal` text | `mask` | On the element that shows the text. Mask the container when all its content is private. |
+| `personal` input value | `mask` | On the field. Use a separate recorder control if input events also reveal private information. |
+| `personal` or `third-party` special category | `block` for choices, `mask` for text | On the choice control or text element. Check interaction events for information such as which option the person clicked. |
+| `third-party` records | `mask` | On the row, list or panel. Use `block` on an embedded session replay or screen share. |
+| `public` | Leave clear | Put public content outside a masked container. |
 
-Annotate the smallest element that holds all of the private data. Do not include public content in it.
-
-Each annotation removes content from the replay. Obey these rules to remove as little as possible:
-
-1. Use `mask` when it protects the data. A masked element keeps its layout. A blocked element shows as an empty box.
-2. Use `block` only for secrets, for choices in a special category, and for an element whose attribute holds private data. Some recorders do not mask attributes, for example an image `src`, a link `href`, a `title` or an `aria-label`.
-3. Block the smallest element that holds the attribute. For a chip with an avatar and a name, block the avatar image and mask the name. Do not block the full chip.
-4. When a shared component shows private data in some uses and public content in other uses, do not annotate the shared component. Annotate the private value where a parent passes it. For example, write `title={<span className="rr-mask">{member.name}</span>}` in the parent. When the prop accepts only text, annotate the element in the parent that holds the component.
+1. Use `mask` when it covers the channel that carries the value. It preserves the element structure. A recorder can replace a blocked element with a layout placeholder.
+2. Use `block` for secrets, private choices and private values in channels that the recorder's mask leaves visible. For example, use `block` for a private image `src` or link `href`. Check which text and attributes the deployed recorder masks.
+3. Block the smallest element that carries the value. For a chip with an avatar and a name, block the image and mask the name.
+4. For a component that shows both private and public values at different call sites, annotate the private uses. For example, write `title={<span className="rr-mask">{member.name}</span>}` in the parent. If the prop accepts only text, find the element that renders it and check that the annotation reaches that element.
 5. The `patch` command shows "Over-masking" when an annotation in a shared component also covers public uses. Move the annotation to the uses that get private data. When the public uses are few or not important, keep the annotation and give the reason in `accept_shared`.
 6. Each line of a component unit that shows data must be in an annotated element. An annotation in a shared component, for example an avatar, does not cover the other lines of the unit. The `patch` command shows "Uncovered" for each line that no annotated element contains. It also shows these lines for a unit that you dismissed, because a reason for a full unit can be wrong for one line. Annotate these lines. When a line shows no private data, add a key with the unit and the line to `dismissed`, for example `"C12:L40": "shows the role label"`.
 
 ## Annotation style
 
-`PLAYBOOK.md` names the annotation style of the session. Write `value` in `annotations.json` as `mask`, `block`, `ignore` or `unmask` for each style. The `patch` command writes the style.
+`PLAYBOOK.md` names the annotation style. Set `value` in `annotations.json` to one of the values for that style.
 
-| Style | What the patch adds |
-|-------|---------------------|
-| `data-privacy` | The attribute `data-privacy="<value>"` |
-| `rrweb` | The class `rr-mask`, `rr-block` or `rr-ignore`. The patch adds the class to a static `className` or `class`, or adds a new attribute. |
+| Style | Values | What the patch adds |
+|-------|--------|---------------------|
+| `data-privacy` | `mask`, `block` | The `data-privacy` attribute. |
+| `rrweb` | `mask`, `block`, `ignore` | `rr-mask`, `rr-block` or `rr-ignore` in a static `className` or `class` attribute. |
 
-For the `rrweb` style, obey these rules:
+Use `rr-ignore` to request input event suppression. Use `mask` or `block` to protect a private value that the recorder captures. For rrweb classes, record the required field value configuration in `config` and test it separately. See [rrweb configuration](recorders/rrweb.md) for field values and for native attribute support.
 
-1. rrweb has no class for `unmask`. Move the public content out of the masked element.
-2. `rr-mask` does not mask input values. For a field, `recorders/rrweb.md` gives the configuration that masks it.
-3. When `className` is an expression, the `patch` command cannot add the class. Give an `edit` for the annotation, for example `"edit": { "from": "className={cn('row', active)}", "to": "className={cn('row rr-mask', active)}" }`.
+For an expression in `className`, supply an exact `edit`. For example, use `"edit": { "from": "className={cn('row', active)}", "to": "className={cn('row rr-mask', active)}" }`.
 
 ## Procedure
 
@@ -101,8 +96,8 @@ For the `rrweb` style, obey these rules:
 6. When a shared layout gets private data as a prop, for example a page title with a person's name, annotate the value where the parent passes it. See rule 4 in "What to annotate".
 7. When you do not know if a component gives `className` to its element, open the component. Annotate the element in the component.
 8. Read `recorders/<sdk>.md`. Add the configuration changes that apply to `config` in `annotations.json`. Name the pages that need them.
-9. Run the `patch` command from `PLAYBOOK.md`. The command writes `privacy.patch` and `app-privacy.json`. It also shows the candidates that you did not annotate or dismiss, annotations that it could not place, over-masking and uncovered lines.
-10. Repeat step 2 to step 9 until the `patch` command shows no open candidates, no annotations that it could not place, no over-masking and no uncovered lines.
+9. Run the `patch` command from `PLAYBOOK.md`. Review `app-privacy.json` for open candidates, failed edits, over-masking and uncovered sites.
+10. Resolve each reported issue and run `patch` again. Use `privacy.patch` after the command succeeds.
 11. Run the `report` command from `PLAYBOOK.md` when `gaps` is not empty.
 
 ## annotations.json
@@ -122,8 +117,13 @@ For the `rrweb` style, obey these rules:
     }
   ],
   "dismissed": { "C13": "copies a public code sample from a blog post", "C12:L40": "shows the role label" },
-  "answers": { "useLimits()": "data", "useCspNonce()": "public" },
-  "config": ["rrweb on all pages: blockSelector '[data-privacy=\"block\"]'"],
+  "answers": {
+    "routes/api-keys.tsx::useLimits()": {
+      "category": "personal",
+      "evidence": "hooks/useLimits.ts returns the workspace quota"
+    }
+  },
+  "config": ["rrweb on account pages: maskAllInputs: true"],
   "gaps": [
     {
       "kind": "missed-data",
@@ -136,15 +136,15 @@ For the `rrweb` style, obey these rules:
 }
 ```
 
-- `file` and `line` point to the opening tag of the element.
+- `file` and `line` point to the opening tag of the element. If two matching tags start on the same line, set `column` to the zero-based column of the opening `<`.
 - `match` is the text at the start of the tag, for example `<Input`, `<td` or `<CustomerCard`. The `patch` command puts the attribute after this text. When the tag uses more than one line, use the line with the tag name.
 - `candidates` lists each candidate id that the annotation closes.
-- `edit` is optional. Use it when the `patch` command cannot place the annotation. `from` is the exact text on the line. `to` is the new text.
+- Use an `edit` when the patch command needs an exact edit. `from` is the exact text on the edit line. `to` is the new text. For a multiline opening tag, `line` can point to the edit line. `column` still identifies the opening `<`.
 - `accept_shared` is optional. Use it to keep an annotation in a shared component that also has public uses. Give the reason, for example "1 of 10 uses is public: a sample value in the help page".
 
 ## Report gaps
 
-A gap is a problem in the scan itself. You must report each gap. Use one of these kinds:
+Record each gap in the local draft. Use one of these kinds:
 
 | Kind | Use it when |
 |------|-------------|
@@ -154,13 +154,13 @@ A gap is a problem in the scan itself. You must report each gap. Use one of thes
 | `recorder-gap` | No annotation protects the data in this recorder. |
 | `unclear-instruction` | You had to guess what an instruction means. |
 
-CAUTION: A gap report becomes visible to other people. Write a new, short `example` with made-up names and values. Do not copy code, names, URLs or data from the application.
+CAUTION: A shared gap report becomes visible to other people. Write a new, short `example` with made-up names and values. Do not copy code, names, URLs or data from the application.
 
-Add each gap to `gaps` in `annotations.json`. For `missed-data` and `false-positive`, also give a `proposed_rule`: a JavaScript regular expression that finds the line, its category and its pattern id. Make sure that `re` matches your `example`. The `report` command tests this.
+Add each gap to `gaps` in `annotations.json`. For `missed-data` and `false-positive`, also give a `proposed_rule`: a JavaScript regular expression that finds the line, its category and its pattern id. Make sure that `re` matches your `example`. The `report` command checks the example and reports matches across labelled synthetic private and public snippets. Review the results before proposing a change to the rules.
 
-The `report` command writes one report for the scan. The report also counts, for each rule, the lines that the rule found, annotated and dismissed. These counts contain no code. It also shows a link that opens a filled-in issue form. A person must examine and send the report.
+The `report` command writes one report for the scan. The report also counts, for each rule, the lines that the rule found, annotated and dismissed. These counts contain no code. It also prints the address of the blank feedback form. The person running the scan can review the draft and copy it into the form.
 
-CAUTION: A `recorder-gap` tells about a weakness in a recorder. Do not put it in a public issue. The `report` command writes each `recorder-gap` to a private file. Send that file to the security contact in `SECURITY.md`.
+CAUTION: A `recorder-gap` tells about a weakness in a recorder. Do not put it in a public issue. The `report` command writes each `recorder-gap` to a private file. Use the private route in `SECURITY.md` if the person running the scan chooses to share it.
 
 ## Rules
 
@@ -173,5 +173,5 @@ CAUTION: A `recorder-gap` tells about a weakness in a recorder. Do not put it in
   4. These steps for the person, to check the result:
      1. Apply `privacy.patch` and add the configuration changes.
      2. Record one session on each page that the patch changes. Use test data.
-     3. Play each recording. Look for private data in text, fields, page titles and URLs.
-     4. When private data shows, report it as a gap of kind `missed-data`.
+     3. Inspect the emitted events and play each recording. Check text, fields, page titles and URLs for test values that should be private. Confirm that public content survives.
+     4. When private data appears, determine whether the scanner missed a value or the recorder failed to protect it. Save a local feedback draft.

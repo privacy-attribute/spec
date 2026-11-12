@@ -1,5 +1,5 @@
 name: Scan feedback
-description: Report private data the scan missed, a rule that flags too much, guidance that gave the wrong annotation, or a recorder gap.
+description: Report private data the scan missed, a rule that flags too much, or guidance that gave the wrong annotation.
 title: "<kind>: "
 labels: ["scan-feedback"]
 body:

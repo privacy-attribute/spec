@@ -1,8 +1,12 @@
 {
  "app": "chatwoot",
  "repo": "https://github.com/chatwoot/chatwoot",
- "commit": "5dedc3a",
- "labelled": "2026-11-11, two independent reviewers; labellers=2 marks agreement",
+ "commit": "5dedc3a8b1d2ca223605841e5f1cda5efed13e66",
+ "held_out": [],
+ "review": {
+  "status": "unverified-legacy",
+  "note": "Historical labeller counts have no retained submissions or auditable reviewer provenance. Added public anchors were model-authored."
+ },
  "files": {
   "app/javascript/dashboard/App.vue": [],
   "app/javascript/dashboard/components-next/Campaigns/Pages/CampaignAnalyticsPage/CampaignDeliveryBreakdown.vue": [
@@ -141,7 +145,15 @@
     "labellers": 2
    }
   ],
-  "app/javascript/dashboard/components/widgets/conversation/EmptyState/FeaturePlaceholder.vue": [],
+  "app/javascript/dashboard/components/widgets/conversation/EmptyState/FeaturePlaceholder.vue": [
+   {
+    "line": 44,
+    "tag": "span",
+    "category": "public",
+    "value": "none",
+    "what": "Localized description from the static keyboard-shortcut list."
+   }
+  ],
   "app/javascript/dashboard/components/widgets/conversation/StripeSubscription.vue": [
    {
     "line": 102,
@@ -652,9 +664,10 @@
    {
     "line": 32,
     "category": "personal",
-    "value": "mask",
-    "what": "widget user's own message rendered as HTML",
-    "labellers": 2
+    "value": "block",
+    "what": "Widget user's own Markdown message, including link destinations and image sources.",
+    "tag": "div",
+    "review_note": "A source recheck superseded the historical mask label. useMessageFormatter.js uses MessageFormatter.js, which enables Markdown links and images. Text masking alone leaves their attributes."
    }
   ]
  }

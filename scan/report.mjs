@@ -1,12 +1,14 @@
 // One feedback report per scan: rule outcomes (counts only), gaps with proposed rules tested against
-// their made-up example, and recorder gaps kept apart for private reporting. Nothing here contains
-// paths, code or data from the scanned application.
+// their synthetic examples, and recorder gaps kept apart for private reporting.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseLabels } from './bench.mjs';
+import { validateSession, writeSessionFile } from './session.mjs';
 
-const FORM = 'https://github.com/privacy-attribute/spec/issues/new';
+const DISCLAIMER = fs.readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8').match(/## Responsibility\n\n([^\n]+)/)?.[1] || 'The recorder operator is responsible for recording contents. This scan does not establish legal compliance.';
+const FORM = 'https://github.com/privacy-attribute/spec/issues/new?template=scan-feedback.yml';
 const PUBLIC_KINDS = ['missed-data', 'false-positive', 'wrong-guidance', 'unclear-instruction'];
-const URL_LIMIT = 7500;
 
 // For each rule: how many lines it flagged, and what the agent did with them.
 export function ruleOutcomes(candidates, decisions) {
@@ -32,7 +34,18 @@ function testProposal(gap) {
   const p = gap.proposed_rule;
   if (!p?.re) return null;
   try {
-    return { ...p, tested: new RegExp(p.re).test(gap.example || '') };
+    const regex = new RegExp(p.re);
+    const tested = regex.test(gap.example || '');
+    const corpus = parseLabels(fileURLToPath(new URL('./benchmark/react-app', import.meta.url)));
+    const matches = corpus.filter(label => regex.test(label.snippet));
+    const publicMatches = matches.filter(label => label.category === 'public');
+    return { ...p, tested, example_matches: tested, regression: {
+      corpus: 'scan/benchmark/react-app', examples: corpus.length,
+      private_matches: matches.length - publicMatches.length, public_false_positives: publicMatches.length,
+      status: 'review-required',
+      reason: 'Fixture checks inform review. A proposed rule needs independent cases and a complete scanner regression before adoption.',
+    } };
+
   } catch (e) {
     return { ...p, tested: false, error: String(e.message) };
   }
@@ -48,7 +61,10 @@ export function buildScanReport({ scan, decisions }) {
   for (const a of decisions.annotations || []) byValue[`${a.value}/${a.category}`] = (byValue[`${a.value}/${a.category}`] || 0) + 1;
   const payload = {
     kind: 'scan-report',
+    disclaimer: DISCLAIMER,
     scan_version: scan.scan_version,
+    scan_revision: scan.scan_revision || null,
+    recorder_version: 'unknown',
     recorder: scan.sdk,
     annotate: scan.annotate,
     size: { files: scan.scanned_files, candidates: scan.candidates.length },
@@ -72,7 +88,9 @@ export function buildScanReport({ scan, decisions }) {
   const markdown = [
     `# ${title}`,
     '',
-    `Scan version ${payload.scan_version}, recorder ${payload.recorder || 'not given'}, annotation style ${payload.annotate}. ${payload.size.candidates} candidates in ${payload.size.files} files; ${Object.values(byValue).reduce((n, x) => n + x, 0)} annotations, ${payload.dismissed} dismissed.`,
+    DISCLAIMER,
+    '',
+    `Scan version ${payload.scan_version}, revision ${payload.scan_revision || 'unknown'}, recorder ${payload.recorder || 'not given'}, recorder version unknown, annotation style ${payload.annotate}. ${payload.size.candidates} candidates in ${payload.size.files} files; ${Object.values(byValue).reduce((n, x) => n + x, 0)} annotations, ${payload.dismissed} dismissed.`,
     '',
     '## Gaps',
     '',
@@ -93,19 +111,6 @@ export function buildScanReport({ scan, decisions }) {
     '</details>',
     '',
   ].join('\n');
-  const params = new URLSearchParams({
-    template: 'scan-feedback.yml',
-    title,
-    kind: publicGaps[0]?.kind || 'scan-report',
-    recorder: payload.recorder || '',
-    'scan-version': payload.scan_version || '',
-    what: markdown,
-  });
-  let url = `${FORM}?${params}`;
-  if (url.length > URL_LIMIT) {
-    params.set('what', `The report is too long for a link. Paste the contents of feedback/scan-report.md here.\n\n${gapText}`);
-    url = `${FORM}?${params}`;
-  }
   const privateText = recorderGaps.length
     ? [
       '# Recorder gaps (private)',
@@ -118,18 +123,20 @@ export function buildScanReport({ scan, decisions }) {
       '',
     ].join('\n')
     : null;
-  return { payload, markdown, url, privateText, title };
+  return { payload, markdown, url: FORM, privateText, title };
 }
 
 export function writeScanReport(out, report) {
+  validateSession(out);
   const dir = path.join(out, 'feedback');
   fs.mkdirSync(dir, { recursive: true });
   const files = { json: path.join(dir, 'scan-report.json'), md: path.join(dir, 'scan-report.md') };
-  fs.writeFileSync(files.json, JSON.stringify(report.payload, null, 1));
-  fs.writeFileSync(files.md, report.markdown);
+  writeSessionFile(dir, path.basename(files.json), JSON.stringify(report.payload, null, 1));
+  writeSessionFile(dir, path.basename(files.md), report.markdown);
+  if (!report.privateText) fs.rmSync(path.join(dir, 'private-recorder-gaps.md'), { force: true });
   if (report.privateText) {
     files.private = path.join(dir, 'private-recorder-gaps.md');
-    fs.writeFileSync(files.private, report.privateText);
+    writeSessionFile(dir, path.basename(files.private), report.privateText);
   }
   return files;
 }

@@ -1,80 +1,43 @@
 # Scanner design
 
-The scanner finds the data on a web page that a session recorder must mask or block, and proposes the annotations. It is built for three properties, in this order:
+The scanner finds private values in application source and proposes the smallest annotation that protects each value. The review step resolves uncertain sources and verifies where components render their values.
 
-1. **Accurate.** It finds every secret and nearly every other private value, and it annotates the smallest element that holds each one.
-2. **Cheap.** Code makes the decisions. A model answers only the questions that code cannot settle, and each answer is cached.
-3. **Fast.** A first scan of a large app takes minutes. A repeat scan reads only the files that changed.
+## Scan and review
 
-## Why the design changed
+| Step | What happens |
+|------|--------------|
+| Index | The scanner reads supported source files and schema files. It reuses completed decisions when the source snapshot, schemas, scanner implementation and settings match. |
+| Find sources and uses | The scanner uses syntax analysis for JSX, TSX, Vue, Svelte and Blade. Line rules cover other supported files. The scanner follows supported data flows to text, form values, attributes and component props. |
+| Classify | The scanner uses known sources and schema fields where available. It groups uncertain sources into questions. A reviewer checks the source and records its category and the evidence. |
+| Place | `find` and `place` generate annotations for supported high-confidence sites. The plan lists cases that need review, including values passed to a component whose rendered element is unclear. |
+| Check the patch | `patch` checks source freshness, edits, open review decisions and coverage of the known sites. It reports annotations in shared components when they can affect public uses. |
+| Check emitted events | Apply the proposed patch and recorder configuration in a test application. Use synthetic private values and inspect the events from the recorder. |
 
-In a Documenso validation run, the review agent decided about 710 units in about 516k tokens and 30 minutes. 59 of 77 labelled private values ended up annotated. Most misses were units the agent dismissed with a reason that was wrong for some of their lines, and units that pass data only to child components. Both are decisions that code can make: where a value comes from, and where it is shown.
+The cache applies to the full scan snapshot. A change to source or schema files invalidates the saved decisions. Use `find --reuse <prior-session>` to skip static analysis when the source, scanner, root and include paths match. This command still reads and hashes the full source snapshot. Questions group uncertain values by module and source.
 
-## Pipeline
+## Data and placement
 
-| Stage | What it does | Model |
-|---|---|---|
-| 1. Index | Lists the front-end files and skips files whose hash is in the decisions cache. | No |
-| 2. Render graph | Parses JSX, TSX, Vue, Svelte and Blade into one graph: components, elements, props passed between components, and the places where values are shown. | No |
-| 3. Classify sources | Gives every value an origin. The app's own schemas (Prisma, GraphQL, OpenAPI, Zod, TypeScript types) say which fields are secret, personal or about other people. Field names are the fallback. | No |
-| 4. Propagate | Follows each value through the whole app to the elements that show it. A value whose origin is unknown counts as private. Each shown value gets a confidence: `high` when its origin is known, `low` when it is not. | No |
-| 5. Decide and place | Turns each shown value into `mask` or `block` on the smallest element, and writes the edit from the syntax tree. A shared component with public uses is annotated where the parent passes the private value. | No |
-| Residue | Sends each `low` confidence value to a model as one short question: the data path from origin to element, and a fixed set of answers. A small model answers first. A stronger model checks secrets and disagreements. Answers are cached by the hash of the path. | Yes |
-| 6. Verify | Checks that every shown private value is inside an annotated element. Canary replay seeds marker values into test data, records the main flows, and searches the recordings for the markers. | No |
-| Learn | Turns each verified miss into a rule and a benchmark case. | No |
-
-## Rules that keep it accurate
-
-- **Fail closed.** A value is public only when code can show it: a string literal, a translation call, an enum or status label, a constant, or a config value. Data from a query, hook, loader, store, route parameter or prop is private until shown otherwise.
-- **Schema first.** A field that the schema declares on a record (for example `User.email`, `ApiToken.token`) has the category of that field wherever it is shown.
-- **Every place a value can show up.** Text, input values, attributes (`href`, `title`, `alt`, `src`, `aria-*`, `data-*`), canvas and image data URLs, page titles, URLs and iframes.
-- **A model can only confirm, never discover.** The model answers whether a `low` value is public, from a fixed set of reasons that code checks where it can. It does not search for data.
+- Follow values from queries, hooks, loaders, stores, route parameters and props to their rendered destinations. Keep a destination open for review when analysis cannot resolve it.
+- Use schema fields and clear secret names to identify known private data. A reviewer can confirm whether an unknown value is private or whether it comes from public content, configuration or UI state.
+- Choose the annotation for the recorder and the channel that carries the value. Text, input values, attributes and URLs can need different treatments. A page URL requires a source or recorder configuration decision.
+- For shared components, place the annotation at a private use when a component-wide annotation would remove public content. Check that the annotation reaches the element that carries the value.
 
 ## Measurement
 
-Accuracy is measured against labelled samples in `scan/benchmark/apps/<app>/`. Each sample names the app commit, the files, and the elements that two independent reviewers labelled. The targets:
+The [fixture benchmark](benchmark/baseline.json) detects regressions in scanner rules. The real-application measurement uses labelled files at pinned source revisions. It reports detection, placement and static evidence separately. The score credits the requested treatment when a valid patch places it on the labelled native element or a qualifying ancestor. An unrelated child annotation, an assumed recorder setting or a failed edit earns no treatment credit. The measurement reports stronger treatments separately because they can remove additional public content.
+
+Each sample records its source revision and review status. Documenso and Chatwoot carry unverified legacy labels. Immich and Akaunting include individual review submissions and rulings. Held-out files are reserved for evaluation and are visible in the sample. CI compares each available split and category with the pull request base scanner.
+
+Earlier coverage estimates counted nearby candidates and assumed recorder settings. Use the current evidence measures for evaluation. Application replay protection is unmeasured in the static score.
 
 | Measure | Target |
-|---|---|
-| Recall, secrets | 100% |
-| Recall, all private values | 95% or more |
-| Annotated public elements | Under 10% of annotations |
-| Model tokens, first scan of a 2,000-file app | Under 50k |
-| Static stages, 2,000-file app | Under 2 minutes |
+|---------|--------|
+| Detection recall for secrets | 100% |
+| Detection recall for private values | At least 95% |
+| Annotations on public elements | Under 10% of annotations |
+| Review model tokens, first scan of a 2,000-file app | Under 50,000 |
+| Static scan time, first scan of a 2,000-file app | Under two minutes |
 
-## Status
+The targets guide development. The launcher assesses token usage after an agent run when the provider supplies usage data. Measure on pinned application checkouts and verify emitted events for the recorder and options you ship.
 
-Measured with `scan/benchmark/apps/measure.mjs`: the share of labels with a shown value on the labelled element, or a text field that the recorder config masks. "Low" adds sites whose origin is unknown, which the residue questions decide.
-
-| App | Before the redesign | High confidence | With low | Residue questions |
-|---|---|---|---|---|
-| Documenso (React, Prisma) | 57% | 94% | 95% | 73 |
-| Chatwoot (Vue, Rails) | 60% | 73% | 82% | about 40 |
-
-The static stages take under 2 seconds for each app.
-
-Stage 5 places annotations without a model. Share of labels inside an annotated element, a text field that `maskAllInputs` masks, or a child component that has annotations of its own:
-
-| App | Annotated or input-masked | With child annotations | Lines left for review | Placed annotations on labelled elements |
-|---|---|---|---|---|
-| Documenso | 61% | 87% | 3% | 70% |
-| Chatwoot | 57% | 81% | 6% | 78% |
-
-With the residue questions answered by a small model (Haiku), the open work for the review agent drops sharply:
-
-| App | Candidates | Questions | Open after placement and answers | High-confidence site coverage before and after answers |
-|---|---|---|---|---|
-| Documenso | 806 | 48, answered in 90 s | 178 (88 units, 90 lines) | 94% to 95% |
-| Chatwoot | 1,039 | 37, answered in 48 s | 187 (103 units, 84 lines) | 73% to 82% |
-
-Most of the gap is values that a component passes to a child of its own, which the labels mark at the parent. The lines left for review are mostly values from unknown sources: 73 distinct sources in Documenso, 43 in Chatwoot.
-
-## Build order
-
-1. Labelled samples for each validation app, kept in the repository.
-2. Stage 3 schema reader and stage 4 fail-closed propagation with confidence.
-3. Stage 5 placement from the syntax tree (built).
-4. The residue questions and their cache (built).
-5. Canary replay.
-
-The current review agent stays in use until stages 3 to 5 beat it on the labelled samples.
+The [browser canary](README.md#check-emitted-events-with-rrweb) applies the generated patch to a synthetic application and compares rrweb's emitted events. It records a separate fixture for attribute behavior. The real-application static measurement and the synthetic replay measurement report separate results.

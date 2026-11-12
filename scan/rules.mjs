@@ -9,6 +9,14 @@
 
 const ID = String.raw`[A-Za-z_$][\w$]*`;
 
+const SECRET_INPUT_NAME = /(?:^|\W|_)(?:password|passwd|passphrase|api_?key|private_?key|(?:access|refresh|auth|session|reset|bearer)_?token|token|(?:client|webhook|signing)_?secret|secret|(?:pin|verification|recovery|backup|security)_?code|otp|totp|one_?time_?code|pin|cvv|cvc|card_?number|iban)(?:$|\W|_)/i;
+export const secretInputName = (name) => SECRET_INPUT_NAME.test(String(name || '')) && !/(?:label|name|description|hint|prefix|suffix|last.?four|status|type|enabled|count|length)(?:$|[^\w])/i.test(String(name || '').replace(/^.*[\[.]/, ''));
+
+export function specialCategoryName(name) {
+  const normalized = String(name || '').replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[^a-z0-9]+/gi, ' ');
+  return /\b(diabet\w*|asthma|hypertension|cancer|hiv|pregnan\w*|smok\w*|diagnos\w*|symptoms?|medications?|prescriptions?|disabilit\w*|allerg\w*|depression|mental health|health (?:status|condition|record|answer|history)|medical\w*|sexual (?:orientation|activity|health)|sex life|religio\w*|political (?:opinion|affiliation|belief)|ethnic\w*|race|racial\w*|biometric\w*|union membership|criminal (?:record|history|conviction))\b/i.test(normalized);
+}
+
 // Variables that usually hold the signed-in person versus other people's records.
 const SELF = /\b(me|viewer|currentUser|user|self|profile|account|session\??\.user|clerkUser|authUser)\??\.\w/;
 const OTHERS = /\b(customer|member|contact|row|participant|invitee|invite|recipient|sender|author|owner|assignee|attendee|employee|client|lead|candidate|patient|visitor|recording|item|entry|u|m|c|p|r)\??\.\w/;

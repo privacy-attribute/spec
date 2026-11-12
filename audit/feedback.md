@@ -1,8 +1,8 @@
 # Feedback
 
-Feedback improves the audit in two directions. Before an audit, you get the accepted reports of leaks that earlier audits did not find, and you test for these leaks. After an audit, you send a report about what the instructions did not find, got wrong, or made difficult. The two directions use issues on [`privacy-attribute/spec`](https://github.com/privacy-attribute/spec/issues).
+Test accepted feedback before the audit when it is available. After the audit, save a local draft for each gap in the instructions.
 
-## Pull accepted feedback before you start
+## Pull accepted feedback (optional)
 
 Run this command after step 0 of the method:
 
@@ -22,9 +22,9 @@ Find each accepted issue that has no `fixed-in` label, or whose `fixed-in` label
 
 If the fetch fails, write this in `method_note`. Continue the audit without the feedback.
 
-## Send feedback after you finish
+## Draft feedback after you finish
 
-Gap reports are mandatory. You MUST send one report for each `missed-leak`, `false-positive`, `unclear-instruction` and `impractical-step` that you have. You should also send `worked-well` reports. Send one report for each case of these kinds:
+Save a local draft for each gap. The person running the audit can decide whether to share it.
 
 | Kind | When |
 |------|------|
@@ -35,18 +35,11 @@ Gap reports are mandatory. You MUST send one report for each `missed-leak`, `fal
 | `ranking` | The `rank` or `tier` of a pattern in `patterns.yaml` looks wrong. Give evidence: prevalence data, or examples of real sites. |
 | `worked-well` | A pattern or rule found an item that you would not have found without it. These reports help to keep useful rules in the files. |
 
-For `missed-leak` and `false-positive`, write a runner fixture for the case (see `runner/README.md`). Then run `node runner/cli.mjs report <fixture>`. This command runs the fixture, writes the issue body with the recorded evidence, and prints a link to a pre-filled issue form. With a fixture that runs, maintainers can accept a report, and each later audit can test it.
+For `missed-leak` and `false-positive`, write a runner fixture for the case (see `runner/README.md`). Then run `node runner/cli.mjs report <fixture>`. This command runs the fixture and saves a local draft with the recorded evidence. With a fixture that runs, maintainers can accept a report, and each later audit can test it.
 
-File each report as an issue:
+The person running the audit can review a draft and copy it into the [blank audit feedback form](https://github.com/privacy-attribute/spec/issues/new?template=sdk-audit-feedback.yml). Use a private report for a recorder weakness. [Security reporting](../SECURITY.md)
 
-```bash
-gh issue create --repo privacy-attribute/spec \
-  --label audit-feedback --label "<kind>" \
-  --title "<kind>: <one line, at most 80 characters>" \
-  --body-file <file>
-```
-
-The body file uses these headings. Fill in each heading:
+Use these fields and headings in the draft:
 
 ```markdown
 **Title:** <the same title passed to --title>
@@ -73,13 +66,8 @@ Rules:
 
 - Use `Actor: agent` for your own observations. Use `Actor: human` only when you send the report of a person. Quote their words.
 - Never include data from a real session, a real page, a customer or a user. Before you file, build the case again with made-up values.
-- Search first (`gh issue list --repo privacy-attribute/spec --label audit-feedback --search "<pattern or class>"`). When an issue already covers the case, add a comment to it. File a new issue only when no issue covers the case. A comment is a send, the same as an issue, so the rules below also apply to it.
-- Print the issue URL for the user. List each report in `feedback_sent` in your output.
-- Before you file, check the visibility of the target (`gh repo view <owner/repo> --json visibility`). If the target is not on GitHub, ask the user. If the target is private, ask the user before you file, because file names, function names and evidence can identify it. If the user declines, you MUST still report the gap:
-  1. Write the report again so that it names no private file, function, product or customer. Describe the mechanism, and build the test page again from the start.
-  2. Show the report to the user.
-  3. When the user agrees, file that version.
-- Sometimes you cannot file: the attempt fails, you have no permission, the user has not agreed yet, or the request is a dry run. In these cases, write the report to `feedback/` next to your findings file. In the summary, tell the user that the implementer is responsible for these reports and must file them at https://github.com/privacy-attribute/spec/issues. List the files. Never let feedback stop or fail the audit.
+- When sharing a draft, check for a matching issue first. Add evidence to that issue if it covers the same case.
+- Record links in `feedback_sent` only when a report was already shared. List local draft paths in the summary.
 
 ## For maintainers
 

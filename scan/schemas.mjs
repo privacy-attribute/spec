@@ -1,10 +1,9 @@
-// Schema reader: the fields that an application's own data schema declares, with a category for
-// each field name. Reads Prisma schemas and Rails db/schema.rb. A field holds private data when the schema stores free
-// text or JSON in it, and counts and limits about an account; ids, flags, dates, enums, positions
-// and relations do not.
+// Schema reader for Prisma and Rails. Keep model fields separate so a qualified property read
+// uses its own model's classification.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { specialCategoryName } from './rules.mjs';
 
 // Walks an AST without importing components.mjs, which imports this module.
 function walk(node, visit) {
@@ -20,37 +19,52 @@ function walk(node, visit) {
 
 export const CONSTANT_OBJECT = /^([A-Z][A-Z0-9_]*|[A-Z]\w*(Enum|Status|Type|Role|Kind|Mode|Map|s)|Math|JSON|Object|Number|String|Date|i18n|env|process|config|import)$/;
 
-// The schema field that an expression shows, when the schema declares it: [field, category].
+export function memberFieldName(expr) {
+  if (expr?.type !== 'MemberExpression' && expr?.type !== 'OptionalMemberExpression') return null;
+  if (expr.computed) return expr.property.type === 'StringLiteral' ? expr.property.value : null;
+  return expr.property.type === 'Identifier' ? expr.property.name : null;
+}
+
+const CATEGORY_RANK = { public: 0, personal: 1, 'third-party': 2, secret: 3 };
+const fieldRank = (field) => !field || field.category === 'public' ? 0 : field.ambiguous ? 5
+  : field.category === 'secret' ? 6 : field.special_category ? 4 : CATEGORY_RANK[field.category] + 1;
+
+// The highest-ranked schema field that an expression shows, with sensitivity and resolution metadata.
 // `constants` holds names bound to items of constant lists, such as format in FORMATS.map((format) => ...).
-export function schemaFieldIn(expr, fields, constants = new Set()) {
+export function schemaFieldIn(expr, fields, constants = new Set(), resolveOwner = () => undefined) {
   let found = null;
   walk(expr, (n) => {
-    if (found) return false;
+    if (found?.category === 'secret' && !found.ambiguous) return false;
     if (n !== expr && (n.type === 'JSXElement' || n.type === 'JSXFragment' || n.type === 'ArrowFunctionExpression' || n.type === 'FunctionExpression')) return false;
-    if ((n.type === 'MemberExpression' || n.type === 'OptionalMemberExpression') && !n.computed && n.property.type === 'Identifier' && fields.has(n.property.name)) {
+    const name = memberFieldName(n);
+    if (name != null) {
       const base = n.object.type === 'Identifier' ? n.object.name : null;
-      const f = fields.get(n.property.name);
-      if (f.category !== 'public' && !(base && (CONSTANT_OBJECT.test(base) || constants.has(base)))) found = [n.property.name, f.category];
+      const owner = resolveOwner(n.object);
+      const field = owner === undefined ? fields.get(name) : owner?.get(name);
+      if (field?.category && !(owner === undefined && base && (CONSTANT_OBJECT.test(base) || constants.has(base)))) {
+        const { category, special_category } = field;
+        const candidate = { name, category, special_category, ambiguous: owner === undefined && Boolean(field.conflicting) };
+        if (fieldRank(candidate) > fieldRank(found)) found = candidate;
+      }
     }
     return true;
   });
   return found;
 }
-// An expression that shows only a field the schema declares public, such as row.id or doc.status.
+// An expression that shows only a field the schema explicitly declares public.
 export function schemaPublicIn(expr, fields) {
   let e = expr;
   while (e && (e.type === 'TSNonNullExpression' || e.type === 'TSAsExpression')) e = e.expression;
-  // A formatter around a public field, such as i18n.date(team.createdAt) or formatDate(row.updatedAt).
-  if (e?.type === 'CallExpression' && e.arguments.length >= 1 && /^(date|time|format\w*|toLocale\w*|relative\w*|dayjs|moment|DateTime)$/i.test(e.callee.type === 'MemberExpression' ? e.callee.property?.name || '' : e.callee.name || '')) return schemaPublicIn(e.arguments[0], fields);
-  return Boolean(e && (e.type === 'MemberExpression' || e.type === 'OptionalMemberExpression') && !e.computed && e.property.type === 'Identifier' && fields.get(e.property.name)?.category === 'public');
+  // A formatter can preserve a field's category.
+  if (e?.type === 'CallExpression' && e.arguments.length === 1 && /^(date|time|format\w*|toLocale\w*|relative\w*|dayjs|moment|DateTime)$/i.test(e.callee.type === 'MemberExpression' ? e.callee.property?.name || '' : e.callee.name || '')) return schemaPublicIn(e.arguments[0], fields);
+  return fields.get(memberFieldName(e))?.category === 'public';
 }
 
 const SKIP_DIR = new Set(['node_modules', '.git', 'dist', 'build', '.next', 'coverage', 'vendor']);
-const SECRET_FIELD = /(secret|token|password|passwd|hash|salt|apikey|api_key|privatekey|private_key|backupcodes?|recoverycodes?|otp|cvv|cvc|iban|cardnumber|credential)/i;
-const ID_FIELD = /^(id|uuid|cuid|\w+Id|\w+_id|\w+Ids)$/;
+const SECRET_FIELD = /(secret|token|password|passwd|passphrase|hash|salt|apikey|api_key|privatekey|private_key|backupcodes?|recoverycodes?|otp|cvv|cvc|iban|card_?number|credential)/i;
+const SECRET_METADATA = /(?:name|label|description|prefix|suffix|hint|count|length|status|type|enabled|last.?four|(?:created|updated|expires|used)At|_at)$/i;
 const NUMBER = new Set(['Int', 'BigInt', 'Float', 'Decimal']);
 const RAILS_TYPE = { string: 'String', text: 'String', citext: 'String', json: 'Json', jsonb: 'Json', binary: 'Bytes', integer: 'Int', bigint: 'BigInt', float: 'Float', decimal: 'Decimal', boolean: 'Boolean', datetime: 'DateTime', date: 'DateTime', time: 'DateTime', timestamp: 'DateTime', uuid: 'String' };
-const POSITION_FIELD = /(order|index|position|page|version|counter|width|height|x|y)$/i;
 
 function prismaFiles(root) {
   const out = [];
@@ -68,17 +82,26 @@ function prismaFiles(root) {
   return out;
 }
 
-// Returns { fields: Map(field name -> { category: 'secret' | 'private' | 'public', models: [...] }), models, files }.
-// A name that is private in one model and public in another counts as private.
+// Resolve a name only when the schema declares a unique model with that name.
+export function schemaModel(schema, name, file) {
+  if (!name) return null;
+  const models = schema?.modelFields?.get(name.toLowerCase()) || [];
+  const matches = file ? models.filter((model) => model.file === file) : models;
+  return matches.length === 1 ? matches[0].fields : null;
+}
+
+// `fields` remains the name index for unqualified reads. `modelFields` preserves identity and
+// relates nested records without merging fields with the same spelling from unrelated models.
 export function readSchemas(root) {
   const fields = new Map();
   const models = new Set();
   const enums = new Set();
+  const modelFields = new Map();
   // A front-end folder inside a monorepo often has its schema in a sibling package.
   let files = prismaFiles(root);
   if (!files.length) {
     try {
-      const top = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      const top = execFileSync('git', ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-C', root, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
       if (top && path.resolve(top) !== path.resolve(root)) files = prismaFiles(top);
     } catch { /* not a git checkout */ }
   }
@@ -88,34 +111,46 @@ export function readSchemas(root) {
     for (const m of fs.readFileSync(file, 'utf8').matchAll(/create_table "(\w+)"[^\n]*\n([\s\S]*?)\n\s*end\b/g)) {
       models.add(m[1]);
       const body = [...m[2].matchAll(/t\.(\w+)\s+"(\w+)"/g)].map(([, type, name]) => `${name} ${RAILS_TYPE[type] || 'Unsupported'}`).join('\n');
-      blocks.push([m[1], body]);
+      blocks.push({ name: m[1], body, file, fields: new Map() });
     }
   }
   for (const file of files.filter((f) => f.endsWith('.prisma'))) {
     const text = fs.readFileSync(file, 'utf8');
     for (const m of text.matchAll(/^enum\s+(\w+)\s*\{/gm)) enums.add(m[1]);
-    for (const m of text.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) { models.add(m[1]); blocks.push([m[1], m[2]]); }
+    for (const m of text.matchAll(/^\s*model\s+(\w+)\s*\{([\s\S]*?)\}/gm)) {
+      models.add(m[1]);
+      blocks.push({ name: m[1], body: m[2], file, fields: new Map() });
+    }
   }
-  const rank = { public: 0, private: 1, secret: 2 };
-  for (const [model, body] of blocks) {
-    for (const line of body.split('\n')) {
+  for (const model of blocks) {
+    const name = model.name.toLowerCase();
+    if (!modelFields.has(name)) modelFields.set(name, []);
+    modelFields.get(name).push(model);
+  }
+  for (const model of blocks) {
+    for (const line of model.body.split('\n')) {
       const f = line.replace(/\/\/.*$/, '').trim().match(/^(\w+)\s+(\w+)(\[\])?\??/);
       if (!f) continue;
-      const [, name, type] = f;
-      let category;
-      if (models.has(type)) continue; // a relation: the related model's own fields decide
-      if (SECRET_FIELD.test(name) && (type === 'String' || type === 'Json' || type === 'Bytes')) category = 'secret';
-      else if (ID_FIELD.test(name) || enums.has(type) || type === 'Boolean' || type === 'DateTime') category = 'public';
-      else if (type === 'String' || type === 'Json' || type === 'Bytes') category = 'private';
-      else if (NUMBER.has(type)) category = POSITION_FIELD.test(name) ? 'public' : 'private';
-      else continue;
+      const [, name, type, array] = f;
+      if (models.has(type)) {
+        const sameFile = modelFields.get(type.toLowerCase()).filter((related) => related.file === model.file);
+        const related = sameFile.length ? sameFile : modelFields.get(type.toLowerCase());
+        model.fields.set(name, { relation: related.length === 1 ? related[0].fields : null, array: Boolean(array) });
+        continue;
+      }
+      if (!enums.has(type) && !NUMBER.has(type) && !['String', 'Json', 'Bytes', 'Boolean', 'DateTime'].includes(type)) continue;
+      const category = SECRET_FIELD.test(name) && !SECRET_METADATA.test(name) && type !== 'Boolean' ? 'secret' : 'personal';
+      const special_category = specialCategoryName(name);
+      model.fields.set(name, { category, special_category });
       const prev = fields.get(name);
-      if (!prev) fields.set(name, { category, models: [model] });
+      if (!prev) fields.set(name, { category, special_category, models: [model.name] });
       else {
-        prev.models.push(model);
-        if (rank[category] > rank[prev.category]) prev.category = category;
+        prev.models.push(model.name);
+        if (prev.category !== category || prev.special_category !== special_category) prev.conflicting = true;
+        if (CATEGORY_RANK[category] > CATEGORY_RANK[prev.category]) prev.category = category;
+        prev.special_category ||= special_category;
       }
     }
   }
-  return { fields, models: [...models], enums: [...enums], files: files.map((f) => path.relative(root, f)) };
+  return { fields, models: [...models], modelFields, enums: [...enums], files: files.map((f) => path.relative(root, f)) };
 }
