@@ -24,7 +24,7 @@ The cache applies to the full scan snapshot. A change to source or schema files 
 
 ## Measurement
 
-The [fixture benchmark](benchmark/baseline.json) detects regressions in scanner rules. The real-application measurement uses labelled files at pinned source revisions. It reports detection, placement and static evidence separately. The score credits the requested treatment when a valid patch places it on the labelled native element or a qualifying ancestor. An unrelated child annotation, an assumed recorder setting or a failed edit earns no treatment credit. The measurement reports stronger treatments separately because they can remove additional public content.
+The [fixture benchmark](../scan/benchmark/baseline.json) detects regressions in scanner rules. The real-application measurement uses labelled files at pinned source revisions. It reports detection, placement and static evidence separately. The score credits the requested treatment when a valid patch places it on the labelled native element or a qualifying ancestor. An unrelated child annotation, an assumed recorder setting or a failed edit earns no treatment credit. The measurement reports stronger treatments separately because they can remove additional public content.
 
 Each sample records its source revision and review status. Documenso and Chatwoot carry unverified legacy labels. Immich and Akaunting include individual review submissions and rulings. Held-out files are reserved for evaluation and are visible in the sample. CI compares each available split and category with the pull request base scanner.
 
@@ -40,4 +40,4 @@ Earlier coverage estimates counted nearby candidates and assumed recorder settin
 
 The targets guide development. The launcher assesses token usage after an agent run when the provider supplies usage data. Measure on pinned application checkouts and verify emitted events for the recorder and options you ship.
 
-The [browser canary](README.md#check-emitted-events-with-rrweb) applies the generated patch to a synthetic application and compares rrweb's emitted events. It records a separate fixture for attribute behavior. The real-application static measurement and the synthetic replay measurement report separate results.
+The [browser canary](../scan/README.md#check-emitted-events-with-rrweb) applies the generated patch to a synthetic application and compares rrweb's emitted events. It records a separate fixture for attribute behavior. The real-application static measurement and the synthetic replay measurement report separate results.

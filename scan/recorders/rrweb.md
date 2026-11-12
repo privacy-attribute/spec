@@ -14,7 +14,7 @@ Choose the annotation style for the rrweb build and configuration you deploy. Th
 
 Use `rr-block` for a secret field or a private value in an attribute. Keep public content outside the protected element. Test live updates and events with the deployed build and options.
 
-Matching core attributes can accompany rrweb classes, for example `class="rr-mask" data-privacy="mask confidential"`. Classification is optional and uses a token in the same attribute. It supplies no recording control: any `block` token supersedes `mask`, regardless of order. See [annotation authoring](../skill/references/annotation-style.md) and the [pinned compatibility check](../../ANNOTATION_COMPATIBILITY.md). The CLI still emits one selected style; combined annotations use exact source proposals.
+Matching core attributes can accompany rrweb classes, for example `class="rr-mask" data-privacy="mask confidential"`. Classification is optional and uses a token in the same attribute. It supplies no recording control: any `block` token supersedes `mask`, regardless of order. See [annotation authoring](../skill/references/annotation-style.md) and the [pinned compatibility check](../../spec/rrweb-compatibility.md). The CLI still emits one selected style; combined annotations use exact source proposals.
 
 ## Native `data-privacy` support
 

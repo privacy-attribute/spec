@@ -2,7 +2,7 @@
 
 Local draft `0.3.0-dev.0`, evaluated 2026-11-11. The skill-led workflow is implemented and has been exercised on pinned source samples from Documenso, Chatwoot, Immich, Akaunting and Twenty CRM. It produces useful, concrete proposals. This evaluation does not establish full-application accuracy or recording protection.
 
-This report preserves the source-review pass. The subsequent [bounded Twenty runtime evaluation](RUNTIME_REVIEW_RESULTS.md) records actual emitted events in a DOM emulator, identifies and fixes a hidden measurement-copy leak, and distinguishes those results from the still-unexecuted browser check.
+This report preserves the source-review pass. The subsequent [bounded Twenty runtime evaluation](twenty-runtime-results.md) records actual emitted events in a DOM emulator, identifies and fixes a hidden measurement-copy leak, and distinguishes those results from the still-unexecuted browser check.
 
 The recorder operator remains responsible for recording contents. These checks do not establish legal compliance. No commit, push, release or external report was made. The upstream application sources were kept unchanged.
 
@@ -18,7 +18,7 @@ Supporting tools provide:
 - Exact framework edits with non-overlapping replacements, source evidence, syntax checks and isolated Git application.
 - Separate comparison of frozen semantic predictions against source labels.
 
-The entry point is [the implementation prompt](scan/PROMPT.md). See [workflow commands and output contracts](scan/README.md#skill-led-review). The existing heuristic scanner remains available as a baseline. The new workflow uses the coding agent already running; it does not require a new autonomous agent launcher or install a personal skill.
+The entry point is [the implementation prompt](../scan/PROMPT.md). See [workflow commands and output contracts](../scan/README.md#skill-led-review). The existing heuristic scanner remains available as a baseline. The new workflow uses the coding agent already running; it does not require a new autonomous agent launcher or install a personal skill.
 
 ## Application exercise
 
@@ -88,7 +88,7 @@ The final suite passed 169 tests on Node.js 20, 22 and 24. Tests cover exact edi
 
 Package dry-run includes the skill and review modules and excludes local application evidence. `git diff --check` passed. Source samples were checked against pinned Git blob hashes; supporting manifests preserve fetched definitions. These are scoped source samples, not full application checkouts.
 
-The complete Twenty review also passed through the actual CLI. `review-patch` returned the expected incomplete status with zero invalid or missing decisions and 168 unresolved semantic/placement/finding entries. `review-proposals` checked and applied all 43 exact changes in an isolated copy while retaining `runtime: not-run`. See [CLI verification](local-evidence/agent-review/twenty-cli-session/cli-verification.json).
+The complete Twenty review also passed through the actual CLI. `review-patch` returned the expected incomplete status with zero invalid or missing decisions and 168 unresolved semantic/placement/finding entries. `review-proposals` checked and applied all 43 exact changes in an isolated copy while retaining `runtime: not-run`. See [CLI verification](../local-evidence/agent-review/twenty-cli-session/cli-verification.json).
 
 No upstream app was built or type-checked, and no live app or recorder was exercised in this evaluation. Earlier browser and sandbox launch attempts were blocked by this environment. The retained canary preparation uses rrweb package version `2.1.1` at commit `a4abb9478bd56bcf8ec9658bd7eb0a6c8c6b78f4`, 25 commits after its nearest tag; preparation is not a recording result. The deployed recorder versions of the five apps are unknown. Model token usage and end-to-end cost were not measured.
 
@@ -107,12 +107,12 @@ The measurement script validates original sample blob hashes, preserves first pr
 
 | Evidence | Location |
 | --- | --- |
-| Consolidated measurements, implementation hash and responsibility statement | [summary.json](local-evidence/agent-review/summary.json) |
-| Documenso corrections and exact proposal validation | [second-pass.md](local-evidence/agent-review/documenso/second-pass.md) |
-| Chatwoot scope, combined verification and open work | [REVIEW.md](local-evidence/agent-review/chatwoot/REVIEW.md) |
-| Immich and Akaunting independent comparisons | [Immich comparison](local-evidence/agent-review/immich/comparison.json), [Akaunting comparison](local-evidence/agent-review/akaunting/comparison.json) |
-| Twenty exact proposal and verification | [proposed.patch](local-evidence/agent-review/twenty-review/proposed.patch), [activity.json](local-evidence/agent-review/twenty-review/activity.json) |
-| Independent Twenty subset comparison | [comparison.json](local-evidence/agent-review/twenty-small-app-review/comparison.json) |
-| Final test logs | [Node 20](local-evidence/agent-review/node20-tests.log), [Node 22](local-evidence/agent-review/node22-tests.log), [Node 24](local-evidence/agent-review/node24-tests.log) |
+| Consolidated measurements, implementation hash and responsibility statement | [summary.json](../local-evidence/agent-review/summary.json) |
+| Documenso corrections and exact proposal validation | [second-pass.md](../local-evidence/agent-review/documenso/second-pass.md) |
+| Chatwoot scope, combined verification and open work | [REVIEW.md](../local-evidence/agent-review/chatwoot/REVIEW.md) |
+| Immich and Akaunting independent comparisons | [Immich comparison](../local-evidence/agent-review/immich/comparison.json), [Akaunting comparison](../local-evidence/agent-review/akaunting/comparison.json) |
+| Twenty exact proposal and verification | [proposed.patch](../local-evidence/agent-review/twenty-review/proposed.patch), [activity.json](../local-evidence/agent-review/twenty-review/activity.json) |
+| Independent Twenty subset comparison | [comparison.json](../local-evidence/agent-review/twenty-small-app-review/comparison.json) |
+| Final test logs | [Node 20](../local-evidence/agent-review/node20-tests.log), [Node 22](../local-evidence/agent-review/node22-tests.log), [Node 24](../local-evidence/agent-review/node24-tests.log) |
 
 Pinned app revisions: Documenso `f32ab10dc7189d3c375fc112469cbb156c9adb6f`; Chatwoot `5dedc3a8b1d2ca223605841e5f1cda5efed13e66`; Immich `bc0c9bb1c076a9ecdfd745a437e7d97ec4d5dbeb`; Akaunting `0d35012996a73fa3513e3f9996a159b028add1b6`; Twenty `0036a6f7f9d3d5112d03c9c3f142f66c09224ff7`.

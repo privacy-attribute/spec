@@ -1,56 +1,52 @@
-# Privacy Attribute Standard
+# Privacy Attribute
 
-The [draft Privacy Attribute Standard core](spec/core.md) defines `mask` and `block` for browser session recordings. Add the attribute to application markup and use a recorder that supports it.
+One HTML attribute that tells any session recorder what to hide.
 
 ```html
 <div data-privacy="mask">Account balance: €12,480.30</div>
+<input data-privacy="block" name="api-key" />
 ```
 
-Optional classification labels share the same attribute, for example `data-privacy="mask confidential"`. A `block` token always supersedes `mask`, regardless of order. Combined values require a recorder that implements the [token grammar](spec/core.md); see [rrweb compatibility](ANNOTATION_COMPATIBILITY.md).
+`mask` keeps the element in the recording and hides its text and values. `block` leaves the element and everything inside it out of the recording.
 
-## Scan your application
+**Status:** draft proposal, open for feedback. This is not a W3C standard. A W3C Community Group is proposed in the [charter](charter.md).
 
-The [privacy review skill](scan/skill/SKILL.md) teaches a coding agent to trace private information from application context to its rendered destinations. It maps surface purpose and content families, then selects focused review lenses for meaning, copies, shared boundaries, transitions, inference and public fidelity. Its pattern cards include examples and counterexamples for credentials, records, forms and private URLs. Supporting tools inventory source, validate evidence and check exact proposals. Review the proposed patch and test the recorder before you deploy it.
+## What is here
 
-Use a checkout that contains the scanner you want to run. Install its dependencies from that checkout with `npm ci`. Replace the paths in this prompt. Then give it to a coding agent in your application's repository.
+| | What it is | Start with |
+| --- | --- | --- |
+| **Proposal** | The `data-privacy` attribute: why it is needed, how it works and the questions we want feedback on. | [proposal.md](proposal.md), then the [draft specification](spec/core.md) |
+| **Scan** | A review that a coding agent runs on your application's source to find what must be masked or blocked, and to propose the annotations as a patch. | [scan/](scan/README.md) |
+| **SDK Audit** | A test that recorder maintainers run against their SDK to find private values that reach a recording and public content that is lost. | [audit/](audit/README.md) |
+| **Charter** | What this work aims to achieve, what is in and out of scope, and how a community group would run it. | [charter.md](charter.md) |
 
-```text
-Find the data in this application that a session recorder must mask or block.
+## Who this is for
 
-1. Read <scanner checkout>/scan/skill/SKILL.md.
-2. Create a scoped structural inventory:
-   node <scanner checkout>/scan/cli.mjs inventory <application root> --include <feature paths> --out <new session folder>
-3. Follow the skill. Read producers and component definitions, then write
-   source-evidenced decisions in the session's review.json.
-4. Run review-patch and review-proposals with --out <session folder>.
-5. Test the reconciled patch in an isolated copy. Report unresolved work,
-   public-content losses and checks actually executed. Keep the original
-   application unchanged and leave the patch for review.
-```
+- **Application teams** annotate their markup once and keep the same protection when they change recorder. Use the [Scan](scan/README.md) to find what to annotate.
+- **Recorder and analytics SDK maintainers** implement one small contract and can test it. Use the [SDK Audit](audit/README.md) and the [browser check](audit/runner/README.md#check-the-privacy-attribute).
+- **Privacy and security reviewers** get one attribute to look for in code review and one definition of what it guarantees.
 
-This draft workflow proposes `data-privacy` attributes. Verify attribute support and configuration in the exact deployed recorder. See the [implementation prompt](scan/PROMPT.md), [workflow outputs](scan/README.md#skill-led-review) and [rrweb guide](scan/recorders/rrweb.md). The earlier `find`, `place` and `patch` commands remain available as a heuristic baseline.
+## Give feedback
 
-| Session file | Contents |
-|--------------|----------|
-| `proposal.patch` or `privacy.patch` | Mechanically resolved native edits, with partial work explicitly named as a proposal. |
-| `review-report.json` | Evidence checks, placements, remaining work and public-content losses. |
-| `source-proposals.patch` | Exact framework edits supported by cited source. These may overlap the native proposal and still need runtime verification. |
+The [proposal](proposal.md#questions-for-feedback) lists the open questions. To respond:
 
-The patch command checks source edits and review decisions. After applying the patch and recorder settings, record each changed page with synthetic data. Inspect emitted events for private test values and play back the recording to check that public content survives.
+- Open an [issue](https://github.com/privacy-attribute/spec/issues) for a question, objection or use case.
+- Use the [scan feedback form](https://github.com/privacy-attribute/spec/issues/new?template=scan-feedback.yml) or the [SDK audit feedback form](https://github.com/privacy-attribute/spec/issues/new?template=sdk-audit-feedback.yml) to report what a run missed or got wrong. Use synthetic examples only.
+- Report a recorder weakness or a vulnerability privately. See [SECURITY.md](SECURITY.md).
 
-### Feedback and release pin
+[CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose changes.
 
-The scanner writes reports to the session folder. A coding agent can send the source it reads to its model provider. Review drafts for real data before sharing them. Copy a reviewed synthetic example into the [blank feedback form](https://github.com/privacy-attribute/spec/issues/new?template=scan-feedback.yml). Use the private route for recorder weaknesses. [Security reporting](SECURITY.md)
+## Releases
 
-`privacy-scan report --post <url>` sends the report JSON to the URL you supply. Run `report` first to inspect the draft.
+The `v0.2.0` tag identifies an earlier scanner revision. The draft specification and the checks described here are on the main line and are not yet tagged. See the [changelog](CHANGELOG.md).
 
-The `v0.2.0` tag identifies an earlier scanner revision. Its feedback links include draft text in the URL. Use the blank form above with that revision. To use the draft core and the checks described here, run a checkout that contains them. [Changelog](CHANGELOG.md)
+## Background material
 
-These instructions and scan results are provided as is, without warranty. A scan can miss private data and propose incorrect annotations. The implementer is responsible for recorder configuration, recording content, and legal and contractual compliance.
+Evaluation results, design notes and experiments that informed this work are kept in [research/](research/README.md). They are working records and are not part of the proposal.
 
-## For recorder maintainers
+## Responsibility
 
-Run the [core browser check](audit/runner/README.md#check-the-privacy-attribute) with the SDK build you plan to ship. The wider [recorder audit](audit/AGENTS.md) compares recordings of synthetic values under different configurations to find leaks and changes to public content.
+The specification, the scan and the audit are provided as is, without warranty. A scan can miss private data and an audit can miss leaks. The implementer is responsible for recorder configuration, for what a recording contains, and for legal and contractual compliance.
 
 ## License
 

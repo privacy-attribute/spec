@@ -29,7 +29,7 @@ The rendered expression does not identify every source or transformation.
 
 **Evidence.**
 
-- [source-review](../../../AGENT_REVIEW_RESULTS.md#what-the-reviews-found) — The Chatwoot review left dynamic integration forms unresolved pending catalog and FormKit implementation evidence.
+- [source-review](../../../research/skill-led-review-results.md#what-the-reviews-found) — The Chatwoot review left dynamic integration forms unresolved pending catalog and FormKit implementation evidence.
 
 ### producer-02
 
@@ -49,7 +49,7 @@ The rendered expression does not identify every source or transformation.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#observed-behavior) — The Twenty emulator recorded a private placeholder in the hidden autogrow measurement copy before the follow-up. The malformed email fallback was exercised separately.
+- [dom-runtime](../../../research/twenty-runtime-results.md#observed-behavior) — The Twenty emulator recorded a private placeholder in the hidden autogrow measurement copy before the follow-up. The malformed email fallback was exercised separately.
 
 ### producer-03
 
@@ -87,4 +87,4 @@ The rendered expression does not identify every source or transformation.
 
 **Evidence.**
 
-- [source-review](../../../AGENT_REVIEW_RESULTS.md#what-the-reviews-found) — The Documenso follow-up added missed title, hover, recipient, autocomplete, and inferred-recipient destinations loaded inside children.
+- [source-review](../../../research/skill-led-review-results.md#what-the-reviews-found) — The Documenso follow-up added missed title, hover, recipient, autocomplete, and inferred-recipient destinations loaded inside children.

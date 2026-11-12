@@ -7,7 +7,7 @@ Updated 2026-11-11. Classification belongs in the same attribute:
 <div data-privacy="block restricted">Credential widget</div>
 ```
 
-`block` supersedes `mask` wherever it appears in the token list. `mask block confidential` and `confidential block mask` both block. Labels such as `confidential` supply no recording behavior. A present attribute with only unknown tokens still falls back to mask. The [core](spec/core.md) defines case-sensitive complete tokens separated by ASCII whitespace; the same rules are represented by CSS `[data-privacy~="block"]`.
+`block` supersedes `mask` wherever it appears in the token list. `mask block confidential` and `confidential block mask` both block. Labels such as `confidential` supply no recording behavior. A present attribute with only unknown tokens still falls back to mask. The [core](core.md) defines case-sensitive complete tokens separated by ASCII whitespace; the same rules are represented by CSS `[data-privacy~="block"]`.
 
 Classification is optional. Add an already-established generic label in the existing source edit; do not require another attribute, classification pass, or user question just to fill it. The scanner's category and the organization's confidentiality level are separate decisions. Do not infer one mechanically from the other.
 
@@ -31,16 +31,16 @@ All ten baseline checks passed, including assertions of expected exposures. Thos
 
 Historical evidence is preserved unchanged:
 
-- [Baseline probe](local-evidence/annotation-metadata/probe.mjs)
-- [Baseline recordings and checks](local-evidence/annotation-metadata/results.json)
+- [Baseline probe](../local-evidence/annotation-metadata/probe.mjs)
+- [Baseline recordings and checks](../local-evidence/annotation-metadata/results.json)
 
 ## Isolated rrweb patch and executed recording checks
 
-The [rrweb patch](local-evidence/privacy-tokens/rrweb-privacy-tokens.patch) is prepared against the pinned commit in an isolated archive. It changes native block matching to `[data-privacy~="block"]`, excludes block tokens from the mask fallback, updates guidance and adds regression cases. Existing rrweb-specific bare `unmask` and `ignore` behavior is retained; this patch is not a claim of complete core conformance.
+The [rrweb patch](../local-evidence/privacy-tokens/rrweb-privacy-tokens.patch) is prepared against the pinned commit in an isolated archive. It changes native block matching to `[data-privacy~="block"]`, excludes block tokens from the mask fallback, updates guidance and adds regression cases. Existing rrweb-specific bare `unmask` and `ignore` behavior is retained; this patch is not a claim of complete core conformance.
 
 The recording probe also exposed a pre-existing live-update issue: after an already captured ancestor becomes blocked, descendant text and attribute mutations can still be emitted. The patch adds ancestor checks for those two mutation paths. This fix is separate from the token grammar.
 
-The [reproducible probe](local-evidence/privacy-tokens/verify.mjs) builds the pinned source, a grammar-only variant, and the full patch with esbuild 0.28.2. It executed on Node 26.13.0 with jsdom 16.7.0 and nwsapi 2.2.0. Run from this repository:
+The [reproducible probe](../local-evidence/privacy-tokens/verify.mjs) builds the pinned source, a grammar-only variant, and the full patch with esbuild 0.28.2. It executed on Node 26.13.0 with jsdom 16.7.0 and nwsapi 2.2.0. Run from this repository:
 
 ```sh
 node local-evidence/privacy-tokens/verify.mjs /path/to/rrweb-checkout
@@ -59,9 +59,9 @@ The pinned and grammar-only variants expose changed private values in those tran
 
 For non-breaking space and vertical tab, jsdom's selector engine incorrectly treats the character as a CSS token separator, while its DOM token list does not. Those cases are reported separately, not counted as passes. The scanner tests the specified ASCII grammar; correct recorder behavior for these two cases still needs a real-browser check.
 
-Both focused upstream Vitest suites also passed: 103 snapshot privacy tests and 25 recorder privacy tests, **128 total**. They ran in the isolated archive with source aliases and jsdom environments. [Complete test log](local-evidence/privacy-tokens/rrweb-upstream-vitest.log) and [reproduction instructions](local-evidence/privacy-tokens/README.md) are retained. These are focused suites, not the full upstream test suite.
+Both focused upstream Vitest suites also passed: 103 snapshot privacy tests and 25 recorder privacy tests, **128 total**. They ran in the isolated archive with source aliases and jsdom environments. [Complete test log](../local-evidence/privacy-tokens/rrweb-upstream-vitest.log) and [reproduction instructions](../local-evidence/privacy-tokens/README.md) are retained. These are focused suites, not the full upstream test suite.
 
-[Recorded results and source/build hashes](local-evidence/privacy-tokens/rrweb-probe-results.json) preserve the comparison. The patch hash matches the executed probe. No original rrweb checkout or deployed recorder was modified.
+[Recorded results and source/build hashes](../local-evidence/privacy-tokens/rrweb-probe-results.json) preserve the comparison. The patch hash matches the executed probe. No original rrweb checkout or deployed recorder was modified.
 
 ## Scanner implementation and checks
 
@@ -69,13 +69,13 @@ The patcher recognizes complete block tokens, preserves stronger existing contro
 
 All 190 repository tests passed on Node 20, 22 and 24. The generated pattern references and diff whitespace check also passed. The core browser-check fixture now includes combined values and precedence cases; that browser check has not been executed here.
 
-- [Node 20 test log](local-evidence/privacy-tokens/node20-tests.log)
-- [Node 22 test log](local-evidence/privacy-tokens/node22-tests.log)
-- [Node 24 test log](local-evidence/privacy-tokens/node24-tests.log)
+- [Node 20 test log](../local-evidence/privacy-tokens/node20-tests.log)
+- [Node 22 test log](../local-evidence/privacy-tokens/node22-tests.log)
+- [Node 24 test log](../local-evidence/privacy-tokens/node24-tests.log)
 
 ## Deployment and scope
 
-Use an updated recorder or verified token-aware selectors before relying on combined block values. The [rrweb guide](scan/recorders/rrweb.md) supplies selectors and their channel limits. Matching `rr-block` classes can retain blocking on older class-based configurations. Native policy support alone does not establish token support.
+Use an updated recorder or verified token-aware selectors before relying on combined block values. The [rrweb guide](../scan/recorders/rrweb.md) supplies selectors and their channel limits. Matching `rr-block` classes can retain blocking on older class-based configurations. Native policy support alone does not establish token support.
 
 The CLI still selects one annotation style. Optional classification tokens and dual rrweb/core annotations can use exact source proposals; there is no new classification questionnaire or dual-output flag.
 

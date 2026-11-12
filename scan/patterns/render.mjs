@@ -5,8 +5,8 @@ const outputDirectory = new URL('../skill/references/', import.meta.url);
 const generatedNote = '<!-- Generated from scan/patterns/catalog.json by scan/patterns/render.mjs. -->';
 const slug = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const evidenceReports = new Map([
-  ['source-review', 'AGENT_REVIEW_RESULTS.md'],
-  ['dom-runtime', 'RUNTIME_REVIEW_RESULTS.md'],
+  ['source-review', 'research/skill-led-review-results.md'],
+  ['dom-runtime', 'research/twenty-runtime-results.md'],
 ]);
 const cardSections = [
   ['cues', 'Cues'],

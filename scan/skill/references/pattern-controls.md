@@ -30,7 +30,7 @@ An annotation needs the right placement, recorder support, and public boundary.
 
 **Evidence.**
 
-- [source-review](../../../AGENT_REVIEW_RESULTS.md#what-the-reviews-found) — Twenty source proposals followed nested props after finding that TextInput does not forward arbitrary top-level attributes to the input.
+- [source-review](../../../research/skill-led-review-results.md#what-the-reviews-found) — Twenty source proposals followed nested props after finding that TextInput does not forward arbitrary top-level attributes to the input.
 
 ### controls-02
 
@@ -86,7 +86,7 @@ An annotation needs the right placement, recorder support, and public boundary.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#observed-behavior) — Twenty's blocked API-key input and its scripted input events disappeared in the DOM emulator. The adjacent Copy control survived.
+- [dom-runtime](../../../research/twenty-runtime-results.md#observed-behavior) — Twenty's blocked API-key input and its scripted input events disappeared in the DOM emulator. The adjacent Copy control survived.
 
 ### controls-05
 
@@ -106,4 +106,4 @@ An annotation needs the right placement, recorder support, and public boundary.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#observed-behavior) — Twenty's malformed private email fallback was masked as text. The balanced preset independently masked input values and selected attributes.
+- [dom-runtime](../../../research/twenty-runtime-results.md#observed-behavior) — Twenty's malformed private email fallback was masked as text. The balanced preset independently masked input values and selected attributes.

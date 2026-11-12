@@ -46,7 +46,7 @@ User actions and events can disclose private input or choices.
 
 **Evidence.**
 
-- [source-review](../../../AGENT_REVIEW_RESULTS.md#what-the-reviews-found) — Chatwoot source review distinguished public keypad captions from a potentially private interaction sequence. Recorder behavior remained open.
+- [source-review](../../../research/skill-led-review-results.md#what-the-reviews-found) — Chatwoot source review distinguished public keypad captions from a potentially private interaction sequence. Recorder behavior remained open.
 
 ### interaction-03
 
@@ -66,4 +66,4 @@ User actions and events can disclose private input or choices.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#fidelity-and-function) — Twenty's exercised Copy control survived and the real hook passed the exact key to a synthetic clipboard sink. Operating-system clipboard remained untested.
+- [dom-runtime](../../../research/twenty-runtime-results.md#fidelity-and-function) — Twenty's exercised Copy control survived and the real hook passed the exact key to a synthetic clipboard sink. Operating-system clipboard remained untested.
