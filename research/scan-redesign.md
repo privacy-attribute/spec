@@ -1,6 +1,6 @@
 # Candidate redesign around pattern-led review
 
-Status: proposed architecture, conditional on the comparison and transfer gates in [patterns/README.md](patterns/README.md). This document does not claim the migration has been implemented or that the current experiment establishes app-wide coverage.
+Status: proposed architecture, conditional on the comparison and transfer gates in [patterns/README.md](../scan/patterns/README.md). This document does not claim the migration has been implemented or that the current experiment establishes app-wide coverage.
 
 ## Primary unit: a fact and its destinations
 

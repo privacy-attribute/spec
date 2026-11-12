@@ -28,7 +28,7 @@ The viewer, record owner, and intended audience can differ.
 
 **Evidence.**
 
-- [source-review](../../../AGENT_REVIEW_RESULTS.md#what-the-reviews-found) — The Documenso signing title's audience was corrected using the sender/recipient query. Several Akaunting organization labels remained disputed.
+- [source-review](../../../research/skill-led-review-results.md#what-the-reviews-found) — The Documenso signing title's audience was corrected using the sender/recipient query. Several Akaunting organization labels remained disputed.
 
 ### audience-02
 
@@ -66,4 +66,4 @@ The viewer, record owner, and intended audience can differ.
 
 **Evidence.**
 
-- [source-review](../../../AGENT_REVIEW_RESULTS.md#frozen-prediction-comparisons) — The Twenty comparison found a disagreement over the operator's typed search category. Both reviews required masking.
+- [source-review](../../../research/skill-led-review-results.md#frozen-prediction-comparisons) — The Twenty comparison found a disagreement over the operator's typed search category. Both reviews required masking.

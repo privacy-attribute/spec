@@ -51,15 +51,15 @@ The complete local suite passes 179 tests on Node.js 20, 22 and 24. Ten scorer t
 
 | Artifact | Location |
 | --- | --- |
-| Original proposal recordings and findings | [recordings.json](local-evidence/runtime-twenty/expanded-before/recordings.json), [score.json](local-evidence/runtime-twenty/expanded-before/score.json) |
-| Follow-up recordings and findings | [recordings.json](local-evidence/runtime-twenty/expanded-after/recordings.json), [score.json](local-evidence/runtime-twenty/expanded-after/score.json) |
-| Follow-up source change | [autogrow-followup.patch](local-evidence/runtime-twenty/autogrow-followup.patch), [source evidence](local-evidence/runtime-twenty/autogrow-followup.json) |
-| Exact source and runtime provenance | [manifest.json](local-evidence/runtime-twenty/expanded-after/manifest.json), [artifact checks](local-evidence/runtime-twenty/expanded-after/artifact-checks.json) |
-| Independent pre-recording expectations | [oracle.md](local-evidence/runtime-twenty/oracle.md) |
-| Prepared manual browser test | [browser.html](local-evidence/runtime-twenty/expanded-after/browser.html) |
-| Reproduction commands and dependency contract | [runtime README](scan/runtime/README.md) |
-| Final tooling test logs | [Node 20](local-evidence/runtime-twenty/node20-tests.log), [Node 22](local-evidence/runtime-twenty/node22-tests.log), [Node 24](local-evidence/runtime-twenty/node24-tests.log) |
-| Package inventory | [package-dry-run.json](local-evidence/runtime-twenty/package-dry-run.json) |
+| Original proposal recordings and findings | [recordings.json](../local-evidence/runtime-twenty/expanded-before/recordings.json), [score.json](../local-evidence/runtime-twenty/expanded-before/score.json) |
+| Follow-up recordings and findings | [recordings.json](../local-evidence/runtime-twenty/expanded-after/recordings.json), [score.json](../local-evidence/runtime-twenty/expanded-after/score.json) |
+| Follow-up source change | [autogrow-followup.patch](../local-evidence/runtime-twenty/autogrow-followup.patch), [source evidence](../local-evidence/runtime-twenty/autogrow-followup.json) |
+| Exact source and runtime provenance | [manifest.json](../local-evidence/runtime-twenty/expanded-after/manifest.json), [artifact checks](../local-evidence/runtime-twenty/expanded-after/artifact-checks.json) |
+| Independent pre-recording expectations | [oracle.md](../local-evidence/runtime-twenty/oracle.md) |
+| Prepared manual browser test | [browser.html](../local-evidence/runtime-twenty/expanded-after/browser.html) |
+| Reproduction commands and dependency contract | [runtime README](../scan/runtime/README.md) |
+| Final tooling test logs | [Node 20](../local-evidence/runtime-twenty/node20-tests.log), [Node 22](../local-evidence/runtime-twenty/node22-tests.log), [Node 24](../local-evidence/runtime-twenty/node24-tests.log) |
+| Package inventory | [package-dry-run.json](../local-evidence/runtime-twenty/package-dry-run.json) |
 
 Earlier exploratory runs remain in separate directories. The `expanded-before` and `expanded-after` artifacts above are the final matrices for this report. Local source snapshots and recording payloads are excluded from the published package inventory.
 

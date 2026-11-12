@@ -65,7 +65,7 @@ Source component boundaries and actual recorder boundaries can differ.
 
 **Evidence.**
 
-- [source-review](../../../AGENT_REVIEW_RESULTS.md#what-the-reviews-found) — Twenty proposals traced private email links through the overflow portal. The runtime fixture did not exercise that parent route.
+- [source-review](../../../research/skill-led-review-results.md#what-the-reviews-found) — Twenty proposals traced private email links through the overflow portal. The runtime fixture did not exercise that parent route.
 
 ### boundary-04
 
@@ -85,4 +85,4 @@ Source component boundaries and actual recorder boundaries can differ.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#observed-behavior) — Twenty's shared email fixture preserved public text and URLs while protecting exercised private variants. The fixture supplied the privacy prop directly.
+- [dom-runtime](../../../research/twenty-runtime-results.md#observed-behavior) — Twenty's shared email fixture preserved public text and URLs while protecting exercised private variants. The fixture supplied the privacy prop directly.

@@ -1,6 +1,6 @@
 # Bounded Twenty runtime evaluation
 
-This local research harness runs pinned Twenty component bodies with a pinned rrweb recorder. It compares original source, the exact reviewed patch, and an optional follow-up patch in isolated copies. It retains complete emitted events, live DOM observations and callback results. See [the results and limits](../../RUNTIME_REVIEW_RESULTS.md).
+This local research harness runs pinned Twenty component bodies with a pinned rrweb recorder. It compares original source, the exact reviewed patch, and an optional follow-up patch in isolated copies. It retains complete emitted events, live DOM observations and callback results. See [the results and limits](../../research/twenty-runtime-results.md).
 
 It is a component fixture with declared adapters. It does not build the full Twenty application. DOM-emulator execution and browser execution are recorded separately. The HTML artifact's existence establishes no browser result.
 

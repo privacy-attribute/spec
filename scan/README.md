@@ -1,12 +1,48 @@
-# Application privacy scan
+# Scan
 
-The privacy review skill guides a coding agent through application meaning, audience, rendering paths and exact annotation placement. Structural tools provide an inventory, evidence checks and reproducible patches. They do not assign privacy categories. This local draft requires Node.js 18 or later. In the scanner checkout, run `npm ci` to install its dependencies.
+A review that a coding agent runs on your application's source. It finds the information a session recorder must mask or block and proposes the annotations as a patch for you to review.
 
-Start with [the review prompt](PROMPT.md) and [the skill](skill/SKILL.md). The earlier heuristic scanner remains available for baseline comparisons.
+## How it works
 
-The [pattern catalog](skill/references/catalog.md) organizes 39 mechanisms into 11 families. Follow [the composition procedure](skill/references/composition.md) to trace one fact through copies, state changes, rendering owners and capture channels. Read relevant families progressively. [Evaluation rules](patterns/README.md) distinguish documented patterns, source reasoning and observed recording protection. The [candidate redesign](REDESIGN.md) keeps repository migration conditional on meaningful transfer evidence.
+1. **Inventory.** A structural tool lists every place the selected source renders a value. It assigns no privacy meaning.
+2. **Review.** The agent follows the [review skill](skill/SKILL.md). It traces each value from where it is produced to the element that shows it, decides what it means and whom it concerns, and cites the source lines for every decision.
+3. **Questions.** The agent asks you at most three questions about things the source cannot show: who uses the application, what is published on purpose, and what you worry about.
+4. **Patch.** Supporting tools validate the evidence and write the proposed `data-privacy` annotations as a patch. Nothing in your application is changed.
+5. **Verify.** You apply the patch in a copy, record the changed pages with synthetic data, and check that private values are absent and public content survives.
 
-Start with [content mapping](skill/references/content-map.md): identify surface purpose, value families and producer constraints separately from privacy meaning. After the first trace, select [focused review lenses](skill/references/review-lenses.md) from observed cues and reconcile their findings into the same decisions. For complex features, `review-map.md` is a compact agent-authored working note; no CLI command generates or validates it. Simple fields can retain that context in the decision rationale. The review JSON schema is unchanged.
+## Quick start
+
+Use Node.js 18 or later. In a checkout of this repository, run `npm ci`. Then give this prompt to a coding agent in your application's repository, with the paths replaced:
+
+```text
+Find the data in this application that a session recorder must mask or block.
+
+1. Read <scanner checkout>/scan/skill/SKILL.md.
+2. Create a scoped structural inventory:
+   node <scanner checkout>/scan/cli.mjs inventory <application root> --include <feature paths> --out <new session folder>
+3. Follow the skill. Read producers and component definitions, then write
+   source-evidenced decisions in the session's review.json.
+4. Run review-patch and review-proposals with --out <session folder>.
+5. Test the reconciled patch in an isolated copy. Report unresolved work,
+   public-content losses and checks actually executed. Keep the original
+   application unchanged and leave the patch for review.
+```
+
+The [implementation prompt](PROMPT.md) is a longer version. The [rrweb guide](recorders/rrweb.md) explains the recorder settings the annotations need.
+
+## What to know before you rely on it
+
+- A coding agent sends the source it reads to its model provider.
+- A scan can miss private data and can propose a wrong annotation. Review the patch.
+- A validated patch is a static result. Only a recording of the patched application shows what a recorder captures.
+- The annotations need a recorder that honours `data-privacy`, natively or through selectors.
+
+## Reference
+
+- [Review skill](skill/SKILL.md) and its [pattern catalog](skill/references/catalog.md) of 39 mechanisms in 11 families.
+- [Decision record format](skill/references/decisions.md).
+- [Evaluation rules](patterns/README.md) for changing the skill.
+- [Results and experiments](../research/README.md).
 
 ## Skill-led review
 
@@ -82,7 +118,7 @@ Use the repository and commit in `scan/benchmark/apps/<app>/labels.json`. Run th
 node scan/benchmark/apps/measure.mjs <app> <upstream-checkout> --json
 ```
 
-Use `--split development` or `--split held-out` to select a file group. Use `--session <dir>` to measure the reviewed patch from a scan session. Use `--compare <report>` to compare with an earlier JSON result. The report separates detection at the labelled element, exact placement, treatment, static coverage and Git patch application. The static report marks replay protection as unmeasured. See [scanner design](DESIGN.md#measurement).
+Use `--split development` or `--split held-out` to select a file group. Use `--session <dir>` to measure the reviewed patch from a scan session. Use `--compare <report>` to compare with an earlier JSON result. The report separates detection at the labelled element, exact placement, treatment, static coverage and Git patch application. The static report marks replay protection as unmeasured. See [scanner design](../research/scan-design.md#measurement).
 
 ## Check emitted events with rrweb
 

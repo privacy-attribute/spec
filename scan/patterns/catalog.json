@@ -24,7 +24,7 @@
       "verify": "Compare two authorized roles using distinct synthetic identities and confirm that the decision follows the record subject.",
       "composes_with": ["audience-03", "producer-04", "lifecycle-02"],
       "evidence": [
-        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "The Documenso signing title's audience was corrected using the sender/recipient query. Several Akaunting organization labels remained disputed."}
+        {"level": "source-review", "report": "research/skill-led-review-results.md", "anchor": "what-the-reviews-found", "scope": "The Documenso signing title's audience was corrected using the sender/recipient query. Several Akaunting organization labels remained disputed."}
       ]
     },
     {
@@ -50,7 +50,7 @@
       "verify": "Use separate markers per subject and a fixed announcement. Confirm which channels each entry contributes.",
       "composes_with": ["audience-01", "producer-01", "controls-05"],
       "evidence": [
-        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "frozen-prediction-comparisons", "scope": "The Twenty comparison found a disagreement over the operator's typed search category. Both reviews required masking."}
+        {"level": "source-review", "report": "research/skill-led-review-results.md", "anchor": "frozen-prediction-comparisons", "scope": "The Twenty comparison found a disagreement over the operator's typed search category. Both reviews required masking."}
       ]
     },
     {
@@ -88,7 +88,7 @@
       "verify": "Compare different-length synthetic values and raw events. Use a browser for claims about real layout.",
       "composes_with": ["representation-04", "controls-04", "evidence-02"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "In the Twenty DOM emulator, two API key lengths yielded different masked input lengths before blocking. Actual browser geometry was outside the test."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "observed-behavior", "scope": "In the Twenty DOM emulator, two API key lengths yielded different masked input lengths before blocking. Actual browser geometry was outside the test."}
       ]
     },
     {
@@ -102,7 +102,7 @@
       "verify": "Exercise representative descriptor types and confirm which values, attributes, and interactions the native renderer produces.",
       "composes_with": ["producer-04", "boundary-01", "interaction-02"],
       "evidence": [
-        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "The Chatwoot review left dynamic integration forms unresolved pending catalog and FormKit implementation evidence."}
+        {"level": "source-review", "report": "research/skill-led-review-results.md", "anchor": "what-the-reviews-found", "scope": "The Chatwoot review left dynamic integration forms unresolved pending catalog and FormKit implementation evidence."}
       ]
     },
     {
@@ -116,7 +116,7 @@
       "verify": "Start populated, clear the field, supply an invalid value, and restore it. Inspect the emitted destination for every supported branch.",
       "composes_with": ["representation-04", "lifecycle-03", "controls-05"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "The Twenty emulator recorded a private placeholder in the hidden autogrow measurement copy before the follow-up. The malformed email fallback was exercised separately."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "observed-behavior", "scope": "The Twenty emulator recorded a private placeholder in the hidden autogrow measurement copy before the follow-up. The malformed email fallback was exercised separately."}
       ]
     },
     {
@@ -142,7 +142,7 @@
       "verify": "Open the child with distinct synthetic records. Inspect loading, resolved, and portal content and identify any dynamically created output.",
       "composes_with": ["audience-01", "boundary-03", "lifecycle-02"],
       "evidence": [
-        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "The Documenso follow-up added missed title, hover, recipient, autocomplete, and inferred-recipient destinations loaded inside children."}
+        {"level": "source-review", "report": "research/skill-led-review-results.md", "anchor": "what-the-reviews-found", "scope": "The Documenso follow-up added missed title, hover, recipient, autocomplete, and inferred-recipient destinations loaded inside children."}
       ]
     },
     {
@@ -180,7 +180,7 @@
       "verify": "Edit, preview, save, and reopen with synthetic text and a private URL. Inspect each emitted carrier separately.",
       "composes_with": ["boundary-03", "interaction-01", "navigation-04"],
       "evidence": [
-        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "The Chatwoot source review followed rich-editor content to its mount. It did not verify editor recordings."}
+        {"level": "source-review", "report": "research/skill-led-review-results.md", "anchor": "what-the-reviews-found", "scope": "The Chatwoot source review followed rich-editor content to its mount. It did not verify editor recordings."}
       ]
     },
     {
@@ -194,7 +194,7 @@
       "verify": "Check initial, changed, empty, placeholder, and restored states in snapshots and mutations at the measurement node.",
       "composes_with": ["producer-02", "inference-03", "evidence-01"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "why-the-hidden-copy-finding-matters", "scope": "The Twenty autogrow sibling exposed private measurement text in a snapshot and mutation. The follow-up covered exercised value and placeholder states in the DOM emulator."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "why-the-hidden-copy-finding-matters", "scope": "The Twenty autogrow sibling exposed private measurement text in a snapshot and mutation. The follow-up covered exercised value and placeholder states in the DOM emulator."}
       ]
     },
     {
@@ -232,7 +232,7 @@
       "verify": "Open, close, and reopen the overlay. Inspect additions and updates using the overlay's recorded identity.",
       "composes_with": ["producer-04", "representation-01", "lifecycle-03"],
       "evidence": [
-        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "Twenty proposals traced private email links through the overflow portal. The runtime fixture did not exercise that parent route."}
+        {"level": "source-review", "report": "research/skill-led-review-results.md", "anchor": "what-the-reviews-found", "scope": "Twenty proposals traced private email links through the overflow portal. The runtime fixture did not exercise that parent route."}
       ]
     },
     {
@@ -246,7 +246,7 @@
       "verify": "Compare both callers across initial values, updates, and fallbacks.",
       "composes_with": ["audience-02", "controls-01", "evidence-03"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "Twenty's shared email fixture preserved public text and URLs while protecting exercised private variants. The fixture supplied the privacy prop directly."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "observed-behavior", "scope": "Twenty's shared email fixture preserved public text and URLs while protecting exercised private variants. The fixture supplied the privacy prop directly."}
       ]
     },
     {
@@ -308,7 +308,7 @@
       "verify": "Compare different choices under fixed captions and inspect event sequences and related attributes.",
       "composes_with": ["inference-02", "controls-02", "controls-04"],
       "evidence": [
-        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "Chatwoot source review distinguished public keypad captions from a potentially private interaction sequence. Recorder behavior remained open."}
+        {"level": "source-review", "report": "research/skill-led-review-results.md", "anchor": "what-the-reviews-found", "scope": "Chatwoot source review distinguished public keypad captions from a potentially private interaction sequence. Recorder behavior remained open."}
       ]
     },
     {
@@ -322,7 +322,7 @@
       "verify": "Use synthetic values to check the exact action output and emitted payload separately. State which platform integrations were exercised.",
       "composes_with": ["controls-04", "navigation-04", "integration-01"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "fidelity-and-function", "scope": "Twenty's exercised Copy control survived and the real hook passed the exact key to a synthetic clipboard sink. Operating-system clipboard remained untested."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "fidelity-and-function", "scope": "Twenty's exercised Copy control survived and the real hook passed the exact key to a synthetic clipboard sink. Operating-system clipboard remained untested."}
       ]
     },
     {
@@ -372,7 +372,7 @@
       "verify": "Inspect emitted attributes, additions, and updates. Retain a public resource that uses the same component as a control.",
       "composes_with": ["representation-02", "boundary-02", "navigation-03"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "The Twenty emulator captured private mailto URLs before the source proposal. In the exercised fixture, blocking removed private links and the public caller's URLs remained."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "observed-behavior", "scope": "The Twenty emulator captured private mailto URLs before the source proposal. In the exercised fixture, blocking removed private links and the public caller's URLs remained."}
       ]
     },
     {
@@ -422,7 +422,7 @@
       "verify": "Inspect final native attributes in every relevant branch.",
       "composes_with": ["boundary-01", "boundary-04", "controls-02"],
       "evidence": [
-        {"level": "source-review", "report": "AGENT_REVIEW_RESULTS.md", "anchor": "what-the-reviews-found", "scope": "Twenty source proposals followed nested props after finding that TextInput does not forward arbitrary top-level attributes to the input."}
+        {"level": "source-review", "report": "research/skill-led-review-results.md", "anchor": "what-the-reviews-found", "scope": "Twenty source proposals followed nested props after finding that TextInput does not forward arbitrary top-level attributes to the input."}
       ]
     },
     {
@@ -460,7 +460,7 @@
       "verify": "Exercise distinct synthetic secrets across states. Check blocked structure, input events, and surviving fixed public controls.",
       "composes_with": ["inference-03", "interaction-03", "navigation-03"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "Twenty's blocked API-key input and its scripted input events disappeared in the DOM emulator. The adjacent Copy control survived."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "observed-behavior", "scope": "Twenty's blocked API-key input and its scripted input events disappeared in the DOM emulator. The adjacent Copy control survived."}
       ]
     },
     {
@@ -474,7 +474,7 @@
       "verify": "Check initial content, updates, relevant editing events, and a nearby public control.",
       "composes_with": ["interaction-01", "representation-04", "controls-02"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "observed-behavior", "scope": "Twenty's malformed private email fallback was masked as text. The balanced preset independently masked input values and selected attributes."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "observed-behavior", "scope": "Twenty's malformed private email fallback was masked as text. The balanced preset independently masked input values and selected attributes."}
       ]
     },
     {
@@ -488,7 +488,7 @@
       "verify": "Check snapshots, deltas, and relevant plugin events. Confirm the scorer rejects substituted data from unrelated nodes.",
       "composes_with": ["representation-04", "lifecycle-03", "evidence-02"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "why-the-hidden-copy-finding-matters", "scope": "The Twenty scorer was challenged with unrelated text substitutions and now follows recorded measurement node identities."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "why-the-hidden-copy-finding-matters", "scope": "The Twenty scorer was challenged with unrelated text substitutions and now follows recorded measurement node identities."}
       ]
     },
     {
@@ -502,7 +502,7 @@
       "verify": "Use matching runs, baseline positives, and public controls.",
       "composes_with": ["inference-03", "controls-02", "evidence-01"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "fidelity-and-function", "scope": "The balanced Twenty preset already masked input values. The source block's observed contribution was removal of the key input subtree and scripted input events."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "fidelity-and-function", "scope": "The balanced Twenty preset already masked input values. The source block's observed contribution was removal of the key input subtree and scripted input events."}
       ]
     },
     {
@@ -516,7 +516,7 @@
       "verify": "Check output and callbacks, preserve public controls, and rerun unresolved claims through their real entry points.",
       "composes_with": ["boundary-03", "interaction-01", "evidence-01"],
       "evidence": [
-        {"level": "dom-runtime", "report": "RUNTIME_REVIEW_RESULTS.md", "anchor": "execution-and-provenance", "scope": "The Twenty fixture used pinned components and recorder with declared adapters. It did not exercise the production route or operating-system clipboard."}
+        {"level": "dom-runtime", "report": "research/twenty-runtime-results.md", "anchor": "execution-and-provenance", "scope": "The Twenty fixture used pinned components and recorder with declared adapters. It did not exercise the production route or operating-system clipboard."}
       ]
     }
   ]

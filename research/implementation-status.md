@@ -2,15 +2,15 @@
 
 Local draft: `0.3.0-dev.0`. Date: 2026-11-11. Release readiness is blocked.
 
-The subsequent skill-led implementation and five-app evaluation are documented in [AGENT_REVIEW_RESULTS.md](AGENT_REVIEW_RESULTS.md). The results below retain the earlier heuristic hardening baseline; they do not describe the new agent review's accuracy or coverage.
+The subsequent skill-led implementation and five-app evaluation are documented in [skill-led review results](skill-led-review-results.md). The results below retain the earlier heuristic hardening baseline; they do not describe the new agent review's accuracy or coverage.
 
-The later [Twenty runtime evaluation](RUNTIME_REVIEW_RESULTS.md) adds component recordings in a DOM emulator and a tested measurement-copy fix. Its browser artifact remains unexecuted. The historical gate status below refers to the earlier canary run.
+The later [Twenty runtime evaluation](twenty-runtime-results.md) adds component recordings in a DOM emulator and a tested measurement-copy fix. Its browser artifact remains unexecuted. The historical gate status below refers to the earlier canary run.
 
-The subsequent [pattern catalog and comparisons](PATTERN_METHOD_RESULTS.md) add 39 mechanism cards, two frozen source-review comparisons and a short project intake. Both comparisons tied the previous agent guidance on their bounded references. The complete repository redesign remains conditional; the intake was added after the comparison and has not received a speed or accuracy evaluation.
+The subsequent [pattern catalog and comparisons](pattern-method-results.md) add 39 mechanism cards, two frozen source-review comparisons and a short project intake. Both comparisons tied the previous agent guidance on their bounded references. The complete repository redesign remains conditional; the intake was added after the comparison and has not received a speed or accuracy evaluation.
 
-The later [annotation compatibility work](ANNOTATION_COMPATIBILITY.md) changes the draft to a single token-list attribute: `data-privacy="mask confidential"`, with any `block` token taking precedence. Scanner patching, measurement and canary selectors follow this grammar; 190 tests pass on Node 20, 22 and 24. Existing exact-value recorder builds require compatibility work before relying on combined block values.
+The later [annotation compatibility work](../spec/rrweb-compatibility.md) changes the draft to a single token-list attribute: `data-privacy="mask confidential"`, with any `block` token taking precedence. Scanner patching, measurement and canary selectors follow this grammar; 190 tests pass on Node 20, 22 and 24. Existing exact-value recorder builds require compatibility work before relying on combined block values.
 
-The later [content mapping and focused lens revision](CONTENT_LENS_RESULTS.md) adds surface/value-family mapping and six cue-selected review prompts. It keeps the existing review schema and optional working notes. The report records a frozen comparison on a newly collected Chatwoot feature; source review remains distinct from observed recording protection.
+The later [content mapping and focused lens revision](content-lens-results.md) adds surface/value-family mapping and six cue-selected review prompts. It keeps the existing review schema and optional working notes. The report records a frozen comparison on a newly collected Chatwoot feature; source review remains distinct from observed recording protection.
 
 The recorder operator remains responsible for recording contents. These checks do not establish legal compliance.
 
@@ -31,12 +31,12 @@ The compact core and guides describe two core treatment tokens, precedence, dyna
 ## Executed evidence
 
 - Initial local suite: 87/87 on Node 26.13.0. The historical hardening snapshot reproduced 107/107 nearby private detections, 97/107 same-line detections and 67/107 category agreement.
-- Final runtime test logs: [Node 24](local-evidence/node24-tests.log), [Node 22](local-evidence/node22-tests.log) and [Node 20](local-evidence/node20-tests.log), with 127 passing tests on each runtime.
-- [Current synthetic benchmark](local-evidence/synthetic-benchmark.log): 107/107 nearby private detections, 99/107 same-line detections, 22/22 secret detections, 88/107 category agreement, and 2/10 public examples flagged. These are detection metrics. They do not measure replay protection.
-- [Static performance](local-evidence/static-performance.json): three cold and warm scans of the 28-file synthetic fixture with labels removed produced equivalent decisions. This workload uses no model calls. It does not demonstrate the complete representative scan token target.
-- [Real-app evidence](local-evidence/real-app/summary.json): 86 source files from four exact upstream revisions were verified by Git blob hash. Both scanner versions generated patches that were applied to isolated Git indexes. The guarded comparison reported no regressions.
-- [Reproduction script](local-evidence/real-app/measure-scoped.mjs): run `node local-evidence/real-app/measure-scoped.mjs 2b2670a` from this checkout. Source blobs and separate baseline/current reports are retained beside the script.
-- [Package inventory](local-evidence/package-dry-run.json): required scanner, core, canary and audit modules are included; local evidence and private recording payloads are excluded.
+- Final runtime test logs: [Node 24](../local-evidence/node24-tests.log), [Node 22](../local-evidence/node22-tests.log) and [Node 20](../local-evidence/node20-tests.log), with 127 passing tests on each runtime.
+- [Current synthetic benchmark](../local-evidence/synthetic-benchmark.log): 107/107 nearby private detections, 99/107 same-line detections, 22/22 secret detections, 88/107 category agreement, and 2/10 public examples flagged. These are detection metrics. They do not measure replay protection.
+- [Static performance](../local-evidence/static-performance.json): three cold and warm scans of the 28-file synthetic fixture with labels removed produced equivalent decisions. This workload uses no model calls. It does not demonstrate the complete representative scan token target.
+- [Real-app evidence](../local-evidence/real-app/summary.json): 86 source files from four exact upstream revisions were verified by Git blob hash. Both scanner versions generated patches that were applied to isolated Git indexes. The guarded comparison reported no regressions.
+- [Reproduction script](../local-evidence/real-app/measure-scoped.mjs): run `node local-evidence/real-app/measure-scoped.mjs 2b2670a` from this checkout. Source blobs and separate baseline/current reports are retained beside the script.
+- [Package inventory](../local-evidence/package-dry-run.json): required scanner, core, canary and audit modules are included; local evidence and private recording payloads are excluded.
 - `git diff --check` and instruction dash-style checks passed. Independent integration tests reproduced and closed output containment, package-version invalidation and stale private-draft issues.
 
 ## Real-app limits
@@ -62,7 +62,7 @@ The rrweb target is commit `a4abb9478bd56bcf8ec9658bd7eb0a6c8c6b78f4`. Package m
 
 Six prepared cases compare baseline, native-policy and selector configurations for an application and a capability fixture. The capability fixture includes dynamic annotations, reparenting and open shadow roots. Iframes, closed shadow roots, replay rendering, encoded values, inference channels and untested plugins require more verification.
 
-The browser recording gate is blocked. Chrome exited during headless launch, the loopback server returned `EPERM`, and native UI access did not complete. No recording payload, marker-absence result or public-retention score was produced. The current [prepared page](audit/runner/evidence/handoff/browser.html), [manifest](audit/runner/evidence/handoff/manifest.json) and [run status](audit/runner/evidence/handoff/run-status.json) are retained locally.
+The browser recording gate is blocked. Chrome exited during headless launch, the loopback server returned `EPERM`, and native UI access did not complete. No recording payload, marker-absence result or public-retention score was produced. The current [prepared page](../audit/runner/evidence/handoff/browser.html), [manifest](../audit/runner/evidence/handoff/manifest.json) and [run status](../audit/runner/evidence/handoff/run-status.json) are retained locally.
 
 ## Open gates
 

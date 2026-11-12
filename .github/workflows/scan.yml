@@ -98,6 +98,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check the instruction files for the house style
         run: |
-          if grep -nE "—|–" README.md SECURITY.md scan/*.md scan/recorders/*.md audit/*.md; then
+          if grep -nE "—|–" README.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md proposal.md charter.md scan/*.md scan/recorders/*.md audit/*.md; then
             echo "Remove em dashes and en dashes."; exit 1
           fi

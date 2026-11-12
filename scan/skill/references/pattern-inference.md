@@ -64,4 +64,4 @@ Structure, ordering, dimensions, or summaries can reveal the underlying value.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#observed-behavior) — In the Twenty DOM emulator, two API key lengths yielded different masked input lengths before blocking. Actual browser geometry was outside the test.
+- [dom-runtime](../../../research/twenty-runtime-results.md#observed-behavior) — In the Twenty DOM emulator, two API key lengths yielded different masked input lengths before blocking. Actual browser geometry was outside the test.

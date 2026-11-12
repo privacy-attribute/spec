@@ -36,4 +36,4 @@ Older exact-value consumers can misread `block confidential` as mask and expose 
 
 The existing scanner CLI selects one annotation style at a time. Do not invent a dual-output switch. Where dual annotations or metadata are useful, supply an exact source-supported change through the existing review-proposals workflow and reconcile it with any native patch. This is optional authoring guidance, not a new automatic CLI mode.
 
-The bounded [compatibility probe](../../../ANNOTATION_COMPATIBILITY.md) exercised the pinned recorder in a DOM emulator. It supports the stated local compatibility distinction, not universal SDK or full-application guarantees.
+The bounded [compatibility probe](../../../spec/rrweb-compatibility.md) exercised the pinned recorder in a DOM emulator. It supports the stated local compatibility distinction, not universal SDK or full-application guarantees.

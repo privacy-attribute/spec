@@ -65,7 +65,7 @@ A value can have several copies, including outside visible text.
 
 **Evidence.**
 
-- [source-review](../../../AGENT_REVIEW_RESULTS.md#what-the-reviews-found) — The Chatwoot source review followed rich-editor content to its mount. It did not verify editor recordings.
+- [source-review](../../../research/skill-led-review-results.md#what-the-reviews-found) — The Chatwoot source review followed rich-editor content to its mount. It did not verify editor recordings.
 
 ### representation-04
 
@@ -85,4 +85,4 @@ A value can have several copies, including outside visible text.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#why-the-hidden-copy-finding-matters) — The Twenty autogrow sibling exposed private measurement text in a snapshot and mutation. The follow-up covered exercised value and placeholder states in the DOM emulator.
+- [dom-runtime](../../../research/twenty-runtime-results.md#why-the-hidden-copy-finding-matters) — The Twenty autogrow sibling exposed private measurement text in a snapshot and mutation. The follow-up covered exercised value and placeholder states in the DOM emulator.

@@ -4,7 +4,7 @@ Date: 2026-11-11. The repository now contains a structured catalog of 39 mechani
 
 The catalog is a working taxonomy. Its size does not establish that it covers most applications. Nineteen cards cite narrowly scoped observations from the earlier source reviews or Twenty DOM-emulator recordings; twenty are teaching hypotheses without such citations. Those citations do not verify every branch of their card.
 
-A subsequent [content mapping and focused lens revision](CONTENT_LENS_RESULTS.md) adds an explicit starting map and targeted challenge passes. Its new Chatwoot source comparison is reported separately so the original frozen comparisons below remain intact.
+A subsequent [content mapping and focused lens revision](content-lens-results.md) adds an explicit starting map and targeted challenge passes. Its new Chatwoot source comparison is reported separately so the original frozen comparisons below remain intact.
 
 ## Guided source comparison
 
@@ -61,7 +61,7 @@ The intake draws on [NIST SP 800-122's contextual privacy guidance](https://csrc
 
 ## Repository redesign decision
 
-The user authorized redesigning the scan repository around this method if it proves meaningfully successful. The [candidate architecture](scan/REDESIGN.md) makes a fact and its destinations the primary unit, with structural inventory, exact-edit validation and recording verification as supporting services. It separates semantic decisions, placement and observed protection.
+The user authorized redesigning the scan repository around this method if it proves meaningfully successful. The [candidate architecture](scan-redesign.md) makes a fact and its destinations the primary unit, with structural inventory, exact-edit validation and recording verification as supporting services. It separates semantic decisions, placement and observed protection.
 
 The ties in the guided and bounded discovery comparisons do not justify claiming that the expanded catalog improves the current agent method. The catalog and composition procedure are implemented; the complete architecture migration remains conditional. Existing heuristic commands and the previously validated review workflow remain available. No source-agreement result has been relabeled as runtime coverage. A future comparison should measure against the earlier heuristic pipeline and test broader active features with sufficient producer context, independent adjudication and representative recording evidence.
 
@@ -71,19 +71,19 @@ The complete local suite passes 186 tests on Node.js 20, 22 and 24. Seven new ev
 
 | Evidence | Location |
 | --- | --- |
-| Catalog source and generation | [catalog.json](scan/patterns/catalog.json), [render.mjs](scan/patterns/render.mjs) |
-| Evaluation protocol and redesign gate | [patterns README](scan/patterns/README.md) |
-| Frozen source and guidance hashes | [frozen-inputs.json](local-evidence/pattern-transfer/frozen-inputs.json) |
-| Guided comparison | [comparison.json](local-evidence/pattern-transfer/comparison.json) |
-| Author and independent expectations | [author-oracle.json](local-evidence/pattern-transfer/author-oracle.json), [independent-oracle.json](local-evidence/pattern-transfer/independent-oracle.json) |
-| Original predictions | [baseline-review.json](local-evidence/pattern-transfer/baseline-review.json), [candidate-review.json](local-evidence/pattern-transfer/candidate-review.json) |
-| Mechanism associations and prior evidence | [coverage-ledger.json](local-evidence/pattern-transfer/coverage-ledger.json) |
-| Real-source collection and prior overlap | [collection-manifest.json](local-evidence/pattern-discovery/collection-manifest.json) |
-| Discovery comparison and exact finding mappings | [comparison.json](local-evidence/pattern-discovery/comparison.json) |
-| Independent bounded source reference | [reference.json](local-evidence/pattern-discovery/reference.json) |
-| Final test logs | [Node 20](local-evidence/pattern-transfer/node20-tests.log), [Node 22](local-evidence/pattern-transfer/node22-tests.log), [Node 24](local-evidence/pattern-transfer/node24-tests.log) |
-| Package inventory | [package-dry-run.json](local-evidence/pattern-transfer/package-dry-run.json) |
+| Catalog source and generation | [catalog.json](../scan/patterns/catalog.json), [render.mjs](../scan/patterns/render.mjs) |
+| Evaluation protocol and redesign gate | [patterns README](../scan/patterns/README.md) |
+| Frozen source and guidance hashes | [frozen-inputs.json](../local-evidence/pattern-transfer/frozen-inputs.json) |
+| Guided comparison | [comparison.json](../local-evidence/pattern-transfer/comparison.json) |
+| Author and independent expectations | [author-oracle.json](../local-evidence/pattern-transfer/author-oracle.json), [independent-oracle.json](../local-evidence/pattern-transfer/independent-oracle.json) |
+| Original predictions | [baseline-review.json](../local-evidence/pattern-transfer/baseline-review.json), [candidate-review.json](../local-evidence/pattern-transfer/candidate-review.json) |
+| Mechanism associations and prior evidence | [coverage-ledger.json](../local-evidence/pattern-transfer/coverage-ledger.json) |
+| Real-source collection and prior overlap | [collection-manifest.json](../local-evidence/pattern-discovery/collection-manifest.json) |
+| Discovery comparison and exact finding mappings | [comparison.json](../local-evidence/pattern-discovery/comparison.json) |
+| Independent bounded source reference | [reference.json](../local-evidence/pattern-discovery/reference.json) |
+| Final test logs | [Node 20](../local-evidence/pattern-transfer/node20-tests.log), [Node 22](../local-evidence/pattern-transfer/node22-tests.log), [Node 24](../local-evidence/pattern-transfer/node24-tests.log) |
+| Package inventory | [package-dry-run.json](../local-evidence/pattern-transfer/package-dry-run.json) |
 
 Run `node scan/patterns/render.mjs --check` and `node --test` from the checkout for the structural and tooling checks. `evaluatePatternReview` in `scan/patterns/evaluate.mjs` accepts the frozen target list, oracle, review and source root. Exact quotes establish source provenance; semantic correctness still requires independent review.
 
-The earlier [Twenty runtime report](RUNTIME_REVIEW_RESULTS.md) retains its bounded DOM-emulator evidence and the outstanding browser handoff. This work did not execute a browser, modify upstream applications, install a personal skill, commit, push or publish. The recorder operator remains responsible for recording contents.
+The earlier [Twenty runtime report](twenty-runtime-results.md) retains its bounded DOM-emulator evidence and the outstanding browser handoff. This work did not execute a browser, modify upstream applications, install a personal skill, commit, push or publish. The recorder operator remains responsible for recording contents.

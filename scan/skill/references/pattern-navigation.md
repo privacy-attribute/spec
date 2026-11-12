@@ -83,4 +83,4 @@ Location, document metadata, links, or resources can carry private data.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#observed-behavior) — The Twenty emulator captured private mailto URLs before the source proposal. In the exercised fixture, blocking removed private links and the public caller's URLs remained.
+- [dom-runtime](../../../research/twenty-runtime-results.md#observed-behavior) — The Twenty emulator captured private mailto URLs before the source proposal. In the exercised fixture, blocking removed private links and the public caller's URLs remained.

@@ -28,7 +28,7 @@ A clean replay, accepted patch, or passing fixture can leave a claim unverified.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#why-the-hidden-copy-finding-matters) — The Twenty scorer was challenged with unrelated text substitutions and now follows recorded measurement node identities.
+- [dom-runtime](../../../research/twenty-runtime-results.md#why-the-hidden-copy-finding-matters) — The Twenty scorer was challenged with unrelated text substitutions and now follows recorded measurement node identities.
 
 ### evidence-02
 
@@ -48,7 +48,7 @@ A clean replay, accepted patch, or passing fixture can leave a claim unverified.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#fidelity-and-function) — The balanced Twenty preset already masked input values. The source block's observed contribution was removal of the key input subtree and scripted input events.
+- [dom-runtime](../../../research/twenty-runtime-results.md#fidelity-and-function) — The balanced Twenty preset already masked input values. The source block's observed contribution was removal of the key input subtree and scripted input events.
 
 ### evidence-03
 
@@ -68,4 +68,4 @@ A clean replay, accepted patch, or passing fixture can leave a claim unverified.
 
 **Evidence.**
 
-- [dom-runtime](../../../RUNTIME_REVIEW_RESULTS.md#execution-and-provenance) — The Twenty fixture used pinned components and recorder with declared adapters. It did not exercise the production route or operating-system clipboard.
+- [dom-runtime](../../../research/twenty-runtime-results.md#execution-and-provenance) — The Twenty fixture used pinned components and recorder with declared adapters. It did not exercise the production route or operating-system clipboard.
