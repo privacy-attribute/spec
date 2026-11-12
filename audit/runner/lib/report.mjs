@@ -2,8 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ISSUES = 'https://github.com/privacy-attribute/spec/issues/new';
-const URL_LIMIT = 7500;
+const ISSUES = 'https://github.com/privacy-attribute/spec/issues/new?template=sdk-audit-feedback.yml';
 
 const ABBR = {
   'input-value': 'val', 'value-length': 'len', 'emit-timing': 'emit', 'key-count': 'keys', 'key-timing': 'time',
@@ -57,7 +56,7 @@ export function auditVersion(auditDir) {
   }
 }
 
-// Builds the issue body (same headings as feedback.md) and a pre-filled issue-form URL.
+// Builds the issue body (same headings as feedback.md) and the blank issue-form URL.
 export function feedbackIssue({ kind, actor, out, fixtureFile, fixtureSource, what: whatText }) {
   const leaking = out.differential.filter((r) => r.differs && r.category !== 'public');
   const patterns = [...new Set(out.differential.map((r) => r.pattern))];
@@ -94,23 +93,5 @@ export function feedbackIssue({ kind, actor, out, fixtureFile, fixtureSource, wh
     `<The rule, pattern row or grep to add or change.>`,
     ``,
   ].join('\n');
-  const params = new URLSearchParams({
-    template: 'sdk-audit-feedback.yml',
-    title,
-    kind,
-    actor,
-    'audit-version': out.audit_version,
-    target,
-    pattern: patterns.join(', '),
-    what,
-    evidence: evidence || 'none',
-  });
-  const withPage = new URLSearchParams(params);
-  withPage.set('page', fixtureSource.trim());
-  let url = `${ISSUES}?${withPage}`;
-  if (url.length > URL_LIMIT) {
-    params.set('page', `Fixture too long for a link: paste it from ${path.basename(fixtureFile)} or the report file.`);
-    url = `${ISSUES}?${params}`;
-  }
-  return { title, body, url };
+  return { title, body, url: ISSUES };
 }

@@ -10,7 +10,7 @@ function valuesFor(fixture, journey, value) {
   return v;
 }
 
-async function record({ browser, server, adapter, script, fixture, journeys, values, config }) {
+export async function record({ browser, server, script, fixture, journeys, values, config }) {
   const id = crypto.randomUUID();
   const env = { port: server.port, port2: server.port2, run: id };
   server.put(id, {

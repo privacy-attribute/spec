@@ -80,31 +80,42 @@ function sourceNames(src) {
 }
 
 export function find(root, { include } = {}) {
+  // Analyse dependencies outside --include so props can cross the selected paths.
+  const tree = files(root);
+  const schema = readSchemas(root);
+  const jsx = componentPass(root, tree, schema);
+  const tpl = templatePass(root, tree, schema);
+  const analysisFailures = new Set([...jsx.failures, ...tpl.failures]);
+  const templateFiles = new Set(Object.keys(tpl.index));
   const candidates = [];
   let scanned = 0;
   let lines = 0;
   for (const file of files(root, include)) {
     const src = fs.readFileSync(file, 'utf8').split('\n');
+    const relative = path.relative(root, file);
     const parseable = PARSEABLE.test(file);
+    const renderRegions = jsx.index[relative] || [];
     const hasMarkup = !parseable || /\.(tsx|jsx)$/.test(file) || /<[A-Za-z][\w.]*[\s>/]/.test(src.join('\n'));
     scanned++;
     lines += src.length;
     let component = null;
     const sources = sourceNames(src);
     src.forEach((raw, i) => {
+      const hasRenderAnalysis = !analysisFailures.has(relative)
+        && (templateFiles.has(relative) || renderRegions.some(([, start, end]) => start <= i + 1 && end >= i + 1));
       const line = raw.replace(TRANSLATION_CALL, "''");
       const c = raw.match(COMPONENT);
       if (c) component = c[5];
       if (line.length > 2000 || /^\s*(\/\/|\*|import\b)/.test(line)) return;
       const markup = MARKUP.test(line);
       const publicOwner = PUBLIC_OWNER.test(line);
-      const applies = (r) => !r.optIn && (hasMarkup || NO_MARKUP_RULES.has(r.id)) && !(parseable && RENDER_RULES.has(r.id)) && (!r.render || markup) && !(publicOwner && /^(person-field|template-binding|attribute-data|attribute-expr)/.test(r.id)) && r.re.test(line);
+      const applies = (r) => !r.optIn && (hasMarkup || NO_MARKUP_RULES.has(r.id)) && !(hasRenderAnalysis && RENDER_RULES.has(r.id)) && (!r.render || markup) && !(publicOwner && /^(person-field|template-binding|attribute-data|attribute-expr)/.test(r.id)) && r.re.test(line);
       const hits = RULES.filter((r) => !r.fallback && applies(r));
       if (!hits.some((h) => h.id.startsWith('person-field'))) {
         const fallback = RULES.filter((r) => r.fallback && applies(r));
         hits.push(...(fallback.some((r) => r.id === 'person-field') ? fallback.filter((r) => r.id !== 'template-binding') : fallback));
       }
-      if (!parseable && !hits.length && markup && sources.size) {
+      if (!hasRenderAnalysis && !hits.length && markup && sources.size) {
         const rendered = [...line.matchAll(/\{([^{}]*)\}/g)].map((m) => m[1]);
         if (rendered.some((expr) => [...sources].some((n) => new RegExp(`(^|[^\\w$.])${n.replace(/\$/g, '\\$')}\\b`).test(expr)))) {
           hits.push({ id: 'data-flow', pattern: 'P-crm-record', category: 'third-party?' });
@@ -115,32 +126,28 @@ export function find(root, { include } = {}) {
       const autoRule = hits.find((h) => h.auto);
       let auto = null;
       if (autoRule) {
-        // The tag that holds this line: this line or the nearest line above that opens a tag.
-        for (let k = i; k >= Math.max(0, i - 10); k--) {
-          const t = src[k].match(/<([A-Za-z][\w.]*)/);
-          if (t) { auto = { ...autoRule.auto, rule: autoRule.id, line: k + 1, match: `<${t[1]}` }; break; }
+        const inputs = (jsx.passwordInputs[relative] || []).filter((input) => input.line <= i + 1 && input.end >= i + 1);
+        if (inputs.length === 1) {
+          const [input] = inputs;
+          auto = { ...autoRule.auto, rule: autoRule.id, line: input.line, column: input.column, match: input.match };
         }
       }
       const category = hits.map((h) => h.category).sort((a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b))[0];
       candidates.push({
         id: null,
-        file: path.relative(root, file),
+        file: relative,
         line: i + 1,
         component,
         rules: hits.map((h) => h.id),
         patterns: [...new Set(hits.map((h) => h.pattern).filter(Boolean))],
         category_hint: category,
         covered: COVERAGE.test(near),
-        auto: COVERAGE.test(near) ? null : auto,
+        auto,
+        ...(analysisFailures.has(relative) ? { requires_review: true } : {}),
         snippet: raw.trim().slice(0, 200),
       });
     });
   }
-  // Component pass over the whole tree, so data passed from components outside --include is seen.
-  const tree = files(root);
-  const schema = readSchemas(root);
-  const jsx = componentPass(root, tree, schema);
-  const tpl = templatePass(root, tree, schema);
   const comp = {
     candidates: [...jsx.candidates, ...tpl.candidates],
     parsed: jsx.parsed + tpl.parsed,
@@ -148,16 +155,19 @@ export function find(root, { include } = {}) {
     usage: { ...tpl.usage, ...jsx.usage },
     index: { ...tpl.index, ...jsx.index },
   };
-  // In Vue and Svelte files the template pass read, it finds rendered data, so render rules drop out there too.
-  const read = new Set(Object.keys(tpl.index));
-  for (const c of candidates) if (read.has(c.file)) c.rules = c.rules.filter((r) => !RENDER_RULES.has(r) && r !== 'data-flow');
-  for (let k = candidates.length - 1; k >= 0; k--) if (!candidates[k].rules.length) candidates.splice(k, 1);
   const wanted = (f) => !include || include.some((p) => f === p || f.startsWith(p.replace(/[\\/]+$/, '') + path.sep));
   const units = comp.candidates.filter((c) => wanted(c.file)).map((c) => ({ ...c, id: null, covered: false, auto: null, merged: [] }));
-  // A line hit inside a flagged component joins that component's unit, so the agent decides it there.
+  // Only merge rules that the semantic site describes. Other lines retain an independent decision.
+  const ruleDescribesSite = (rule, site) => {
+    if (rule === 'input') return /^(input |choice$|(?:attr|prop) (?:value|defaultValue|checked|modelValue)$)/.test(site.kind);
+    if (/^secret-(field-name|input-)/.test(rule)) return site.kind === 'input secret' || /^(attr|prop) (?:value|defaultValue)$/.test(site.kind) && site.category === 'secret';
+    if (/^(choice-widget|slider|date-picker)$/.test(rule)) return site.kind === 'choice' || site.kind === 'input special';
+    if (rule === 'url-with-data') return site.kind === 'url';
+    return false;
+  };
   const remaining = [];
   for (const c of candidates) {
-    const unit = !c.auto && units.find((u) => u.file === c.file && c.line >= u.line && c.line <= u.end_line);
+    const unit = !c.auto && !c.requires_review && units.find((u) => u.file === c.file && u.sites.some((s) => s.line === c.line && c.rules.every((rule) => ruleDescribesSite(rule, s))));
     if (unit) {
       unit.merged.push({ line: c.line, rules: c.rules, snippet: c.snippet.slice(0, 120) });
       for (const r of c.rules) if (!unit.rules.includes(r)) unit.rules.push(r);
@@ -168,7 +178,7 @@ export function find(root, { include } = {}) {
   all.sort((a, b) => CATEGORY_ORDER.indexOf(a.category_hint) - CATEGORY_ORDER.indexOf(b.category_hint)
     || a.file.localeCompare(b.file) || a.line - b.line);
   all.forEach((c, i) => { c.id = `C${i + 1}`; });
-  return { root, include: include || null, schema_files: schema.files, scanned_files: scanned, scanned_lines: lines, parsed_files: comp.parsed, components: comp.components, component_usage: comp.usage, component_index: comp.index, candidates: all };
+  return { root, analysis_failures: [...analysisFailures].sort(), include: include || null, schema_files: schema.files, scanned_files: scanned, scanned_lines: lines, parsed_files: comp.parsed, components: comp.components, component_usage: comp.usage, component_index: comp.index, candidates: all };
 }
 
 // Compact plan for the agent: one section per file, most private category first.
@@ -182,7 +192,7 @@ export function planMarkdown(result) {
   const files = [...byFile.entries()].sort((a, b) => rank(a[1]) - rank(b[1]) || a[0].localeCompare(b[0]));
   const count = (k) => result.candidates.filter((c) => c.category_hint.replace('?', '') === k).length;
   const settledCount = result.candidates.filter((x) => x.settled).length;
-  const settledNote = settledCount ? [`${settledCount} units are not listed: the scan placed their annotations (in annotations.json with "auto": true), or the recorder masks their input values (see the config in annotations.json).`, ''] : [];
+  const settledNote = settledCount ? [`${settledCount} units have decisions in annotations.json and are omitted from this plan.`, ''] : [];
   const skipped = result.cache?.units_skipped
     ? [`${result.cache.units_skipped} candidates in ${result.cache.files_skipped} files are not listed: these files are unchanged since the last scan, so their decisions in .privacy-scan/decisions.json stay. "earlier" shows the decision from the last scan for a unit in a changed file.`, '']
     : [];
@@ -191,15 +201,21 @@ export function planMarkdown(result) {
     '',
     ...skipped,
     ...settledNote,
+    ...(result.analysis_failures?.length ? [
+      '## Files requiring manual analysis',
+      '',
+      ...result.analysis_failures.map((file) => '- `' + file + '`'),
+      '',
+    ] : []),
     `${result.candidates.length} candidates in ${byFile.size} of ${result.scanned_files} files (${result.scanned_lines} lines): ${count('secret')} secret, ${count('third-party')} third-party, ${count('personal')} personal. A trailing ? means the category is a guess. "covered" means a masking annotation is already within three lines. "decided" means a rule made the annotation; it is already in annotations.json, so examine it only when the file is open for other candidates.`,
     '',
     ...(result.questions?.length
       ? [
         '## Questions',
         '',
-        `The scan could not name these sources. Answer each one in "answers" in annotations.json, for example "${result.questions[0].source}": "data", then run the place command. "data": the source returns data about people or an organization. "public": it returns only public content or UI state.`,
+        `Classify each source in "answers" in annotations.json, then run the place command. Use its full key, for example "${result.questions[0].key || result.questions[0].source}": {"category": "personal", "evidence": "verified source returns the user's account data"}. Categories are secret, personal, third-party and public.`,
         '',
-        ...result.questions.map((q) => `- ${q.id} \`${q.source}\`${q.defined_in ? ` defined in ${q.defined_in}` : ''}: ${q.sites} lines in ${q.units} units${q.shown.length ? `, for example ${q.shown.map((x) => `\`${x.expr.replace(/`/g, "'")}\` at ${x.file}:${x.line}`).join('; ')}` : ''}`),
+        ...result.questions.map((q) => `- ${q.id} \`${q.key || q.source}\`${q.defined_in ? ` defined in ${q.defined_in}` : ''}: ${q.sites} lines in ${q.units} units${q.shown.length ? `, for example ${q.shown.map((x) => `\`${x.expr.replace(/`/g, "'")}\` at ${x.file}:${x.line}`).join('; ')}` : ''}`),
         '',
       ]
       : []),

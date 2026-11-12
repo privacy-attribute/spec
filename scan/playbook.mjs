@@ -19,7 +19,7 @@ Then do the procedure in AGENTS.md. Start with ${sessionDir}/scan-plan.md. Do no
 - Make the patch and find open candidates: \`${run} patch --out ${sessionDir}\`
 - Write the gap reports: \`${run} report --out ${sessionDir}\`
 
-Run the patch command again until it shows no open candidates, no annotations that it could not place, and no over-masking. The patch also writes .privacy-scan/decisions.json. Tell the person to commit it with the annotations: the next scan then skips the files that did not change. Do all the work in this one session. Subagents read the same files again and increase the cost.
+Run the patch command again until it shows no open candidates, no annotations that it could not place, and no over-masking. The patch also writes .privacy-scan/decisions.json. Tell the person to commit it with the annotations: the next scan can reuse completed decisions while the full source snapshot and scan settings are unchanged. Any source or schema change invalidates all decisions. Use a new session folder if source changes during review. Do all the work in this one session. Subagents read the same files again and increase the cost.
 
 ## Rules
 
@@ -27,7 +27,7 @@ Run the patch command again until it shows no open candidates, no annotations th
 - Do not copy real data about customers or users into the session folder.
 ${headless
     ? '- No person is at the terminal. Do not ask questions. Do not send issues. Leave the gap reports in the session folder.'
-    : '- Tell the person what you do. Ask before you send an issue or run a command outside the session folder. Show the issue links. Let the person send them.'}
+    : '- Tell the person what you do. Ask before you send an issue or run a command outside the session folder. Show the local report paths. Let the person choose whether to send feedback.'}
 - At the end, write the summary that AGENTS.md describes. Start it with the "Responsibility" text, word for word.
 `;
 }

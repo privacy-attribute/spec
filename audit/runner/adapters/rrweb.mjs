@@ -3,8 +3,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import * as esbuild from 'esbuild';
+
+export const { build: bundle, version: esbuildVersion } = esbuild;
 
 // Selectors built from the fixture labels (data-audit-category, data-audit-block).
 const PRIVATE = '[data-audit-category="secret"],[data-audit-category="personal"],[data-audit-category="third-party"]';
@@ -23,6 +26,7 @@ const STRICT = {
 
 // `__mask` is resolved in the page into maskInputFn and maskTextFn: 'constant' or 'bucket'.
 const configs = [
+  { id: 'privacy-attribute', optIn: true, options: { privacyPolicy: { version: 1, preset: 'balanced' } } },
   { id: 'targeted', fidelity: true, options: { maskAllInputs: true, maskTextSelector: PRIVATE, blockSelector: '[data-audit-block]' }, note: 'Mask labelled private elements, block labelled widgets, record public content.' },
   { id: 'default-core', fidelity: true, options: {} },
   { id: 'default-browser-client', options: { maskAllInputs: true, slimDOMOptions: 'all', inlineStylesheet: true }, note: 'Defaults set by packages/browser-client/src/index.ts start().' },
@@ -69,7 +73,7 @@ function packageVersion(dir) {
   try { return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version; } catch { return null; }
 }
 
-async function build(sdk) {
+async function build(sdk, dependencies = sdk) {
   const P = path.join(sdk, 'packages');
   const network = path.join(P, 'plugins/rrweb-plugin-network-record/src/index.ts');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-audit-'));
@@ -80,31 +84,73 @@ async function build(sdk) {
     fs.existsSync(network) ? `import { getRecordNetworkPlugin } from ${JSON.stringify(network)};\nwindow.__auditPlugins = { network: () => getRecordNetworkPlugin({}) };` : '',
   ].join('\n'));
   const out = path.join(tmp, 'bundle.js');
-  await esbuild.build({
-    entryPoints: [entry],
-    bundle: true,
-    format: 'iife',
-    outfile: out,
-    logLevel: 'error',
-    alias: {
-      'rrweb-snapshot': path.join(P, 'rrweb-snapshot/src/index.ts'),
-      rrdom: path.join(P, 'rrdom/src/index.ts'),
-      rrweb: path.join(P, 'rrweb/src/index.ts'),
-      '@rrweb/types': path.join(P, 'types/src/index.ts'),
-      '@rrweb/utils': path.join(P, 'utils/src/index.ts'),
-    },
-    // Third-party dependencies resolve from the checkout, or from NODE_PATH for an extracted copy.
-    nodePaths: [path.join(sdk, 'node_modules'), ...(process.env.NODE_PATH || '').split(path.delimiter).filter(Boolean)],
-    plugins: [{
-      // Worker imports (canvas FPS mode) are stubbed: that mode is not exercised by the fixtures.
-      name: 'stub-worker',
-      setup(b) {
-        b.onResolve({ filter: /\?worker/ }, (a) => ({ path: a.path, namespace: 'stub' }));
-        b.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: 'export default class { postMessage(){} terminate(){} };', loader: 'js' }));
+  try {
+    await esbuild.build({
+      entryPoints: [entry],
+      bundle: true,
+      format: 'iife',
+      outfile: out,
+      logLevel: 'error',
+      alias: {
+        'rrweb-snapshot': path.join(P, 'rrweb-snapshot/src/index.ts'),
+        rrdom: path.join(P, 'rrdom/src/index.ts'),
+        rrweb: path.join(P, 'rrweb/src/index.ts'),
+        '@rrweb/types': path.join(P, 'types/src/index.ts'),
+        '@rrweb/utils': path.join(P, 'utils/src/index.ts'),
       },
-    }],
-  });
-  return fs.readFileSync(out, 'utf8');
+      // Third-party dependencies resolve from the checkout, or from NODE_PATH for an extracted copy.
+      nodePaths: [
+        path.join(dependencies, 'node_modules'),
+        ...['rrweb', 'rrweb-snapshot', 'rrdom', 'types', 'utils'].map((pkg) => path.join(dependencies, 'packages', pkg, 'node_modules')),
+        ...(process.env.NODE_PATH || '').split(path.delimiter).filter(Boolean),
+      ],
+      plugins: [{
+        // Worker imports (canvas FPS mode) are stubbed: that mode is not exercised by the fixtures.
+        name: 'stub-worker',
+        setup(b) {
+          b.onResolve({ filter: /\?worker/ }, (a) => ({ path: a.path, namespace: 'stub' }));
+          b.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: 'export default class { postMessage(){} terminate(){} };', loader: 'js' }));
+        },
+      }],
+    });
+    return fs.readFileSync(out, 'utf8');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// Build only committed source, leaving any work in the checkout untouched.
+export async function buildPinnedRecorder(sdk, ref) {
+  const git = (args, options) => execFileSync('git', ['-C', sdk, ...args], { maxBuffer: 32 * 1024 * 1024, ...options });
+  const commit = git(['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`], { encoding: 'utf8' }).trim();
+  const names = ['rrweb', 'rrweb-snapshot', 'rrdom', 'types', 'utils'];
+  const files = names.flatMap((pkg) => [`packages/${pkg}/src`, `packages/${pkg}/package.json`]);
+  const archive = git(['archive', commit, 'yarn.lock', ...files]);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-audit-source-'));
+  try {
+    execFileSync('tar', ['-xf', '-', '-C', dir], { input: archive });
+    const script = await build(dir, path.resolve(sdk));
+    const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+    const packages = Object.fromEntries(names.map((pkg) => {
+      const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'packages', pkg, 'package.json'), 'utf8'));
+      return [manifest.name, manifest.version];
+    }));
+    let nearest_tag = null;
+    let commits_past_tag = null;
+    try {
+      nearest_tag = git(['describe', '--tags', '--abbrev=0', commit], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      commits_past_tag = Number(git(['rev-list', '--count', `${nearest_tag}..${commit}`], { encoding: 'utf8' }));
+    } catch { /* Checkout has no reachable tag. */ }
+    return {
+      script,
+      target: {
+        repo: 'rrweb-io/rrweb', ref, commit, nearest_tag, commits_past_tag, packages,
+        build: { esbuild: esbuild.version, bundle_sha256: sha256(script), lock_sha256: sha256(fs.readFileSync(path.join(dir, 'yarn.lock'))) },
+      },
+    };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 async function prepare({ sdk, bundle }) {

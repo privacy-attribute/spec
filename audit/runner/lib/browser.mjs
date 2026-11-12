@@ -58,10 +58,11 @@ export async function startServer() {
   };
 }
 
-export async function launch(chrome) {
+export async function launch(chrome, { pipe = false } = {}) {
   return puppeteer.launch({
     executablePath: findChrome(chrome),
     headless: true,
+    pipe,
     args: ['--lang=en-US', '--no-first-run'],
     env: { ...process.env, TZ: 'UTC', LANG: 'en_US.UTF-8' },
   });

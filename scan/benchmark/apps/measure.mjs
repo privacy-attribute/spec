@@ -1,136 +1,359 @@
-// Scores the static pass against a labelled sample of a real application.
-//   node scan/benchmark/apps/measure.mjs <app> <source folder> [--answers <answers.json>] [--session <dir>] [--over]
-// <app>/labels.json names the app commit and the labelled elements of each sample file. A label is
-// found when a shown value (a site) or a line rule hit is on the element that the label names.
-// Recall is given for high-confidence sites alone and with the low-confidence residue. The residue
-// size estimates the questions that a model must answer.
+// Measure a labelled sample in a clean, pinned upstream Git checkout.
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
+import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { find } from '../../find.mjs';
 import { spansFor } from '../../templates.mjs';
-import { placeAnnotations } from '../../place.mjs';
-import { applyAnswers } from '../../residue.mjs';
+import { assertLabelRevision, labelledElement, measureTreatments } from '../../measurement.mjs';
+import { summarizeReviews, validVerdict } from './reviews.mjs';
 
-const [app, source] = process.argv.slice(2);
-const dir = path.join(path.dirname(new URL(import.meta.url).pathname), app);
-const labels = JSON.parse(fs.readFileSync(path.join(dir, 'labels.json'), 'utf8'));
-try {
-  const head = execFileSync('git', ['-C', source, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-  if (!head.startsWith(labels.commit)) console.warn(`Warning: source is at ${head.slice(0, 7)}, labels are for ${labels.commit}.`);
-} catch { /* not a git checkout */ }
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const CLI = fileURLToPath(new URL('../../cli.mjs', import.meta.url));
+const SCANNER = path.dirname(CLI);
+const json = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+const portable = (file) => file.split(path.sep).join('/');
+const git = (source, args, env = process.env) => execFileSync('git', ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-C', source, ...args], {
+  encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024,
+});
+const SPLITS = ['development', 'held-out'];
+const CATEGORIES = ['secret', 'personal', 'third-party', 'public'];
 
-const t0 = Date.now();
-const scan = find(source);
-const ms = Date.now() - t0;
-// --answers <file>: answers to the residue questions, applied as the place command applies them.
-const answersAt = process.argv.indexOf('--answers');
-if (answersAt > 0) applyAnswers(scan, JSON.parse(fs.readFileSync(process.argv[answersAt + 1], 'utf8')));
-const sites = scan.candidates.flatMap((c) => (c.sites || []).map((s) => ({ ...s, file: c.file, unit: c.id })));
-const lineHits = scan.candidates.filter((c) => !c.sites).map((c) => ({ file: c.file, line: c.line }));
-const spanCache = new Map();
-const spans = (f) => {
-  if (!spanCache.has(f)) spanCache.set(f, spansFor(f, fs.readFileSync(path.join(source, f), 'utf8')));
-  return spanCache.get(f);
-};
-// The start line of the innermost element that holds a line.
-const owner = (f, line) => {
-  const els = spans(f).filter(([s, , e]) => line >= s && line <= e).sort((a, b) => (a[2] - a[0]) - (b[2] - b[0]));
-  return els[0] ? els[0][0] : line;
-};
-const onLabel = (f, line, l) => Math.abs(line - l.line) <= 1 || Math.abs(owner(f, line) - l.line) <= 1;
-// A site on an element that contains the labelled element, for example <Select {...field}> around its trigger.
-const onAncestor = (f, line, l) => spans(f).some(([s, , e]) => Math.abs(s - line) <= 1 && l.line > s && l.line <= e && l.line - s <= 8);
+export async function loadScanner(dir = SCANNER) {
+  const modules = await Promise.all(['find', 'place', 'residue', 'patch'].map((name) => (
+    import(pathToFileURL(path.resolve(dir, name + '.mjs')))
+  )));
+  const names = fs.readdirSync(dir).filter(name => /\.(mjs|md)$/.test(name)).sort();
+  const digest = createHash('sha256');
+  for (const name of names) digest.update(name).update('\0').update(fs.readFileSync(path.join(dir, name)));
+  let version = 'unknown';
+  try { version = json(path.join(dir, '..', 'package.json')).version || 'unknown'; } catch { /* An extracted historical scanner can omit its manifest. */ }
+  return Object.assign({}, ...modules, { metadata: { version, implementation_sha256: digest.digest('hex') } });
+}
 
-// How each label is found, from strict to loose:
-//   site    a shown value on the labelled element, the element around it, or inside it
-//   config  a text field that rrweb's maskAllInputs masks (the scan sets it in the recorder config)
-//   child   the labelled element is a child component that is a unit of its own
-//   line    only a line rule hit near the label
-// Stage 5 places annotations from sites, so "site or config" is the main measure.
-const text = new Map();
-const lineOf = (f, n) => { if (!text.has(f)) text.set(f, fs.readFileSync(path.join(source, f), 'utf8').split('\n')); return text.get(f)[n - 1] || ''; };
-const rows = [];
-for (const [file, ls] of Object.entries(labels.files)) {
-  for (const l of ls) {
-    let here = sites.filter((s) => s.file === file && onLabel(file, s.line, l));
-    if (!here.length) here = sites.filter((s) => s.file === file && onAncestor(file, s.line, l));
-    if (!here.length) {
-      const el = spans(file).find(([st]) => st === l.line);
-      if (el) here = sites.filter((s) => s.file === file && s.line > el[1] && s.line <= el[2] && !/^prop /.test(s.kind));
+function validateLabels(labels, sources) {
+  const heldOut = labels.held_out || [];
+  if (new Set(heldOut).size !== heldOut.length || heldOut.some((file) => !sources.has(file))) {
+    throw new Error('Invalid held-out benchmark file list.');
+  }
+  for (const [file, text] of sources) {
+    const lines = text.split('\n').length;
+    const spans = spansFor(file, text);
+    const seen = new Set();
+    for (const row of labels.files[file]) {
+      const key = `${row.line}:${row.column ?? ''}`;
+      if (!validVerdict(row) || !Number.isInteger(row.line) || row.line < 1 || row.line > lines
+        || (row.target_line != null && (!Number.isInteger(row.target_line) || row.target_line < 1 || row.target_line > lines))
+        || (row.column != null && (!Number.isInteger(row.column) || row.column < 1))
+        || typeof row.what !== 'string' || !row.what.trim() || seen.has(key)
+        || (row.tag && !labelledElement(spans, row))) {
+        throw new Error(`Invalid or stale benchmark label at ${file}:${key}.`);
+      }
+      seen.add(key);
     }
-    const src = lineOf(file, l.line);
-    const field = /<(input|textarea|select)\b(?![^>]*type=["'](checkbox|radio|submit|button|hidden))/i.test(src) || /<([\w-]*(input|text-?area)|[\w.]*(Input|TextArea|Textarea))(?=[\s>/]|$)/.test(src);
-    const tag = src.match(/<([A-Z][\w.]*)/)?.[1]?.split('.').pop();
-    let how = null;
-    if (here.some((x) => x.confidence === 'high')) how = 'site';
-    else if (here.length) how = 'site-low';
-    else if (field) how = 'config';
-    else if (tag && scan.candidates.some((c) => c.component === tag && c.sites)) how = 'child';
-    else if (lineHits.some((h) => h.file === file && Math.abs(h.line - l.line) <= 1)) how = 'line';
-    rows.push({ file, ...l, how });
   }
 }
-const pct = (n, d) => (d ? `${Math.round((100 * n) / d)}%` : '-');
-const share = (list, hows) => pct(list.filter((r) => hows.includes(r.how)).length, list.length);
-const report = (name, list) => console.log(`${name.padEnd(12)} ${String(list.length).padStart(3)} labels: site or config ${share(list, ['site', 'config']).padStart(4)} | with low-confidence sites ${share(list, ['site', 'site-low', 'config']).padStart(4)} | with child units and line rules ${share(list, ['site', 'site-low', 'config', 'child', 'line']).padStart(4)}`);
-console.log(`${app}: ${scan.scanned_files} files scanned in ${(ms / 1000).toFixed(1)} s; schema files: ${(scan.schema_files || []).join(', ') || 'none'}`);
-report('all', rows);
-for (const c of ['secret', 'personal', 'third-party']) report(c, rows.filter((r) => r.category === c));
-report('agreed', rows.filter((r) => r.labellers === 2));
 
-// Precision in the sample: shown values that are not on any labelled element.
-const sample = new Set(Object.keys(labels.files));
-const sampleSites = sites.filter((s) => sample.has(s.file) && !/^prop /.test(s.kind));
-const elements = new Map();
-for (const s of sampleSites) {
-  const k = `${s.file}:${owner(s.file, s.line)}`;
-  const hit = labels.files[s.file].some((l) => onLabel(s.file, s.line, l));
-  const prev = elements.get(k);
-  elements.set(k, { hit: hit || prev?.hit, high: s.confidence === 'high' || prev?.high, s });
+function pointsByFile(candidates) {
+  const points = new Map();
+  for (const candidate of candidates) {
+    const file = portable(candidate.file);
+    if (!points.has(file)) points.set(file, []);
+    const list = points.get(file);
+    for (const site of candidate.sites || []) list.push({ ...site, signal: site.confidence === 'high' ? 'site' : 'site-low' });
+    for (const hit of candidate.sites ? candidate.merged || [] : [candidate]) {
+      list.push({ line: hit.line, signal: 'rule' });
+    }
+  }
+  return points;
 }
-const els = [...elements.values()];
-console.log(`sample elements flagged: ${els.length}, on a label ${pct(els.filter((e) => e.hit).length, els.length)}; high ${els.filter((e) => e.high).length} (${pct(els.filter((e) => e.high && e.hit).length, els.filter((e) => e.high).length)} on a label)`);
 
-// Residue across the app: low-confidence sites a model would decide.
-const low = sites.filter((s) => s.confidence === 'low');
-console.log(`app: ${sites.length} sites, ${low.length} low confidence in ${new Set(low.map((s) => s.unit)).size} units`);
-for (const r of rows.filter((x) => !x.how)) console.log(`  missed ${r.file.split('/').pop()}:${r.line} [${r.category}] ${r.what.slice(0, 80)}`);
-for (const r of rows.filter((x) => /child|line|site-low/.test(x.how || ''))) console.log(`  ${r.how.padEnd(8)} ${r.file.split('/').pop()}:${r.line} [${r.category}] ${r.what.slice(0, 80)}`);
+function detection(label, target, points, spans) {
+  const exact = points.filter((p) => {
+    if (!target) return p.line === label.line;
+    if (p.element != null) return p.element === target[5];
+    if (p.offset != null) {
+      const owner = spans.filter((el) => p.offset >= el[5] && p.offset < el[6]).sort((a, b) => b[5] - a[5])[0];
+      return owner === target;
+    }
+    const onLine = spans.filter(([start, open]) => p.line >= start && p.line <= open);
+    return onLine.length === 1 && onLine[0] === target;
+  });
+  const best = (hits) => ['site', 'site-low', 'rule'].find((signal) => hits.some((p) => p.signal === signal)) || null;
+  const nearby = points.filter((p) => Math.abs(p.line - label.line) <= 1
+    || (target && p.line >= target[0] && p.line <= target[2]));
+  return { exact: best(exact), contextual: best(nearby) };
+}
 
-// Stage 5: annotations placed from high-confidence sites, without a model. A label is annotated when a
-// placed annotation's element holds it or sits inside it, when it is a text field that maskAllInputs
-// masks, or when it is a child component that has placed annotations of its own.
-// --session <dir>: score the final annotations of a scan session (placed and the agent's) instead.
-const sessionAt = process.argv.indexOf('--session');
-const placed = sessionAt > 0
-  ? { annotations: JSON.parse(fs.readFileSync(path.join(process.argv[sessionAt + 1], 'annotations.json'), 'utf8')).annotations, placed: new Map(), review: new Map() }
-  : placeAnnotations(scan, source, { sdk: 'rrweb', annotate: 'rrweb' });
-const annEls = placed.annotations.map((a) => {
-  const el = spans(a.file).filter(([st, open, , tag]) => a.line >= st && a.line <= open && `<${tag}` === a.match).sort((x, y) => (x[2] - x[0]) - (y[2] - y[0]))[0];
-  return { ...a, start: el ? el[0] : a.line, end: el ? el[2] : a.line };
-});
-const annotatedFiles = new Set(annEls.map((a) => a.file));
-const compFile = new Map(scan.candidates.filter((c) => c.sites).map((c) => [c.component, c.file]));
-const reviewLines = new Map();
-for (const [id, ls] of placed.review) { const c = scan.candidates.find((x) => x.id === id); reviewLines.set(c.file, [...(reviewLines.get(c.file) || []), ...ls]); }
-const outcome = rows.map((r) => {
-  const el = spans(r.file).filter(([st]) => st === r.line).sort((x, y) => (y[2] - y[0]) - (x[2] - x[0]))[0];
-  const end = el ? el[2] : r.line;
-  const on = annEls.some((a) => a.file === r.file && ((r.line >= a.start && r.line <= a.end) || (a.start >= r.line && a.start <= end)));
-  const tag = lineOf(r.file, r.line).match(/<([A-Z][\w.]*)/)?.[1]?.split('.').pop();
-  const child = tag && compFile.has(tag) && annotatedFiles.has(compFile.get(tag));
-  const later = (reviewLines.get(r.file) || []).some((x) => x >= r.line - 1 && x <= end);
-  const field = /<(input|textarea|select)\b(?![^>]*type=["'](checkbox|radio|submit|button|hidden))/i.test(lineOf(r.file, r.line)) || /<([\w-]*(input|text-?area)|[\w.]*(Input|TextArea|Textarea))(?=[\s>/]|$)/.test(lineOf(r.file, r.line));
-  return { ...r, placedHow: on ? 'annotated' : r.how === 'config' || field ? 'config' : child ? 'child' : later ? 'review' : null };
-});
-const sh = (list, hows) => pct(list.filter((r) => hows.includes(r.placedHow)).length, list.length);
-const preport = (name, list) => console.log(`${name.padEnd(12)} ${String(list.length).padStart(3)} labels: annotated or config ${sh(list, ['annotated', 'config']).padStart(4)} | with child annotations ${sh(list, ['annotated', 'config', 'child']).padStart(4)} | left for review ${sh(list, ['review']).padStart(4)}`);
-console.log(`\n${sessionAt > 0 ? 'session annotations' : `placed${answersAt > 0 ? ' with the answers' : ' without a model'}`}: ${placed.annotations.length} annotations in ${annotatedFiles.size} files; units fully placed ${[...placed.placed.keys()].filter((id) => !placed.review.has(id)).length}, with lines for review ${placed.review.size}`);
-preport('all', outcome);
-for (const c of ['secret', 'personal', 'third-party']) preport(c, outcome.filter((r) => r.category === c));
-const sampleAnns = annEls.filter((a) => sample.has(a.file));
-const onLabel2 = (a) => labels.files[a.file].some((l) => { const el = spans(a.file).filter(([st]) => st === l.line)[0]; const end = el ? el[2] : l.line; return (l.line >= a.start && l.line <= a.end) || (a.start >= l.line && a.start <= end); });
-console.log(`sample annotations: ${sampleAnns.length}, on or inside a labelled element ${pct(sampleAnns.filter(onLabel2).length, sampleAnns.length)}`);
-for (const r of outcome.filter((x) => !x.placedHow)) console.log(`  not annotated ${r.file.split('/').pop()}:${r.line} [${r.category}] ${r.what.slice(0, 70)}`);
-if (process.argv.includes('--over')) for (const a of sampleAnns.filter((x) => !onLabel2(x))) console.log(`  unlabelled ${a.file.split('/').pop()}:${a.line} ${a.match} ${a.value} ${a.data.slice(0, 70)}`);
+function projection(scanner, sources, annotations, style) {
+  const edits = new Map();
+  const rejected = [];
+  const accepted = [];
+  const byFile = new Map();
+  for (const annotation of annotations) {
+    const file = portable(annotation.file);
+    if (!sources.has(file)) continue;
+    if (!byFile.has(file)) byFile.set(file, []);
+    byFile.get(file).push({ ...annotation, file });
+  }
+  for (const [file, proposals] of byFile) {
+    if (scanner.applyAnnotations) {
+      const result = scanner.applyAnnotations(file, sources.get(file), proposals, style);
+      edits.set(file, result.text);
+      accepted.push(...result.effects);
+      rejected.push(...result.failed.map(({ line, reason }) => ({ file, line, reason })));
+    } else {
+      // Scanner versions before batch patching used the single-edit helper.
+      const lines = sources.get(file).split('\n');
+      for (const annotation of proposals) {
+        const reason = scanner.applyAnnotation(lines, annotation, style);
+        if (reason) rejected.push({ file, line: annotation.line, reason });
+        else accepted.push(annotation);
+      }
+      edits.set(file, lines.join('\n'));
+    }
+  }
+  return { after: edits, accepted, rejected };
+}
+
+function automaticAnnotations(scanner, scan, source, style) {
+  const { annotations } = scanner.placeAnnotations(scan, source, { sdk: 'rrweb', annotate: style });
+  // The normal find command also includes candidates decided by automatic line rules.
+  return [...annotations, ...scan.candidates.filter((c) => c.auto).map(({ file, auto }) => ({
+    file, line: auto.line, match: auto.match, value: auto.value, category: auto.category,
+  }))];
+}
+
+// Read back the result of applying the diff to a temporary index. The source
+// checkout and its real index stay untouched.
+function applyPatch(source, temp, patch, files) {
+  const env = { ...process.env, GIT_INDEX_FILE: path.join(temp, 'benchmark.index') };
+  git(source, ['read-tree', 'HEAD'], env);
+  git(source, ['apply', '--cached', patch], env);
+  return new Map([...files].map((file) => [file, git(source, ['show', `:${file}`], env)]));
+}
+
+function preparePatch({ source, sources, scanner, scan, session, temp }) {
+  let style = 'rrweb';
+  let annotations;
+  let failed = [];
+  const patch = path.join(temp, 'privacy.patch');
+  try {
+    if (session) {
+      for (const file of ['annotations.json', 'candidates.json']) fs.copyFileSync(path.join(session, file), path.join(temp, file));
+      const saved = json(path.join(temp, 'candidates.json'));
+      if (fs.realpathSync(saved.target.root) !== source) throw new Error('Benchmark session belongs to a different source tree.');
+      style = saved.annotate || 'data-privacy';
+      annotations = json(path.join(temp, 'annotations.json')).annotations;
+      execFileSync(process.execPath, [CLI, 'patch', '--out', temp], { stdio: 'pipe' });
+    } else {
+      const projected = projection(scanner, sources, automaticAnnotations(scanner, scan, source, style), style);
+      annotations = projected.accepted;
+      failed = projected.rejected;
+      const diff = [...projected.after].map(([file, after]) => {
+        const before = sources.get(file);
+        return before === after ? '' : scanner.unifiedDiff(file, before, after);
+      }).join('');
+      fs.writeFileSync(patch, diff);
+    }
+    if (!fs.statSync(patch).size) return { application: 'empty', style, annotations, failed, after: sources };
+    return { application: 'applied', style, annotations, failed, after: applyPatch(source, temp, patch, sources.keys()) };
+  } catch (error) {
+    const message = error.stderr?.toString().trim() || error.message;
+    return { application: 'failed', style, annotations: [], failed: [...failed, { reason: message }] };
+  }
+}
+
+const total = (rows, predicate) => rows.filter(predicate).length;
+const covered = (value) => ['matched', 'over-treated'].includes(value);
+
+function stats(rows) {
+  const priv = rows.filter((row) => row.category !== 'public');
+  const pub = rows.filter((row) => row.category === 'public');
+  return {
+    private_labels: priv.length,
+    public_labels: pub.length,
+    detected_exact: total(priv, (row) => row.detection.exact),
+    detected_contextual: total(priv, (row) => row.detection.exact || row.detection.contextual),
+    placed_exact: total(priv, (row) => row.placement === 'exact'),
+    placed_ancestor: total(priv, (row) => row.placement === 'ancestor'),
+    treated_exact: total(priv, (row) => row.exact_treatment === 'matched'),
+    treated_correctly: total(priv, (row) => row.treatment === 'matched'),
+    stronger_treatment: total(priv, (row) => row.treatment === 'over-treated'),
+    insufficient_treatment: total(priv, (row) => row.treatment === 'insufficient'),
+    static_covered: total(priv, (row) => covered(row.static)),
+    private_unverified: total(priv, (row) => !row.target_verified),
+    public_detected_exact: total(pub, (row) => row.detection.exact),
+    public_treated: total(pub, (row) => row.static === 'over-treated'),
+    public_unverified: total(pub, (row) => !row.target_verified),
+  };
+}
+
+export function measureRows({ labels, sources, scan, patch, split }) {
+  validateLabels(labels, sources);
+  const points = pointsByFile(scan.candidates);
+  const heldOut = new Set(labels.held_out || []);
+  const sample = new Set([...sources.keys()].filter((file) => !split || (split === 'held-out') === heldOut.has(file)));
+  if (!sample.size) throw new Error(`No benchmark files for split ${split}.`);
+  const rows = [];
+  for (const file of sample) {
+    const source = sources.get(file);
+    const spans = spansFor(file, source);
+    const measured = measureTreatments({
+      file, source, labels: labels.files[file], annotations: patch.annotations, style: patch.style,
+      patchReady: patch.application !== 'failed', editedSource: patch.after?.get(file),
+    });
+    for (const row of measured.rows) {
+      const { covering, ...outcome } = row;
+      rows.push({
+        file, split: heldOut.has(file) ? 'held-out' : 'development', ...outcome,
+        detection: detection(row, labelledElement(spans, row), points.get(file) || [], spans),
+      });
+    }
+  }
+  const groups = {};
+  for (const partition of SPLITS) {
+    const inSplit = rows.filter((row) => row.split === partition);
+    if (inSplit.length) groups[partition] = Object.fromEntries([
+      ['all', stats(inSplit)],
+      ...CATEGORIES.map((category) => [category, stats(inSplit.filter((row) => row.category === category))]),
+    ]);
+  }
+  return { rows, groups, review: summarizeReviews(labels, sample) };
+}
+
+function readSources(source, labels) {
+  return new Map(Object.keys(labels.files).map((file) => {
+    const actual = path.resolve(source, file);
+    if (portable(path.relative(source, actual)) !== file || fs.realpathSync(actual) !== actual) {
+      throw new Error(`Benchmark file must be inside the pinned checkout: ${file}`);
+    }
+    const tracked = git(source, ['ls-files', '-v', '--', file]).trim();
+    if (!tracked.startsWith('H ')) throw new Error(`Benchmark file must be tracked and present: ${file}`);
+    return [file, fs.readFileSync(actual, 'utf8')];
+  }));
+}
+
+export async function measureApp({ source, labels, scannerRoot, answers, session, split }) {
+  source = fs.realpathSync(source);
+  const revision = assertLabelRevision(source, labels.commit);
+  if (fs.realpathSync(git(source, ['rev-parse', '--show-toplevel']).trim()) !== source) {
+    throw new Error('Benchmark source must be the root of the pinned Git checkout.');
+  }
+  const sources = readSources(source, labels);
+  validateLabels(labels, sources);
+  const scanner = await loadScanner(scannerRoot);
+  const started = Date.now();
+  const scan = scanner.find(source);
+  if (answers) scanner.applyAnswers(scan, json(answers));
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-measure-'));
+  try {
+    const patch = preparePatch({ source, sources, scanner, scan, session, temp });
+    const measured = measureRows({ labels, sources, scan, patch, split });
+    return {
+      app: labels.app,
+      scanner: scanner.metadata,
+      recorder_version: 'unknown',
+      revision,
+      scanned_files: scan.scanned_files,
+      scanned_lines: scan.scanned_lines,
+      elapsed_ms: Date.now() - started,
+      patch_application: patch.application,
+      patch_scope: session ? 'full-session' : 'sample-files',
+      placement_failures: patch.failed,
+      replay: 'unmeasured',
+      ...measured,
+    };
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+}
+
+const KEEP = ['detected_exact', 'placed_exact', 'treated_exact', 'treated_correctly', 'static_covered'];
+const REDUCE = ['public_detected_exact', 'public_treated'];
+
+export function regressions(current, baseline) {
+  const identity = (report) => JSON.stringify(report.rows.map(({ file, line, column, target_line, tag, category, value, split }) => (
+    [file, line, column, target_line, tag, category, value, split]
+  )));
+  if (baseline.patch_application === 'failed') throw new Error('Cannot compare against a failed benchmark.');
+  if (current.app !== baseline.app || current.revision !== baseline.revision
+    || current.patch_scope !== baseline.patch_scope || identity(current) !== identity(baseline)) {
+    throw new Error('Cannot compare different benchmark revisions, labels, or scopes.');
+  }
+  const drops = [];
+  for (const [split, groups] of Object.entries(current.groups)) {
+    for (const category of CATEGORIES) {
+      const now = groups[category];
+      const prior = baseline.groups[split][category];
+      for (const field of KEEP) if (now[field] < prior[field]) drops.push(`${split}/${category} ${field} ${prior[field]} -> ${now[field]}`);
+      for (const field of REDUCE) if (now[field] > prior[field]) drops.push(`${split}/${category} ${field} ${prior[field]} -> ${now[field]}`);
+    }
+  }
+  return drops;
+}
+
+const pct = (n, d) => (d ? `${Math.round((100 * n) / d)}%` : '-');
+
+function format(report, over) {
+  const lines = [
+    `Scanner ${report.scanner?.version || 'unknown'}, implementation ${report.scanner?.implementation_sha256 || 'unknown'}; recorder version unknown.`,
+    `${report.app || 'sample'} ${report.revision}: ${report.scanned_files} files scanned in ${(report.elapsed_ms / 1000).toFixed(1)} s`,
+    `Review: ${report.review.status}; ${report.review.human_submissions} human and ${report.review.model_submissions} model submissions; ${report.review.agreed} agreements (${report.review.human_agreed} between humans); ${report.review.disagreements.length} disagreements, ${report.review.unresolved} unresolved`,
+  ];
+  for (const [split, groups] of Object.entries(report.groups)) {
+    const s = groups.all;
+    lines.push(
+      `\n${split}: ${s.private_labels} private and ${s.public_labels} public labels`,
+      `  Detection: exact ${s.detected_exact}/${s.private_labels}, contextual ${s.detected_contextual}/${s.private_labels}, public flags ${s.public_detected_exact}/${s.public_labels}`,
+      `  Placement: ${s.placed_exact} exact destinations, ${s.placed_ancestor} ancestor placements`,
+      `  Treatment: exact treatment ${pct(s.treated_exact, s.private_labels)} (${s.treated_exact}/${s.private_labels}); correct at target or ancestor ${s.treated_correctly}; stronger ${s.stronger_treatment}; insufficient ${s.insufficient_treatment}`,
+      `  Static source coverage: ${s.static_covered}/${s.private_labels} private covered, ${s.public_treated}/${s.public_labels} public treated; unresolved destinations ${s.private_unverified} private, ${s.public_unverified} public`,
+    );
+    if (over) for (const row of report.rows.filter((r) => r.split === split
+      && (r.category === 'public' ? r.static === 'over-treated' : r.exact_treatment !== 'matched'))) {
+      lines.push(`  ${row.file}:${row.line} [${row.category}/${row.value}] ${row.static || 'unverified'} ${row.what}`);
+    }
+  }
+  if (report.patch_scope === 'full-session') {
+    lines.push(report.patch_application === 'failed'
+      ? 'Patch application: session patch failed validation'
+      : report.patch_application === 'applied'
+        ? 'Patch application: session patch passed Git application check in an isolated index'
+        : 'Patch application: session generated an empty patch');
+  } else {
+    lines.push(`Patch application: ${report.patch_application} for labelled sample files`);
+  }
+  lines.push(`Rejected placement attempts: ${report.placement_failures.length}`, 'Replay coverage: unmeasured');
+  for (const regression of report.regressions || []) lines.push(`Regression: ${regression}`);
+  return lines.join('\n');
+}
+
+async function main([app, source, ...args]) {
+  if (!app || !source) throw new Error('Usage: measure.mjs <app> <source> [--split development|held-out] [--json] [--compare <report>] [--session <directory>]');
+  const options = {};
+  for (let i = 0; i < args.length; i++) {
+    const option = args[i];
+    if (['--json', '--over'].includes(option)) options[option] = true;
+    else if (['--answers', '--session', '--split', '--compare', '--scanner-root'].includes(option) && args[i + 1] && !args[i + 1].startsWith('--')) options[option] = args[++i];
+    else throw new Error(`Invalid option: ${option}`);
+  }
+  if (options['--split'] && !SPLITS.includes(options['--split'])) throw new Error('Unknown benchmark split.');
+  if (options['--session'] && (options['--scanner-root'] || options['--answers'])) {
+    throw new Error('A saved benchmark session supplies its own scanner and answers.');
+  }
+  const labels = json(path.join(HERE, app, 'labels.json'));
+  const result = await measureApp({
+    labels, source, scannerRoot: options['--scanner-root'], session: options['--session'],
+    answers: options['--answers'], split: options['--split'],
+  });
+  if (options['--compare']) result.regressions = regressions(result, json(options['--compare']));
+  console.log(options['--json'] ? JSON.stringify(result, null, 2) : format(result, options['--over']));
+  if (result.patch_application === 'failed' || result.regressions?.length) process.exitCode = 1;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try { await main(process.argv.slice(2)); }
+  catch (error) { console.error(error.message); process.exitCode = 1; }
+}

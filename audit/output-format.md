@@ -5,7 +5,7 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory. When you f
 1. the disclaimer from the Responsibility section of `AGENTS.md`, word for word
 2. counts by kind, severity and verdict
 3. the privacy findings that leak under `targeted` or `strictest`
-4. the gap reports from step 9 with their issue URLs. For reports that you did not file, give their paths and a note that the implementer must file them.
+4. the local feedback draft paths from step 9 and the URLs of any issues already filed.
 
 ## Top level
 
@@ -41,7 +41,7 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory. When you f
     { "issue": 12, "pattern": "FB-12", "result": "F3" }
   ],
   "feedback_sent": [
-    { "kind": "missed-leak", "title": "missed-leak: async image load writes pixels into an emitted blocked node", "filed": true, "url": "https://github.com/privacy-attribute/spec/issues/31", "path": null, "reason": null }
+    { "kind": "unclear-instruction", "title": "unclear-instruction: browser path on Linux", "filed": true, "url": "https://github.com/privacy-attribute/spec/issues/31", "path": null, "reason": null }
   ],
   "pattern_coverage": [
     { "pattern": "P-pin-pad", "configs": ["strictest", "strictest-block", "default-core"], "result": "F1, F4" }
@@ -74,7 +74,7 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory. When you f
     "src/record/mutations.ts:205 calls maskAttribute only when name === 'value'",
     "src/record/mutations.ts:214 pushes { id, attributes: { title } } into the mutation record"
   ],
-  "masking_checked": "maskAttribute (src/record/mask.ts:40) runs only for value; maskText covers text nodes only",
+  "masking_checked": "maskAttribute (src/record/mask.ts:40) runs only for value. maskText covers text nodes only",
   "leaks_under": ["default-core", "default-cloud-client", "strictest"],
   "safe_under": [],
   "severity": "high",
@@ -119,7 +119,7 @@ Write one JSON file, `privacy-audit.json`, in your scratch directory. When you f
 | `disclaimer` | Required. The full disclaimer text from the Responsibility section of `AGENTS.md`, word for word. |
 | `audit_source` | The link or path that you read the instructions from. |
 | `feedback_applied` | One row for each accepted feedback issue that you tested, with its `FB-` pattern id and the finding ids or `no finding`. Empty if there was no accepted feedback or the fetch failed (write which in `method_note`). |
-| `feedback_sent` | One row for each report from step 9. `filed` is `true` with the issue or comment `url`, or `false` with the local `path` and the `reason` (failed, no permission, user declined, dry run). |
+| `feedback_sent` | One row for each report already shared in step 9. Set `filed` to `true` and give the issue or comment `url`. Give local draft paths in the prose summary. |
 | `method_note`, `pattern_coverage` | Required. `pattern_coverage` has one row for each `patterns.yaml` id, with the configs that you ran and the finding ids or `no finding`. |
 | `coverage[].table` | Optional. Put result tables for each type or config (such as the `P-input-types` matrix) on the coverage row of their leak class. |
 | `severity` | `critical`, `high`, `medium` or `low`, as the table in `AGENTS.md` gives. |

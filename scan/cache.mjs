@@ -1,9 +1,9 @@
-// Decisions cache: .privacy-scan/decisions.json in the scanned repository. It records, for each
-// reviewed file, the file's hash after the patch and the decision for each unit. A later scan skips
-// files whose hash is unchanged, so only new and changed code costs review time.
+// Reuse completed decisions only when the scanner, policy and full source
+// snapshot agree. Source changes invalidate dependent decisions conservatively.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { files as sourceFiles } from './find.mjs';
 
 export const CACHE_PATH = path.join('.privacy-scan', 'decisions.json');
 const hash = (text) => crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
@@ -20,26 +20,59 @@ export function loadCache(top) {
   }
 }
 
-// Marks units in unchanged files as cached, and attaches earlier decisions to units in changed files.
-export function applyCache(result, cache, root, top) {
-  const stats = { files_skipped: 0, units_skipped: 0 };
-  if (!cache?.files) return stats;
-  const byFile = new Map();
-  for (const c of result.candidates) {
-    if (!byFile.has(c.file)) byFile.set(c.file, []);
-    byFile.get(c.file).push(c);
+// Until symbol dependencies are resolved, invalidate on any source/schema change.
+// This trades some repeat-review cost for correct dependency invalidation.
+export function sourceSnapshot(root, top, after = new Map()) {
+  const paths = new Set(sourceFiles(top));
+  const dataFiles = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || /^(node_modules|vendor|dist|build|coverage)$/.test(entry.name)) continue;
+      const abs = path.join(directory, entry.name);
+      if (entry.isDirectory()) dataFiles(abs);
+      else if (entry.isFile() && /\.(json|ya?ml|graphql|gql|mdx|prisma|rb)$/.test(entry.name)) paths.add(abs);
+    }
+  };
+  dataFiles(top);
+  for (const name of ['package.json', 'package-lock.json', 'bun.lock', 'pnpm-lock.yaml', 'yarn.lock', 'tsconfig.json', 'jsconfig.json']) {
+    const abs = path.join(top, name);
+    if (fs.existsSync(abs)) paths.add(abs);
   }
-  for (const [file, units] of byFile) {
+  return Object.fromEntries([...paths].sort().map((abs) => [posix(path.relative(top, abs)), hash(after.get(abs) ?? fs.readFileSync(abs))]));
+}
+
+export function scannerRevision() {
+  const names = fs.readdirSync(new URL('.', import.meta.url)).filter((f) => /\.(mjs|md)$/.test(f));
+  for (const file of fs.readdirSync(new URL('./recorders/', import.meta.url))) if (file.endsWith('.md')) names.push(`recorders/${file}`);
+  names.push('../package.json', '../npm-shrinkwrap.json');
+  if (fs.existsSync(new URL('../spec/core.md', import.meta.url))) names.push('../spec/core.md');
+  return hash(JSON.stringify(names.sort().map((f) => [f, hash(fs.readFileSync(new URL(f, import.meta.url)))])));
+}
+
+export function cacheContext(scan, snapshot = scan.source_hashes) {
+  return hash(JSON.stringify({ implementation: scannerRevision(), version: scan.scan_version, sdk: scan.sdk, annotate: scan.annotate, root: scan.target?.root, include: scan.include, snapshot }));
+}
+
+export function applyCache(result, cache, root, top) {
+  const stats = { files_skipped: 0, units_skipped: 0, valid: false };
+  if (!cache?.files) return stats;
+  stats.valid = cache.version === 2 && cache.scan_version === result.scan_version && Boolean(result.source_hashes) && cache.context === cacheContext(result);
+  for (const file of new Set(result.candidates.map((c) => c.file))) {
+    const units = result.candidates.filter((c) => c.file === file);
     const entry = cache.files[posix(path.relative(top, path.join(root, file)))];
     if (!entry) continue;
     const current = hash(fs.readFileSync(path.join(root, file), 'utf8'));
     const earlier = new Map(entry.units.map((u) => [u.fingerprint, u]));
-    if (current === entry.hash) {
-      stats.files_skipped++;
-      for (const c of units) { c.cached = earlier.get(fingerprint(c)) || { decision: 'dismiss', reason: 'file unchanged since the last scan' }; stats.units_skipped++; }
-    } else {
-      for (const c of units) if (earlier.has(fingerprint(c))) c.earlier = earlier.get(fingerprint(c));
+    const counts = new Map();
+    for (const unit of units) counts.set(fingerprint(unit), (counts.get(fingerprint(unit)) || 0) + 1);
+    let skipped = 0;
+    for (const c of units) {
+      if (counts.get(fingerprint(c)) !== 1 || entry.units.filter((u) => u.fingerprint === fingerprint(c)).length !== 1) continue;
+      const decision = earlier.get(fingerprint(c));
+      if (!decision || !['annotate', 'dismiss', 'settled'].includes(decision.decision) || decision.reason === 'not reviewed') continue;
+      if (stats.valid && current === entry.hash) { c.cached = decision; stats.units_skipped++; skipped++; }
+      else c.earlier = decision;
     }
+    if (skipped === units.length) stats.files_skipped++;
   }
   return stats;
 }
@@ -47,7 +80,7 @@ export function applyCache(result, cache, root, top) {
 // Builds the new cache from the earlier one, this scan and its decisions. `after` maps absolute
 // paths of patched files to their content after the patch.
 export function buildCache({ cache, scan, decisions, after, root, top, version }) {
-  const files = { ...(cache?.files || {}) };
+  const files = {};
   const annotatedBy = new Map();
   for (const a of decisions.annotations || []) for (const id of a.candidates || []) annotatedBy.set(id, a);
   const dismissed = decisions.dismissed || {};
@@ -63,16 +96,17 @@ export function buildCache({ cache, scan, decisions, after, root, top, version }
       hash: hash(text),
       units: units.map((c) => {
         if (c.cached) return { fingerprint: fingerprint(c), ...c.cached };
-        if (c.settled) return { fingerprint: fingerprint(c), decision: 'dismiss', reason: c.settled };
         const a = annotatedBy.get(c.id);
         if (a) return { fingerprint: fingerprint(c), decision: 'annotate', value: a.value, category: a.category, reason: (a.data || '').slice(0, 160) };
-        return { fingerprint: fingerprint(c), decision: 'dismiss', reason: (dismissed[c.id] || 'not reviewed').slice(0, 160) };
-      }),
+        if (dismissed[c.id]) return { fingerprint: fingerprint(c), decision: 'dismiss', reason: dismissed[c.id].slice(0, 160) };
+        if (c.settled) return { fingerprint: fingerprint(c), decision: 'settled', reason: c.settled };
+        return null;
+      }).filter(Boolean),
     };
   }
-  // Answers about unknown sources hold for the whole app, so a later scan does not ask again.
-  const answers = { ...(cache?.answers || {}), ...(decisions.answers || {}) };
-  return { version: 1, scan_version: version, ...(Object.keys(answers).length ? { answers } : {}), files };
+  // Answers are reusable only for the matching dependency snapshot and policy.
+  const answers = { ...(scan.cache?.valid ? cache?.answers : {}), ...(decisions.answers || {}) };
+  return { version: 2, context: cacheContext({ ...scan, scan_version: version }, sourceSnapshot(root, top, after)), scan_version: version, ...(Object.keys(answers).length ? { answers } : {}), files };
 }
 
 // A diff that creates or replaces the cache file.

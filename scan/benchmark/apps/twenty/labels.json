@@ -1,0 +1,251 @@
+{
+  "app": "twenty",
+  "repo": "https://github.com/twentyhq/twenty",
+  "commit": "0036a6f7f9d3d5112d03c9c3f142f66c09224ff7",
+  "held_out": [
+    "packages/twenty-front/src/modules/settings/developers/components/ApiKeyNameInput.tsx",
+    "packages/twenty-front/src/modules/ui/field/display/components/LinksDisplay.tsx",
+    "packages/twenty-front/src/modules/ui/field/display/components/internal/ContactLink/ContactLink.tsx"
+  ],
+  "review": {
+    "status": "model-draft",
+    "note": "Expected labels from one independent model source review. The original submission is retained separately. These sample anchors include component props as well as native JSX and do not establish recorder behavior."
+  },
+  "files": {
+    "packages/twenty-front/src/modules/object-record/record-field/ui/meta-types/input/components/EmailsFieldInput.tsx": [
+      {
+        "line": 243,
+        "tag": "MultiItemFieldSaveButton",
+        "channel": "conditional",
+        "category": "public",
+        "value": "none",
+        "what": "Add or save email icon control.",
+        "rationale": "The button uses a fixed localized action label and icon in MultiItemFieldSaveButton. The input row renders this control separately from the value-bearing field."
+      },
+      {
+        "line": 254,
+        "target_line": 250,
+        "tag": "MultiItemFieldTextInput",
+        "channel": "prop:value",
+        "category": "third-party",
+        "value": "mask",
+        "what": "Draft CRM email address in the add/edit field.",
+        "rationale": "EmailsFieldInput initializes email items from useEmailsField draft values and commits edits back into the record field. MultiItemFieldTextInput forwards the value to its input."
+      },
+      {
+        "line": 269,
+        "target_line": 265,
+        "tag": "MultiItemFieldList",
+        "channel": "prop:searchFilter",
+        "category": "personal",
+        "value": "mask",
+        "what": "Search text typed by the operator to filter existing record email items.",
+        "rationale": "MultiItemFieldList passes the query to MultiItemFieldSearchHeader, which passes it to OverlayMenuListSearchRow. The latter renders the value in a styled native input."
+      },
+      {
+        "line": 275,
+        "target_line": 274,
+        "tag": "MultiItemFieldAddButton",
+        "channel": "prop:label",
+        "category": "public",
+        "value": "none",
+        "what": "Localized Add Email control caption.",
+        "rationale": "The label is a fixed translation. MultiItemFieldAddButton renders it separately from email values."
+      },
+      {
+        "line": 297,
+        "target_line": 291,
+        "tag": "EmailsFieldMenuItem",
+        "channel": "prop:email",
+        "category": "third-party",
+        "value": "block",
+        "what": "Existing CRM email shown in the editor's item list.",
+        "rationale": "The menu item passes the stored address to EmailDisplay. Its valid-email branch renders both the address text and a mailto href. Protect the link without covering item action labels."
+      }
+    ],
+    "packages/twenty-front/src/modules/object-record/record-field/ui/meta-types/input/components/MultiItemFieldTextInput.tsx": [
+      {
+        "line": 62,
+        "target_line": 57,
+        "tag": "Input",
+        "channel": "prop:value",
+        "category": "third-party",
+        "value": "mask",
+        "what": "Live email editor value when called from EmailsFieldInput.",
+        "rationale": "The Twenty UI Input wrapper spreads the value to the Base UI InputPrimitive. The shared primitive also serves other callers, so the treatment follows the record email use."
+      }
+    ],
+    "packages/twenty-front/src/modules/settings/developers/components/ApiKeyInput.tsx": [
+      {
+        "line": 29,
+        "target_line": 27,
+        "tag": "SettingsTextInput",
+        "channel": "prop:value",
+        "category": "secret",
+        "value": "block",
+        "what": "Generated workspace API key token displayed as the field value.",
+        "rationale": "The key detail page passes the generated apiKeyToken. SettingsTextInput spreads props into TextInput, which assigns value to its styled input. The adjacent Copy button can stay visible."
+      },
+      {
+        "line": 38,
+        "target_line": 33,
+        "tag": "Button",
+        "channel": "text",
+        "category": "public",
+        "value": "none",
+        "what": "Localized Copy button caption and icon.",
+        "rationale": "The credential appears only in the adjacent field and is read by the click handler. The button's rendered content is a fixed icon and caption."
+      }
+    ],
+    "packages/twenty-front/src/modules/settings/developers/components/ApiKeyNameInput.tsx": [
+      {
+        "line": 76,
+        "target_line": 71,
+        "tag": "SettingsTextInput",
+        "channel": "prop:value",
+        "category": "personal",
+        "value": "mask",
+        "what": "Workspace-defined API key name in the editable input.",
+        "rationale": "The key detail page initializes the name from the workspace API key record. This value describes an integration and is editable metadata."
+      }
+    ],
+    "packages/twenty-front/src/modules/ui/field/display/components/EmailDisplay.tsx": [
+      {
+        "line": 26,
+        "tag": "ContactLink",
+        "channel": "text",
+        "category": "third-party",
+        "value": "mask",
+        "what": "Existing CRM email text in the invalid-address fallback.",
+        "rationale": "The fallback renders the supplied address as text with a fixed hash href. It can still reveal a record value."
+      },
+      {
+        "line": 32,
+        "target_line": 31,
+        "tag": "ContactLink",
+        "channel": "prop:href",
+        "category": "third-party",
+        "value": "block",
+        "what": "Existing CRM email in the editor's mailto target.",
+        "rationale": "EmailsFieldMenuItem passes the existing record address to EmailDisplay. The valid branch builds a mailto target and ContactLink renders it on an anchor."
+      }
+    ],
+    "packages/twenty-front/src/modules/ui/field/display/components/EmailsDisplay.tsx": [
+      {
+        "line": 46,
+        "tag": "OverflowingList",
+        "channel": "prop:overflowLabel",
+        "category": "public",
+        "value": "none",
+        "what": "Localized overflow control label.",
+        "rationale": "Show all items is a fixed translation. The runtime count derived by OverflowingList is a separate value."
+      },
+      {
+        "line": 51,
+        "target_line": 48,
+        "tag": "RoundedLink",
+        "channel": "prop:href",
+        "category": "third-party",
+        "value": "block",
+        "what": "Primary or additional CRM email in a focused field's mailto link.",
+        "rationale": "The mapped addresses come from the record emails value. RoundedLink renders the mailto target on the anchor, including each copy rendered in the overflow popup."
+      },
+      {
+        "line": 62,
+        "target_line": 59,
+        "tag": "RoundedLink",
+        "channel": "prop:href",
+        "category": "third-party",
+        "value": "block",
+        "what": "Primary or additional CRM email in an unfocused field's mailto link.",
+        "rationale": "The unfocused renderer uses the same addresses as the focused renderer. RoundedLink forwards the mailto target to href."
+      }
+    ],
+    "packages/twenty-front/src/modules/ui/field/display/components/internal/ContactLink/ContactLink.tsx": [
+      {
+        "line": 47,
+        "target_line": 37,
+        "tag": "a",
+        "channel": "attribute:href",
+        "category": "third-party",
+        "value": "block",
+        "what": "Native mailto anchor for an existing address in the email field menu.",
+        "rationale": "The allowed protocol check preserves the address in the native href. Scope blocking to record email links because this renderer can receive other values."
+      }
+    ],
+    "packages/twenty-front/src/modules/ui/field/display/components/LinksDisplay.tsx": [
+      {
+        "line": 50,
+        "tag": "OverflowingList",
+        "channel": "prop:overflowLabel",
+        "category": "public",
+        "value": "none",
+        "what": "Localized label for opening the overflow control.",
+        "rationale": "The caption is independent of record data."
+      },
+      {
+        "line": 55,
+        "target_line": 53,
+        "tag": "SocialLink",
+        "channel": "prop:href",
+        "category": "third-party",
+        "value": "block",
+        "what": "Record-linked social profile URL, including company social links.",
+        "rationale": "The CRM field value is converted to an absolute URL. SocialLink passes it through RoundedLink to an anchor href, which can identify a profile."
+      },
+      {
+        "line": 63,
+        "target_line": 61,
+        "tag": "RoundedLink",
+        "channel": "prop:href",
+        "category": "third-party",
+        "value": "block",
+        "what": "Record-linked website URL, including the company domain field.",
+        "rationale": "The company's domainName is a LinksMetadata field. Even for a publicly reachable site, the stored URL exposes the CRM's record association and may carry a path or query."
+      }
+    ],
+    "packages/twenty-front/src/modules/ui/navigation/link/components/RoundedLink/RoundedLink.tsx": [
+      {
+        "line": 44,
+        "target_line": 43,
+        "tag": "a",
+        "channel": "attribute:href",
+        "category": "third-party",
+        "value": "block",
+        "what": "Native href receiving CRM contact or company link targets.",
+        "rationale": "The rendered Chip uses this anchor as its render element. getSafeUrl returns allowed URLs, including mailto, without redacting them. Apply the treatment for private callers."
+      },
+      {
+        "line": 52,
+        "tag": "span",
+        "channel": "text",
+        "category": "third-party",
+        "value": "mask",
+        "what": "Visible email, record link label, hostname or social profile label.",
+        "rationale": "Chip renders this child as content of the same anchor. A block on the private native anchor already protects this text."
+      }
+    ],
+    "packages/twenty-ui/src/components/layout/OverflowingList/OverflowingList.tsx": [
+      {
+        "line": 167,
+        "target_line": 165,
+        "tag": "Popover.Trigger",
+        "channel": "prop:aria-label",
+        "category": "third-party",
+        "value": "mask",
+        "what": "Overflow count in the accessible label for record field lists.",
+        "rationale": "hiddenItemCount is computed from the record's item count and visible capacity. Only the numeric portion derives from record data, and this shared primitive also serves other callers."
+      },
+      {
+        "line": 186,
+        "target_line": 165,
+        "tag": "Popover.Trigger",
+        "channel": "text",
+        "category": "third-party",
+        "value": "mask",
+        "what": "Visible overflow count for record email or link values.",
+        "rationale": "The displayed count encodes how many stored values overflow. Keep the control usable and preserve its fixed label where the recorder supports that."
+      }
+    ]
+  }
+}

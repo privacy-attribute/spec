@@ -3,6 +3,10 @@ description: For recorder maintainers. Report a privacy leak the SDK audit misse
 title: "<kind>: "
 labels: ["audit-feedback"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Use synthetic fixtures and values. Report recorder weaknesses privately as described in SECURITY.md.
   - type: dropdown
     id: kind
     attributes:

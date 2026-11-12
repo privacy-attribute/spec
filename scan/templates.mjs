@@ -5,8 +5,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse, parseExpression } from '@babel/parser';
-import { walk, idsIn, dataIdsIn, bindingNames, calleeName, secretIdentifier, categoryOf, personType, NON_DATA_HOOKS, DATA_HOOK, SECRET_NAME, DOM_DATA_ATTR, UNKNOWN_ORIGIN, CONFIG_HOOK, elementSpans } from './components.mjs';
+import { walk, idsIn, dataIdsIn, bindingNames, calleeName, secretIdentifier, categoryOf, personType, NON_DATA_HOOKS, DATA_HOOK, SECRET_NAME, DOM_DATA_ATTR, UNKNOWN_ORIGIN, CONFIG_HOOK, elementSpans, expressionSecret, strongestOrigin, markOrigin, isSecretOrigin, isSpecialOrigin, originCategory, controlDetails, componentImports, componentResolver, markSecretBindings, componentUsageKey, addComponentUse, browserStorageOrigin, fieldOrigin } from './components.mjs';
 import { schemaFieldIn, schemaPublicIn } from './schemas.mjs';
+import { specialCategoryName } from './rules.mjs';
 
 let SCHEMA = new Map();
 
@@ -17,7 +18,8 @@ const DATA_PROP = /^(user|users|contact|contacts|customer|member|members|person|
 const FLAG_NAME = /^(uiFlags|is[A-Z]\w*|has[A-Z]\w*|can[A-Z]\w*|should[A-Z]\w*|\w*(Flags?|Loading|Fetching|Enabled|Visible|Open|Count|Mode|Theme|Locale)$)/;
 // Object and array props that hold settings or UI state, not records.
 const CONFIG_PROP = /^(options?|config|settings|styles?|icons?|columns?|fields?|filters?|rules|validations?|i18n|labels?|translations?|tabs|menu\w*|actions?|buttons?|steps|sizes?|variants?|classes|theme|position|breakpoints?|items?Per\w*|pagination|meta|schema|layout|chartOptions|errors?|v\$|attrs|events|children|badges|dropdown\w*|\w*(Types|Keys|Options|Locales|Config|Settings|Columns|Filters))$/i;
-const SKIP_ATTR = /^(class|style|key|ref|is|id|v-if|v-else-if|v-show|slot|transition|in|out|animate|use|this)$/;
+const SKIP_ATTR = /^(class|style|key|ref|is|v-if|v-else-if|v-show|slot|transition|in|out|animate|use|this)$/;
+const CHOICE_STATE = /^(checked|defaultChecked|selected|aria-checked|aria-pressed|aria-selected)$/;
 
 const pascal = (s) => s.replace(/(^|[-_])(\w)/g, (_, __, c) => c.toUpperCase());
 const camel = (s) => s.replace(/-(\w)/g, (_, c) => c.toUpperCase());
@@ -25,19 +27,27 @@ const isComponentTag = (tag) => /^[A-Z]/.test(tag) || (tag.includes('-') && !/^(
 const lineAt = (text, offset) => text.slice(0, offset).split('\n').length;
 
 // Script blocks with their content and language.
-function scripts(text) {
-  return [...text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].map((m) => ({ ts: /lang=["']ts/.test(m[1]), code: m[2], start: m.index, end: m.index + m[0].length }));
+function scripts(file, text) {
+  const elements = markupSpans(file, text);
+  const component = file.endsWith('.vue') || file.endsWith('.svelte');
+  const out = [];
+  for (const [, , , tag, , start, end, codeStart] of elements) {
+    if (tag.toLowerCase() !== 'script' || (component && elements.some((el) => el[5] < start && end < el[6]))) continue;
+    const body = text.slice(codeStart, end);
+    const closing = body.match(/<\/script\s*>$/i);
+    if (!closing) continue;
+    out.push({ ts: /\blang\s*=\s*["']ts/.test(text.slice(start, codeStart)), code: body.slice(0, closing.index), start, end, codeStart });
+  }
+  return out;
 }
 
 // The template region: the outer <template> in Vue, everything outside script and style in Svelte.
 function templateRegion(text, file) {
   if (file.endsWith('.vue')) {
-    const open = text.search(/<template\b[^>]*>/);
-    const close = text.lastIndexOf('</template>');
-    if (open < 0 || close < open) return null;
-    return { start: text.indexOf('>', open) + 1, end: close };
+    const root = vueTemplate(markupSpans(file, text));
+    return root ? { start: root[7], end: text.lastIndexOf('</template', root[6] - 1) } : null;
   }
-  return { start: 0, end: text.length, blank: [...text.matchAll(/<(script|style)\b[\s\S]*?<\/\1>/g)].map((m) => [m.index, m.index + m[0].length]) };
+  return { start: 0, end: text.length, blank: markupSpans(file, text).filter((el) => /^(script|style)$/i.test(el[3])).map((el) => [el[5], el[6]]) };
 }
 
 function parseExpr(code) {
@@ -55,6 +65,7 @@ function balanced(text, i) {
     const end = text.indexOf(open, i + 1);
     return end < 0 ? text.length : end;
   }
+  const close = open === '(' ? ')' : '}';
   let depth = 0;
   let quote = null;
   for (let k = i; k < text.length; k++) {
@@ -65,8 +76,8 @@ function balanced(text, i) {
       continue;
     }
     if (ch === '"' || ch === "'" || ch === '`') quote = ch;
-    else if (ch === '{') depth++;
-    else if (ch === '}' && --depth === 0) return k;
+    else if (ch === open) depth++;
+    else if (ch === close && --depth === 0) return k;
   }
   return text.length;
 }
@@ -75,6 +86,7 @@ function balanced(text, i) {
 // Each binding: { kind: 'text'|'attr'|'each'|'const', tag, attr, expr, alias, offset }.
 function bindings(text, region, svelte) {
   const out = [];
+  const elements = new Map();
   const blank = region.blank || [];
   let i = region.start;
   let tag = null; // the tag that is open, while inside its start tag
@@ -88,7 +100,18 @@ function bindings(text, region, svelte) {
     if (!tag) {
       if (text.startsWith('<!--', i)) { const e = text.indexOf('-->', i); i = e < 0 ? region.end : e + 3; continue; }
       const t = text.slice(i, i + 80).match(/^<([A-Za-z][\w.:-]*)/);
-      if (t) { tag = t[1]; parent = t[1]; tagAt = i; if (isComponentTag(t[1])) lastComp = i; i += t[0].length; continue; }
+      if (t) {
+        tag = t[1];
+        parent = tag;
+        tagAt = i;
+        elements.set(tagAt, { tag, attrs: new Map() });
+        if (isComponentTag(tag)) {
+          lastComp = i;
+          out.push({ kind: 'use', tag, tagAt, offset: i });
+        }
+        i += t[0].length;
+        continue;
+      }
       if (!svelte && text.startsWith('{{', i)) {
         const e = text.indexOf('}}', i);
         out.push({ kind: 'text', tag: parent, expr: text.slice(i + 2, e), offset: i });
@@ -102,7 +125,7 @@ function bindings(text, region, svelte) {
         if ((m = body.match(/^#each\s+([\s\S]+?)\s+as\s+([\s\S]+?)(\s*,\s*\w+)?(\s*\([\s\S]*\))?$/))) out.push({ kind: 'each', expr: m[1], alias: m[2], offset: i });
         else if ((m = body.match(/^#await\s+([\s\S]+?)(\s+then\s+([\s\S]+))?$/))) out.push({ kind: 'each', expr: m[1], alias: m[3] || null, offset: i });
         else if ((m = body.match(/^@const\s+([\s\S]+?)\s*=\s*([\s\S]+)$/))) out.push({ kind: 'const', alias: m[1], expr: m[2], offset: i });
-        else if ((m = body.match(/^@html\s+([\s\S]+)$/))) out.push({ kind: 'text', tag: parent, expr: m[1], offset: i });
+        else if ((m = body.match(/^@html\s+([\s\S]+)$/))) out.push({ kind: 'html', tag: parent, expr: m[1], offset: i });
         else if (!/^[#:/@]/.test(body)) out.push({ kind: 'text', tag: parent, expr: body, offset: i });
         i = e + 1;
         continue;
@@ -116,6 +139,7 @@ function bindings(text, region, svelte) {
       const e = balanced(text, i);
       const body = text.slice(i + 1, e).trim();
       const spread = body.startsWith('...');
+      if (spread) elements.get(tagAt).attrs.clear();
       out.push({ kind: 'attr', tagAt, tag, attr: spread ? '*' : body, expr: spread ? body.slice(3) : body, offset: i });
       i = e + 1;
       continue;
@@ -123,18 +147,36 @@ function bindings(text, region, svelte) {
     const a = text.slice(i, i + 120).match(/^([:@#]?[\w.:-]+)(\s*=\s*)?/);
     if (!a) { i++; continue; }
     const name = a[1];
+    const attrs = elements.get(tagAt).attrs;
+    const staticName = name.replace(/^(?:v-bind:|:)/, '').toLowerCase().replace(/^autocomplete$/, 'autoComplete');
     i += a[0].length;
-    if (!a[2]) continue;
+    if (!a[2]) {
+      attrs.set(staticName, true);
+      continue;
+    }
     const q = text[i];
-    const end = q === '"' || q === "'" || q === '{' ? balanced(text, i) : i;
-    const value = q === '{' ? text.slice(i + 1, end) : text.slice(i + 1, end);
+    const delimited = q === '"' || q === "'" || q === '{';
+    const end = delimited ? balanced(text, i) : i + (text.slice(i).match(/^[^\s>]+/)?.[0].length || 0);
+    const value = text.slice(i + Number(delimited), end);
     const at = i;
-    i = end + 1;
+    i = end + Number(delimited);
+    if (name === 'v-bind') {
+      attrs.clear();
+      out.push({ kind: 'attr', tagAt, tag, attr: '*', expr: value, offset: at });
+      continue;
+    }
+    if ((svelte && q === '{') || /^(?:v-bind:|:)/.test(name)) {
+      const literal = parseExpr(value);
+      if (literal?.type === 'StringLiteral') attrs.set(staticName, literal.value);
+      else attrs.delete(staticName);
+    } else if (!svelte || !value.includes('{')) {
+      attrs.set(staticName, value);
+    }
     if (name.startsWith('@') || /^(v-on:|on:)/.test(name) || /^on[a-z]/.test(name)) continue;
     if (svelte) {
       if (q === '{') out.push({ kind: 'attr', tagAt, tag, attr: name.replace(/^bind:/, ''), expr: value, offset: at });
       // Quoted values with interpolations: title="{user.name} ({user.email})".
-      else for (const m of value.matchAll(/\{([^{}]+)\}/g)) out.push({ kind: 'attr', tag, attr: name, expr: m[1], offset: at });
+      else for (const m of value.matchAll(/\{([^{}]+)\}/g)) out.push({ kind: 'attr', tagAt, tag, attr: name, expr: m[1], offset: at });
       continue;
     }
     // Slot scopes: <template #item="{ element }"> gets the data of the component that renders it.
@@ -149,24 +191,30 @@ function bindings(text, region, svelte) {
     }
     // v-html, v-text and custom HTML directives such as v-dompurify-html render text.
     const bound = name.match(/^(?::|v-bind:)([\w.-]+)$/) || name.match(/^(v-model|v-text|v-[\w-]*html)(?::[\w-]+)?$/);
-    if (bound) out.push({ kind: 'attr', tagAt, tag, attr: bound[1] === 'v-model' ? 'value' : /^v-/.test(bound[1]) ? 'text' : bound[1], expr: value, offset: at });
+    if (bound) out.push({ kind: 'attr', tagAt, tag, attr: bound[1] === 'v-model' ? 'value' : bound[1] === 'v-text' ? 'text' : /^v-/.test(bound[1]) ? 'html' : bound[1], expr: value, offset: at });
   }
-  return out;
+  return { list: out, elements };
+}
+
+function specialExpression(ast, source) {
+  if (!source) return null;
+  let field;
+  walk(ast, (node) => {
+    if (field) return false;
+    if (!/^(MemberExpression|OptionalMemberExpression)$/.test(node.type)) return true;
+    const name = node.computed ? node.property.value : node.property.name;
+    if (specialCategoryName(name)) field = name;
+    return !field;
+  });
+  return field ? `special category field ${field}${originCategory(source) === 'third-party' ? ' about a third-party record' : ''}` : null;
 }
 
 // Names in the script that hold data, before the template adds loop aliases.
-function scriptTaint(blocks, taintedProps) {
+function scriptTaint(asts, taintedProps) {
   const taint = new Map();
-  const mark = (name, why) => { if (name && !taint.has(name)) { taint.set(name, why); return true; } return false; };
+  const mark = (name, why) => markOrigin(taint, name, why);
   const props = new Map(); // prop name -> local name
   const propTypes = new Map();
-  const asts = blocks.map((b) => {
-    try {
-      return parse(b.code, { sourceType: 'module', errorRecovery: true, plugins: b.ts ? ['typescript', 'decorators-legacy'] : ['decorators-legacy'] });
-    } catch {
-      return null;
-    }
-  }).filter(Boolean);
   const types = new Map();
   for (const ast of asts) {
     walk(ast, (n) => {
@@ -202,6 +250,7 @@ function scriptTaint(blocks, taintedProps) {
         for (const d of n.declaration.declarations) for (const nm of bindingNames(d.id)) { props.set(nm, nm); if (d.id.typeAnnotation) propTypes.set(nm, typeOf(d.id.typeAnnotation)); }
       }
       if (n.type === 'VariableDeclarator' && n.init) {
+        markSecretBindings(taint, n.id, SCHEMA);
         const call = n.init.type === 'CallExpression' ? n.init : null;
         const name = call && calleeName(call);
         // Svelte 5: let { user, size } = $props(). Vue: const props = defineProps<{...}>().
@@ -239,20 +288,23 @@ function scriptTaint(blocks, taintedProps) {
   }
   for (const [prop, local] of props) {
     if (prop === '*') continue;
-    const why = taintedProps.get(prop) || taintedProps.get('*')
+    const why = strongestOrigin([taintedProps.get(prop), taintedProps.get('*'), secretIdentifier(prop) ? `secret name ${prop}` : null, specialCategoryName(prop) ? `special category prop ${prop}` : null])
       || (personType(propTypes.get(prop) || '') ? `prop ${prop}: ${propTypes.get(prop)}` : null)
       || (DATA_PROP.test(prop) ? `prop ${prop}` : null)
-      || (/^runtime /.test(propTypes.get(prop) || '') && !CONFIG_PROP.test(prop) ? `prop ${prop}: ${propTypes.get(prop).slice(8)}` : null)
-      || (SECRET_NAME.test(prop) && secretIdentifier(prop) ? `prop ${prop}` : null);
+      || (/^runtime /.test(propTypes.get(prop) || '') && !CONFIG_PROP.test(prop) ? `prop ${prop}: ${propTypes.get(prop).slice(8)}` : null);
     if (why) mark(local, why);
   }
-  if (props.has('*') && (taintedProps.size || [...propTypes.values()].some(personType) || taint.size)) mark(props.get('*'), [...taintedProps.values()][0] || [...taint.values()][0] || 'props');
+  if (props.has('*') && (taintedProps.size || [...propTypes.values()].some(personType) || taint.size)) mark(props.get('*'), strongestOrigin([...taintedProps.values(), ...taint.values()]) || 'props');
   // Sources and derived values, repeated until no new names are found.
   // computed(() => ...), $derived.by(() => ...) and similar calls: the callback body is the value.
   const usedIn = (node) => {
     const ids = [...(node.type === 'CallExpression' ? idsIn(node) : dataIdsIn(node))].map((id) => id.replace(/^\$/, ''));
     walk(node, (m) => { if (m.type === 'MemberExpression' && m.object.type === 'ThisExpression' && m.property.type === 'Identifier') ids.push(m.property.name); });
-    return ids.find((id) => taint.has(id));
+    const field = schemaFieldIn(node, SCHEMA);
+    const source = strongestOrigin([...ids.map((id) => taint.get(id)), expressionSecret(node), browserStorageOrigin(node)]);
+    const schemaOrigin = fieldOrigin(field, source);
+    if (field?.ambiguous && !isSecretOrigin(source)) return schemaOrigin;
+    return strongestOrigin([source, schemaOrigin, specialExpression(node, source || schemaOrigin)]);
   };
   for (let pass = 0; pass < 5; pass++) {
     let changed = false;
@@ -277,38 +329,34 @@ function scriptTaint(blocks, taintedProps) {
           }
           // A getter such as const count = (key) => props.metrics[key] returns the data it reads.
           // Handlers such as () => emit('close', props.id) are left out.
-          if (!origin && init.type === 'ArrowFunctionExpression' && init.body.type !== 'BlockStatement' && !(init.body.type === 'CallExpression' && /^(\$?emit|push|replace|navigate|router|dispatch|commit|track|on[A-Z]\w*|handle\w*|set\w*|toggle\w*|open\w*|close\w*|copy\w*)$/.test(calleeName(init.body) || ''))) {
-            const used = [...idsIn(init.body)].find((x) => taint.has(x));
-            if (used) origin = taint.get(used);
+          if (init.type === 'ArrowFunctionExpression' && init.body.type !== 'BlockStatement' && !(init.body.type === 'CallExpression' && /^(\$?emit|push|replace|navigate|router|dispatch|commit|track|on[A-Z]\w*|handle\w*|set\w*|toggle\w*|open\w*|close\w*|copy\w*)$/.test(calleeName(init.body) || ''))) {
+            origin = strongestOrigin([origin, usedIn(init.body)]);
           }
-          if (!origin && init.type !== 'ArrowFunctionExpression' && init.type !== 'FunctionExpression') {
-            const used = usedIn(init);
-            if (used) origin = taint.get(used);
-          }
+          if (init.type !== 'ArrowFunctionExpression' && init.type !== 'FunctionExpression') origin = strongestOrigin([origin, usedIn(init)]);
           if (origin) names.forEach((nm) => { changed = mark(nm, origin) || changed; });
         }
         // Assignments: summary.value = response.data (Vue refs), user = await getMyUser() (Svelte).
         if (n.type === 'AssignmentExpression' && n.operator === '=') {
           const left = n.left.type === 'MemberExpression' && n.left.property?.name === 'value' ? n.left.object : n.left;
-          if (left.type === 'Identifier' && !taint.has(left.name)) {
+          if (left.type === 'Identifier') {
             const right = n.right.type === 'AwaitExpression' ? n.right.argument : n.right;
             const used = usedIn(right);
-            if (used) changed = mark(left.name, taint.get(used)) || changed;
+            if (used) changed = mark(left.name, used) || changed;
             else if (n.right.type === 'AwaitExpression' && right.type === 'CallExpression') changed = mark(left.name, `${calleeName(right) || 'call'}()`) || changed;
           }
         }
         // Svelte 4 reactive statements: $: title = `${user.name}`.
         if (n.type === 'LabeledStatement' && n.label.name === '$' && n.body.type === 'ExpressionStatement' && n.body.expression.type === 'AssignmentExpression' && n.body.expression.left.type === 'Identifier') {
           const used = usedIn(n.body.expression.right);
-          if (used) changed = mark(n.body.expression.left.name, taint.get(used)) || changed;
+          if (used) changed = mark(n.body.expression.left.name, used) || changed;
         }
         return true;
       });
     }
     for (const [name, body, kind] of computedFns) {
-      if (kind !== 'computed' || taint.has(name)) continue;
+      if (kind !== 'computed') continue;
       const used = usedIn(body);
-      if (used) changed = mark(name, taint.get(used)) || changed;
+      if (used) changed = mark(name, used) || changed;
     }
     if (!changed) break;
   }
@@ -325,14 +373,14 @@ function scriptTaint(blocks, taintedProps) {
 }
 
 // Analyses one file given the props its parents pass with data.
-function analyse(file, text, taintedProps) {
+function analyse(file, text, asts, taintedProps) {
   const svelte = file.endsWith('.svelte');
   const region = templateRegion(text, file);
   if (!region) return null;
-  const taint = scriptTaint(scripts(text), taintedProps);
+  const taint = scriptTaint(asts, taintedProps);
   // SvelteKit pages get their data from the load function.
   if (svelte && /\+(page|layout)\.svelte$/.test(file)) taint.set('data', taint.get('data') || 'page data');
-  const list = bindings(text, region, svelte);
+  const { list, elements } = bindings(text, region, svelte);
   const exprIds = (b) => {
     const ast = parseExpr(b.expr);
     if (!ast) return [...b.expr.matchAll(/(^|[^\w$.])\$?([A-Za-z_][\w$]*)/g)].map((m) => m[2]);
@@ -346,25 +394,27 @@ function analyse(file, text, taintedProps) {
       ast = ast.arguments[1];
       b = { ...b, expr: b.expr.slice(ast.start, ast.end) };
     }
-    if (ast && schemaPublicIn(ast, SCHEMA)) return null;
     const ids = exprIds(b);
-    const id = ids.find((x) => taint.has(x));
     const field = ast && schemaFieldIn(ast, SCHEMA);
-    // A schema field beats an unknown origin: it names the data.
-    if (field && (!id || UNKNOWN_ORIGIN.test(taint.get(id)))) return `schema ${field[1]} field ${field[0]}`;
-    if (id) return taint.get(id);
-    if (ids.some(secretIdentifier) || (/\.(\w*(secret|token|password|apiKey|privateKey)\w*)\b/i.test(b.expr.replace(/(["'`])(?:\\.|(?!\1).)*\1/g, '""')) && !/\b(has|is|show)\w*(Token|Secret|Password)/.test(b.expr))) return 'secret name';
-    return null;
+    const source = strongestOrigin([
+      ...ids.map((id) => taint.get(id)),
+      (ast ? expressionSecret(ast) : ids.some(secretIdentifier) && 'secret name'),
+      browserStorageOrigin(ast),
+    ]);
+    const schemaOrigin = fieldOrigin(field, source);
+    const origin = field?.ambiguous && !isSecretOrigin(source) ? schemaOrigin
+      : strongestOrigin([source, schemaOrigin, specialExpression(ast, source || schemaOrigin)]);
+    return ast && schemaPublicIn(ast, SCHEMA) && !isSecretOrigin(origin) ? null : origin;
   };
   // Loop aliases and local constants, until no new names are found.
   for (let pass = 0; pass < 4; pass++) {
     let changed = false;
     const fed = new Map();
-    for (const b of list) if (b.kind === 'attr' && b.tagAt != null && !fed.has(b.tagAt)) { const why = hit(b); if (why) fed.set(b.tagAt, why); }
+    for (const b of list) if (b.kind === 'attr' && b.tagAt != null) markOrigin(fed, b.tagAt, hit(b));
     for (const b of list) {
       if (b.kind === 'slot' && b.alias && fed.has(b.comp)) {
         const alias = parseExpr(`(${b.alias}) => 0`);
-        for (const nm of alias ? alias.params.flatMap((p) => bindingNames(p)) : []) if (!taint.has(nm)) { taint.set(nm, `${fed.get(b.comp)} via slot`); changed = true; }
+        for (const nm of alias ? alias.params.flatMap((p) => bindingNames(p)) : []) changed = markOrigin(taint, nm, `${fed.get(b.comp)} via slot`) || changed;
         continue;
       }
       if ((b.kind === 'each' || b.kind === 'const') && b.alias) {
@@ -372,7 +422,7 @@ function analyse(file, text, taintedProps) {
         if (!why) continue;
         const alias = parseExpr(`(${b.alias}) => 0`);
         const names = alias ? alias.params.flatMap((p) => bindingNames(p)) : [b.alias.replace(/\W/g, '')];
-        for (const nm of names) if (nm && !taint.has(nm)) { taint.set(nm, why); changed = true; }
+        for (const nm of names) changed = markOrigin(taint, nm, why) || changed;
       }
     }
     if (!changed) break;
@@ -380,28 +430,43 @@ function analyse(file, text, taintedProps) {
   const sites = [];
   const edges = [];
   const uses = [];
+  const inputs = new Map();
+  for (const [element, { tag, attrs }] of elements) {
+    const input = controlDetails(attrs, tag, path.basename(file));
+    inputs.set(element, input);
+    if (input.credential || input.code) {
+      sites.push({ line: lineAt(text, element), tag, element, kind: 'input secret', expr: input.name || 'credential input', origin: 'secret name input' });
+    } else if (input.special) {
+      sites.push({ line: lineAt(text, element), tag, element, kind: input.choice ? 'choice' : 'input special', expr: input.name || 'sensitive input', origin: `special category field ${input.name || 'input'}` });
+    }
+  }
   const usesByOffset = new Map();
   for (const b of list) {
     if (b.kind === 'each' || b.kind === 'const' || b.kind === 'slot') continue;
     const tag = b.tag || '';
     const isComp = isComponentTag(tag);
     const line = lineAt(text, b.offset);
+    if (b.kind === 'use') {
+      const use = { child: tag, tainted: false, line };
+      usesByOffset.set(b.tagAt, use);
+      uses.push(use);
+      continue;
+    }
     if (b.kind === 'attr' && (SKIP_ATTR.test(b.attr) || /^(class|style|transition|use|in|out):/.test(b.attr))) continue;
     const why = hit(b);
-    if (isComp && b.kind === 'attr') {
-      const key = `${tag}@${lineAt(text, text.lastIndexOf(`<${tag}`, b.offset))}`;
-      if (!usesByOffset.has(key)) { const u = { child: pascal(tag.split('.').pop()), tainted: false, line: Number(key.split('@')[1]) }; usesByOffset.set(key, u); uses.push(u); }
-      if (why) usesByOffset.get(key).tainted = true;
-    }
+    if (isComp && b.kind === 'attr' && why) usesByOffset.get(b.tagAt).tainted = true;
     if (!why) continue;
     const expr = b.expr.replace(/\s+/g, ' ').trim().slice(0, 120);
-    if (b.kind === 'text') { sites.push({ line, tag, kind: 'text', expr, origin: why }); continue; }
+    if (b.kind === 'text' || b.kind === 'html') { sites.push({ line, tag, offset: b.offset, kind: b.kind, expr, origin: why }); continue; }
     if (isComp) {
-      edges.push({ child: pascal(tag.split('.').pop()), prop: b.attr === '*' ? '*' : camel(b.attr), origin: why });
-      sites.push({ line, tag, kind: `prop ${b.attr}`, expr, origin: why });
-    } else if (DOM_DATA_ATTR.test(b.attr) || b.attr === 'text') sites.push({ line, tag, kind: `attr ${b.attr}`, expr, origin: why });
+      edges.push({ child: tag, prop: b.attr === '*' ? '*' : camel(b.attr), origin: why });
+      sites.push({ line, tag, offset: b.offset, element: b.kind === 'attr' ? b.tagAt : undefined, kind: `prop ${b.attr}`, expr, origin: why });
+    } else if (isSpecialOrigin(why) && (inputs.get(b.tagAt)?.choice || CHOICE_STATE.test(b.attr))) {
+      sites.push({ line, tag, offset: b.offset, element: b.tagAt, kind: 'choice', expr, origin: why });
+    } else if (DOM_DATA_ATTR.test(b.attr) || /^(text|html|\*)$/.test(b.attr)) {
+      sites.push({ line, tag, offset: b.offset, element: b.tagAt, kind: `attr ${b.attr}`, expr, origin: why });
+    }
   }
-  // Component tags without bound attributes also count as uses.
   return { sites, edges, uses, lines: text.split('\n').length };
 }
 
@@ -446,20 +511,20 @@ function analyseBlade(text, file) {
     const open = [...before.matchAll(/<([A-Za-z][\w.:-]*)/g)].pop();
     return open ? open[1] : '';
   };
-  const add = (offset, expr, attr) => {
+  const add = (offset, expr, attr, raw = false) => {
     if (attr && BLADE_SKIP_ATTR.test(attr)) return;
     const why = bladeHit(expr, publicAlias, component);
     if (!why) return;
     const tag = tagAt(offset);
     const comp = tag.startsWith('x-');
-    sites.push({ line: lineAt(text, offset), tag, kind: attr ? `${comp ? 'prop' : 'attr'} ${attr}` : 'text', expr: expr.replace(/\s+/g, ' ').trim().slice(0, 120), origin: why });
+    sites.push({ line: lineAt(text, offset), offset, tag, kind: raw ? 'html' : attr ? `${comp ? 'prop' : 'attr'} ${attr}` : 'text', expr: expr.replace(/\s+/g, ' ').trim().slice(0, 120), origin: why });
   };
   for (const m of text.matchAll(/(@?)\{\{(?!--)([\s\S]*?)\}\}|\{!!([\s\S]*?)!!\}/g)) {
     if (m[1] === '@') continue; // @{{ }} is a Vue expression, left to the line rules.
     const lineStart = text.lastIndexOf('\n', m.index) + 1;
     const attr = text.slice(lineStart, m.index).match(/([\w:.-]+)="[^"]*$/)?.[1];
     if (attr && /^(class|style|id|wire:\w+|x-\w+|key)$/.test(attr)) continue;
-    add(m.index, m[2] ?? m[3], attr);
+    add(m.index, m[2] ?? m[3], attr, m[3] != null);
   }
   // Bound props on Blade components: <x-show.contact :value="$customer->email" />. The tag ends at
   // the first > outside quotes, so PHP's -> stays inside it.
@@ -496,75 +561,174 @@ function bladeHit(expr, publicAlias, component) {
 // in the same form as the component pass.
 // `schema` is the field map from readSchemas, when the app has one.
 const VOID_TAG = /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/i;
-// The elements of a Vue, Svelte or Blade template as [start line, last line of the start tag, end
-// line, tag name, start column], like elementSpans for JSX. Attribute values are skipped with their quotes, so `a > b` in a
-// binding does not end a tag.
-export function templateSpans(file, text) {
-  const region = file.endsWith('.blade.php') ? { start: 0, end: text.length } : templateRegion(text, file);
-  if (!region) return [];
+const RAW_TEXT_TAG = /^(script|style|textarea|title|xmp|iframe|noembed|noframes)$/i;
+// The bounds of complete elements, with absolute opening and closing offsets.
+// Skip template expressions and raw text where angle brackets do not open tags.
+function markupSpans(file, text) {
+  const vue = file.endsWith('.vue');
+  const svelte = file.endsWith('.svelte');
+  const blade = file.endsWith('.blade.php');
+  const region = { start: 0, end: text.length };
+  const nextToken = blade ? /<|\{\{|\{!!|@php\b|@[A-Za-z_]\w*(?=\s*\()/gi : svelte ? /<|\{/g : vue ? /<|\{\{/g : /</g;
   const out = [];
   const stack = [];
+  const skipThrough = (start, delimiter) => {
+    const end = text.indexOf(delimiter, start);
+    return end < 0 ? region.end : end + delimiter.length;
+  };
   let i = region.start;
   while (i < region.end) {
-    const lt = text.indexOf('<', i);
-    if (lt < 0 || lt >= region.end) break;
-    if (text.startsWith('<!--', lt)) { i = text.indexOf('-->', lt) + 3 || region.end; continue; }
+    nextToken.lastIndex = i;
+    const token = nextToken.exec(text);
+    if (!token || token.index >= region.end) break;
+    const lt = token.index;
+    if (token[0] !== '<') {
+      if (svelte) i = balanced(text, lt) + 1;
+      else if (token[0] === '{{') i = skipThrough(lt + 2, text.startsWith('{{--', lt) && blade ? '--}}' : '}}');
+      else if (token[0] === '{!!') i = skipThrough(lt + 3, '!!}');
+      else {
+        const argument = lt + token[0].length + text.slice(lt + token[0].length).match(/^\s*/)[0].length;
+        i = text[argument] === '(' ? balanced(text, argument) + 1 : skipThrough(argument, '@endphp');
+      }
+      continue;
+    }
+    if (text.startsWith('<!--', lt)) { i = skipThrough(lt + 4, '-->'); continue; }
+    if (text.startsWith('<![CDATA[', lt)) { i = skipThrough(lt + 9, ']]>'); continue; }
+    if (blade && text.startsWith('<?', lt)) { i = skipThrough(lt + 2, '?>'); continue; }
     const close = text.slice(lt).match(/^<\/([\w.:-]+)\s*>/);
     if (close) {
-      const k = stack.map((e) => e.name).lastIndexOf(close[1]);
-      if (k >= 0) { for (const e of stack.splice(k)) out.push([e.start, e.openEnd, lineAt(text, lt), e.name, e.column]); }
+      const matches = (entry) => (vue || svelte ? entry.name === close[1] : entry.name.toLowerCase() === close[1].toLowerCase());
+      const k = stack.findLastIndex(matches);
+      if (k >= 0) {
+        const [e] = stack.splice(k);
+        out.push([e.start, e.openEnd, lineAt(text, lt), e.name, e.column, e.offset, lt + close[0].length, e.openOffset]);
+      }
       i = lt + close[0].length;
       continue;
     }
-    const open = text.slice(lt).match(/^<([A-Za-z][\w.:-]*)/);
+    const open = text.slice(lt).match(/^<([A-Za-z][\w.:-]*)(?=\s|\/?>)/);
     if (!open) { i = lt + 1; continue; }
     let j = lt + open[0].length;
     let quote = null;
     while (j < region.end) {
       const ch = text[j];
-      if (quote) { if (ch === quote) quote = null; } else if (ch === '"' || ch === "'") quote = ch; else if (ch === '>') break;
+      if (quote) { if (ch === quote) quote = null; } else if (ch === '"' || ch === "'") quote = ch; else if (ch === '{') j = balanced(text, j); else if (ch === '>') break;
       j++;
     }
+    if (j >= region.end) break;
     const start = lineAt(text, lt);
     const openEnd = lineAt(text, j);
     const column = lt - text.lastIndexOf('\n', lt - 1) - 1;
-    if (text[j - 1] === '/' || VOID_TAG.test(open[1])) out.push([start, openEnd, openEnd, open[1], column]);
-    else stack.push({ name: open[1], start, openEnd, column });
+    const name = open[1];
+    const nativeCase = (!vue && !svelte) || name === name.toLowerCase();
+    const selfClosing = text[j - 1] === '/' && (vue || svelte || blade || stack.some((el) => /^(svg|math)$/i.test(el.name)));
+    if (selfClosing || (nativeCase && VOID_TAG.test(name))) out.push([start, openEnd, openEnd, name, column, lt, j + 1, j + 1]);
+    else stack.push({ name, start, openEnd, column, offset: lt, openOffset: j + 1 });
     i = j + 1;
+    if (nativeCase && RAW_TEXT_TAG.test(name) && !selfClosing) {
+      const closing = new RegExp(`</${name}\\s*>`, 'ig');
+      closing.lastIndex = i;
+      i = closing.exec(text)?.index ?? region.end;
+    }
   }
   return out;
 }
 
+function vueTemplate(elements) {
+  return elements.find((el) => el[3] === 'template' && !elements.some((other) => other[5] < el[5] && el[6] < other[6]));
+}
+
+export function templateSpans(file, text, { unscoped = false } = {}) {
+  const elements = markupSpans(file, text);
+  if (unscoped || !file.endsWith('.vue')) return elements;
+  const root = vueTemplate(elements);
+  return root ? elements.filter((el) => el[5] >= root[7] && el[6] < root[6]) : [];
+}
+
 // Element spans for any file the passes read.
-export const spansFor = (file, text) => (TEMPLATE_FILE.test(file) ? templateSpans(file, text) : elementSpans(file, text));
+export const spansFor = (file, text) => (TEMPLATE_FILE.test(file) || file.endsWith('.html') ? templateSpans(file, text) : elementSpans(file, text));
+
+function htmlWriteCandidates(root, file, text) {
+  if (!/getElementById\s*\(/.test(text)) return [];
+  const targetById = new Map();
+  for (const span of templateSpans(file, text)) {
+    const startTag = text.slice(span[5] + span[3].length + 1, span[7]);
+    for (const attr of startTag.matchAll(/\s+([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)) {
+      if (attr[1].toLowerCase() !== 'id') continue;
+      const id = attr[2] ?? attr[3] ?? attr[4];
+      if (id) targetById.set(id, targetById.has(id) ? null : span);
+    }
+  }
+  const candidates = [];
+  for (const block of scripts(file, text)) {
+    let ast;
+    try { ast = parse(block.code, { sourceType: 'unambiguous' }); } catch { continue; }
+    const firstLine = lineAt(text, block.codeStart);
+    walk(ast, (node) => {
+      if (node.type !== 'AssignmentExpression' || !/^(=|\+=)$/.test(node.operator)) return true;
+      const { left, right } = node;
+      if (left.type !== 'MemberExpression' || left.computed || !/^(textContent|innerText|innerHTML)$/.test(left.property.name || '')) return true;
+      const getter = left.object;
+      if (getter.type !== 'CallExpression' || getter.callee.type !== 'MemberExpression' || getter.callee.object.name !== 'document'
+          || getter.callee.property.name !== 'getElementById' || getter.arguments[0]?.type !== 'StringLiteral') return true;
+      const span = targetById.get(getter.arguments[0].value);
+      if (!span || !dataIdsIn(right).size) return true;
+      const [line, , , tag, , element] = span;
+      const writeLine = firstLine + node.loc.start.line - 1;
+      const origin = expressionSecret(right) || `unknown DOM write at ${path.relative(root, file)}:${writeLine}`;
+      const site = {
+        line, tag, element, kind: left.property.name === 'innerHTML' ? 'html' : 'text',
+        expr: block.code.slice(right.start, right.end).replace(/\s+/g, ' ').slice(0, 120),
+        origin, confidence: UNKNOWN_ORIGIN.test(origin) ? 'low' : 'high',
+      };
+      candidates.push({
+        file: path.relative(root, file), line, end_line: line, component: 'DOM write',
+        rules: ['dom-write'], patterns: ['P-pii-text'], category_hint: categoryOf([site]), confidence: site.confidence,
+        sites: [site], site_lines: [line], snippet: `DOM write at line ${writeLine} targets <${tag}>`,
+      });
+      return true;
+    });
+  }
+  return candidates;
+}
 
 export function templatePass(root, files, schema = null) {
   SCHEMA = schema?.fields || new Map();
   const comps = files.filter((f) => TEMPLATE_FILE.test(f)).map((abs) => ({ abs, file: path.relative(root, abs), name: pascal(path.basename(abs).replace(TEMPLATE_FILE, '')), text: fs.readFileSync(abs, 'utf8') }));
-  const byName = new Map();
   for (const c of comps) {
-    if (!byName.has(c.name)) byName.set(c.name, []);
-    byName.get(c.name).push(c);
+    c.imports = new Map();
+    c.isDefault = true;
+    c.asts = [];
+    for (const block of scripts(c.file, c.text)) {
+      try {
+        const ast = parse(block.code, { sourceType: 'module', plugins: block.ts ? ['typescript', 'decorators-legacy'] : ['decorators-legacy'] });
+        c.asts.push(ast);
+        for (const [name, binding] of componentImports(ast.program)) c.imports.set(name, binding);
+      } catch { c.scriptFailed = true; }
+    }
   }
+  const resolveTag = componentResolver(comps, ['.vue', '.svelte']);
+  const resolve = (c, tag) => resolveTag(c, c.imports.has(tag.split('.')[0]) ? tag : pascal(tag));
   const taintedProps = new Map(comps.map((c) => [c, new Map()]));
   const results = new Map();
   let failed = 0;
+  const failures = [];
   let queue = [...comps];
   for (let round = 0; round < 12 && queue.length; round++) {
     const next = new Set();
     for (const c of queue) {
       let r;
       try {
-        r = c.file.endsWith('.blade.php') ? analyseBlade(c.text, c.file) : analyse(c.file, c.text, taintedProps.get(c));
+        r = c.file.endsWith('.blade.php') ? analyseBlade(c.text, c.file) : c.scriptFailed ? null : analyse(c.file, c.text, c.asts, taintedProps.get(c));
       } catch {
         r = null;
       }
-      if (!r) { if (round === 0) failed++; continue; }
+      if (!r) { if (round === 0) { failed++; failures.push(c.file); } continue; }
       results.set(c, r);
       for (const e of r.edges) {
-        for (const child of byName.get(e.child) || []) {
+        for (const child of resolve(c, e.child)) {
           const tp = taintedProps.get(child);
-          if (!tp.has(e.prop)) { tp.set(e.prop, `${e.origin} via <${c.name} ${e.prop === '*' ? '{...}' : e.prop}>`); next.add(child); }
+          if (markOrigin(tp, e.prop, `${e.origin} via <${c.name} ${e.prop === '*' ? '{...}' : e.prop}>`)) next.add(child);
         }
       }
     }
@@ -575,10 +739,9 @@ export function templatePass(root, files, schema = null) {
   const index = {};
   for (const [c, r] of results) {
     for (const u of r.uses) {
-      const k = (usage[u.child] ||= [0, 0, []]);
-      k[0]++;
-      if (u.tainted) k[1]++;
-      if (k[2].length < 30) k[2].push([c.file, u.line, u.tainted]);
+      const [child] = resolve(c, u.child);
+      const names = child ? [child.name, componentUsageKey(child.file, child.name)] : [pascal(u.child.split('.').pop())];
+      for (const name of names) addComponentUse(usage, name, c.file, u);
     }
     const own = r.sites.some((s) => !/ via /.test(s.origin) && !/^prop \w+$/.test(s.origin));
     (index[c.file] ||= []).push([c.name, 1, r.lines, own]);
@@ -598,5 +761,6 @@ export function templatePass(root, files, schema = null) {
       snippet: `<${c.name}> renders ${r.sites.length} value${r.sites.length === 1 ? '' : 's'} from ${[...new Set(r.sites.map((s) => s.origin))].slice(0, 2).join('; ')}`,
     });
   }
-  return { candidates, parsed: results.size, failed, components: comps.length, usage, index };
+  for (const file of files.filter((abs) => abs.endsWith('.html'))) candidates.push(...htmlWriteCandidates(root, file, fs.readFileSync(file, 'utf8')));
+  return { candidates, failures, parsed: results.size, failed, components: comps.length, usage, index };
 }

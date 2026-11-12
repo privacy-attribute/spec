@@ -1,6 +1,6 @@
 # Capture SDK privacy audit
 
-You audit a session-capture SDK. This is a session recorder, a product analytics snippet, or any library that serialises a web page and sends it to a different location.
+Audit one SDK that records a web page or its interactions. Examples include session recorders and product analytics libraries.
 
 Read these files before you start:
 
@@ -13,26 +13,26 @@ If you got a link to these files, read each file from the same tag or commit as 
 
 ## Responsibility
 
-These instructions and every audit produced with them are provided as is, without warranty. An audit can miss leaks and can misjudge fidelity. Its findings are not legal advice and not a certification of compliance with any privacy law. The implementer (whoever integrates, configures or ships the recorder) is responsible for the final output: what their recordings contain, how the recorder is configured, and whether that meets their legal and contractual obligations.
+These instructions and audit results are provided as is, without warranty. An audit can miss leaks and can misjudge recording fidelity. The implementer is responsible for recorder configuration, recording content, and legal and contractual compliance.
 
-You MUST report each gap in these instructions to [`privacy-attribute/spec`](https://github.com/privacy-attribute/spec/issues). A gap is one of these items:
+Save a local draft for each gap in these instructions. A gap is one of these items:
 
 - a leak or fidelity loss that the instructions did not lead you to
 - a false positive that the instructions caused
 - a step that was unclear or impractical
 
-Step 9 and `feedback.md` tell you how to report a gap. An audit without its gap reports is incomplete.
+Follow step 9 and [feedback](feedback.md) to draft each report.
 
 Start the prose summary of each audit with the disclaimer above, word for word. Copy the disclaimer into the `disclaimer` field of the findings file.
 
 ## Objective
 
-A recorder should make the recording with the highest fidelity that it can. At the same time, it should keep the people on the page private. The two halves are equally important. Find these items:
+Assess privacy and fidelity together. Report these findings:
 
 - each way that a person with the recording can learn data that the page should keep from them (privacy findings)
 - each place where the SDK, or the only configuration that stops a leak, removes content or behaviour that carried no private data (fidelity findings)
 
-Give evidence for each finding. The best fix for a privacy finding is the fix that removes the least fidelity. Thus, each fix that you propose must state its fidelity cost.
+Give evidence for each finding. Propose the fix that keeps the most public content. State what public content or behavior the fix changes.
 
 ## Threat model
 
@@ -51,7 +51,7 @@ A value is protected only when the recording is the same for each possible value
 - the other changes on the page that the input caused
 - the size of elements
 
-Treat each of these items as a leak until a test shows that it is not a leak.
+Treat each of these items as a leak until a test shows that the recorder protects the value.
 
 ## Data categories
 
@@ -97,7 +97,7 @@ Each result in the report is true for one exact version of the SDK. Before you r
 
 If the request names a published version (for example `rrweb@2.2.0` on npm), find its release tag. Audit that tag. Users run the published code. Thus, when the request allows a release tag or a branch head, use the release tag.
 
-Then get the accepted feedback, as `feedback.md` describes. Each accepted report becomes an extra pattern for step 6.
+To check accepted feedback, follow `feedback.md`. Each accepted report you load becomes an extra pattern for step 6.
 
 ### Step 1. Find the configuration surface
 
@@ -228,7 +228,7 @@ Put the sink list and the coverage table in the same file.
 
 ### Step 9. Report gaps
 
-This step is mandatory. Do the procedure in "Send feedback after you finish" in `feedback.md`. A finding with `pattern: null` is a `missed-leak` report if the greps of its leak class did not lead you to it. The reason is that these instructions should have found it. A leak that a person tells you about, and that the report does not contain, is also a `missed-leak` report.
+Follow "Draft feedback after you finish" in `feedback.md`. A finding with `pattern: null` is a `missed-leak` report if the greps of its leak class did not lead you to it. The reason is that these instructions should have found it. A leak that a person tells you about, and that the report does not contain, is also a `missed-leak` report.
 
 ## Severity
 
@@ -239,9 +239,9 @@ Grade a privacy finding by the category of the data and by what the attacker lea
 | Data category | Recoverable | Partial |
 |---------------|-------------|---------|
 | `secret` | `critical` under any config | `critical` under any config |
-| `personal`, special category | `critical` under `targeted` or stricter; `high` under defaults | `high` under `targeted` or stricter; `medium` under defaults |
-| `third-party` | `critical` under `targeted` or stricter; `high` under defaults | `medium` |
-| `personal` | `high` under `targeted` or stricter or under defaults | `medium` under `targeted` or stricter; `low` under defaults |
+| `personal`, special category | `critical` under `targeted` or stricter, `high` under defaults | `high` under `targeted` or stricter, `medium` under defaults |
+| `third-party` | `critical` under `targeted` or stricter, `high` under defaults | `medium` |
+| `personal` | `high` under `targeted` or stricter or under defaults | `medium` under `targeted` or stricter, `low` under defaults |
 
 Accepted residual: the time that a person spends in a field (from focus, or from the first input event, to the next event). The recorder cannot hide this time unless it destroys the recording. Report it one time for each audit as `low`, under leak class `keystroke-dynamics`. Grade timing or counts for each keystroke with the usual rules.
 
@@ -257,24 +257,16 @@ Lower a grade to `low` when the leak needs an opt-in setting, and the docs of th
 
 ## Checking a recorder against the `data-privacy` standard
 
-Do this section when the task asks for `data-privacy` conformance. The attribute has four values. You can set it on any element. Descendants inherit it, unless a descendant overrides it. The values are:
+Use the [draft core](../spec/core.md) as the requirements for this part of the audit. The core defines case-sensitive `mask` and `block` tokens separated by ASCII whitespace. Any `block` token supersedes `mask`, including when classification labels appear in the same attribute. A recorder **MUST** apply the strongest treatment from the node, its ancestors and the recorder policy. It applies `mask` to an empty or unknown-only value, including bare `ignore` and `unmask`. Test any recorder-specific input suppression or reveal control separately.
 
-- `mask`: the recorder replaces the text, input values and privacy-relevant attributes of the element before they leave the page. The recorder may record the structure.
-- `block`: the recorder replaces the element with a placeholder of the same size. It records nothing inside the element.
-- `ignore`: the recorder does not record user input in the element. It may record the element itself.
-- `unmask`: the recorder records the element in the clear. This overrides an inherited `mask`.
+Run the [browser check](runner/README.md#check-the-privacy-attribute) against the pinned SDK and settings from step 0. Record which checks pass, fail or could not run. Add cases where the fixture leaves gaps in the core requirements:
 
-The recorder must treat each other value as `mask`. This includes an empty string and a value with different case or whitespace.
+1. Capture text, input values and the protected attributes in the initial snapshot and in live updates. Verify that `block` omits the whole subtree. Verify that public content remains in the recording.
+2. Set `mask` inside `block` and `block` inside `mask`. Use an empty value and values such as `Mask`, ` mask`, and `hidden`.
+3. Add, remove and change the attribute during capture. Add new descendants and move an element between parents with different treatments. Inspect emitted events and changes to the replay state.
+4. Capture descendants of a shadow host. Check the frame boundary when the recorder includes a frame document in the parent recording.
 
-For conformance, test each value against each sink from step 2 and each leak class in `taxonomy.md`. Include at least these cases in the reproduction page:
-
-1. each of the four values on a text node container, an `input`, a `select`, a checkbox, a `canvas`, an `img`, an `iframe` and a shadow host
-2. nested overrides: `unmask` inside `mask`, `mask` inside `unmask`, `block` inside `unmask`
-3. unrecognised values: `data-privacy="Mask"`, `data-privacy=" mask"`, `data-privacy=""`, `data-privacy="hidden"`
-4. the attribute added, removed and changed after the full snapshot (mutation path)
-5. the attribute on an element inside a same-origin iframe and inside an open shadow root
-
-Report each failure as a normal finding with leak class `data-privacy-conformance`. Name the attribute value and the sink in the summary.
+Report a failed core requirement with leak class `data-privacy-conformance`. Name the attribute value, the capture path and the emitted evidence. Use the taxonomy classes for other capture channels and recorder-specific controls.
 
 ## Versions across audits
 

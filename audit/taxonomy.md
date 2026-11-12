@@ -264,7 +264,7 @@ Grep: the text-node and attribute mask functions from classes 6 and 7, `maskText
 
 ## 25. `data-privacy-conformance`
 
-Use this class only when the audit includes the `data-privacy` conformance check that `AGENTS.md` describes.
+Use this class when the recorder fails a requirement in the [draft core](../spec/core.md). Record the requirement, the SDK configuration and the emitted evidence.
 
 ## Fidelity classes
 
@@ -272,7 +272,7 @@ Use these ids in `leak_class` for fidelity findings. Find these findings with th
 
 ### `over-masking`
 
-Public content that the SDK masks or blocks, because its options cannot target a small enough area. Examples: a mask option that applies to all text on the page, a block that hides a full form to protect one field, a mask that does not stop at a nested `unmask` or public label.
+Public content that the SDK masks or blocks, because its options cannot target a small enough area. Examples: a mask option that applies to all text on the page, a block that hides a full form to protect one field, a recorder-specific reveal control that fails to preserve a public label.
 
 Check: the finest grain that each option supports (whole page, selector, class, element, attribute), and whether you can nest options. Also check what `targeted` must mask to stop each privacy finding.
 

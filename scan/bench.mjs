@@ -1,4 +1,4 @@
-// Scores the static pass against a labelled fixture app.
+// Scores candidate detection against a labelled fixture app.
 // A label is a trailing comment on the line of an element that must be annotated:
 //   JSX: {/* @expect secret block */}   JS: // @expect personal mask   HTML, Vue: <!-- @expect third-party mask -->
 // The scan runs on a temporary copy with every label removed, so a label never matches a rule by itself.
@@ -115,10 +115,10 @@ export async function bench(dir) {
 export function formatBench(r) {
   const pct = (x) => `${(x * 100).toFixed(1)}%`;
   const lines = [
-    `Benchmark: ${r.scanned_files} files, ${r.scanned_lines} lines, ${r.labels} labels (${r.private_labels} private, ${r.public_labels} public), ${r.candidates} candidates`,
-    `Recall:    ${pct(r.recall)} (${r.found_private} of ${r.private_labels} private labels have a candidate within ${WINDOW} lines)`,
-    `Recall on the same line: ${pct(r.recall_exact)} (${r.private_labels - r.missed_exact.length} of ${r.private_labels})`,
-    `Precision: ${pct(r.precision)} (candidates within ${WINDOW} lines of a private label)`,
+    `Detection benchmark: ${r.scanned_files} files, ${r.scanned_lines} lines, ${r.labels} labels (${r.private_labels} private, ${r.public_labels} public), ${r.candidates} candidates`,
+    `Recall:    ${pct(r.recall)} (${r.found_private} of ${r.private_labels} private labels have a nearby candidate or a matching component name)`,
+    `Same-line detection recall: ${pct(r.recall_exact)} (${r.private_labels - r.missed_exact.length} of ${r.private_labels})`,
+    `Proximity precision: ${pct(r.precision)} (candidates within ${WINDOW} lines of a private label)`,
     `Category hint agrees on ${r.category_agree} of ${r.found_private} found labels`,
     `Public labels flagged: ${r.public_flagged.length} of ${r.public_labels}`,
     ...Object.entries(r.by_category).map(([k, v]) => `  ${k.padEnd(12)} ${v.found}/${v.labels}`),

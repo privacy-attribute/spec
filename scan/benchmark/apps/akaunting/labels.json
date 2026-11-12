@@ -1,0 +1,456 @@
+{
+  "app": "akaunting",
+  "repo": "https://github.com/akaunting/akaunting",
+  "commit": "0d35012996a73fa3513e3f9996a159b028add1b6",
+  "held_out": [
+    "resources/views/common/companies/index.blade.php"
+  ],
+  "review": {
+    "status": "model-reviewed",
+    "submissions": [
+      {
+        "id": "codex-measurement",
+        "kind": "model",
+        "method": "Reviewed pinned upstream source before inspecting scanner results or the other review.",
+        "files": [
+          "resources/views/common/companies/index.blade.php",
+          "resources/views/sales/invoices/index.blade.php",
+          "resources/views/banking/transactions/index.blade.php"
+        ],
+        "rows": [
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 14,
+            "category": "public",
+            "value": "none",
+            "what": "Public create-company navigation caption and route.",
+            "tag": "x-link"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 40,
+            "category": "public",
+            "value": "none",
+            "what": "Localized column heading for the company name.",
+            "tag": "x-sortablelink"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 49,
+            "category": "public",
+            "value": "none",
+            "what": "Localized column heading for company email.",
+            "tag": "x-sortablelink"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 69,
+            "category": "personal",
+            "value": "block",
+            "what": "Organization-specific company identifier in the edit link.",
+            "tag": "x-table.tr"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 78,
+            "category": "personal",
+            "value": "mask",
+            "what": "Company record identifier.",
+            "tag": "x-table.td"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 84,
+            "category": "personal",
+            "value": "mask",
+            "what": "Organization name.",
+            "tag": "div"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 94,
+            "category": "personal",
+            "value": "mask",
+            "what": "Organization tax number.",
+            "tag": "x-slot",
+            "target_line": 92
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 104,
+            "category": "personal",
+            "value": "mask",
+            "what": "Organization email address.",
+            "tag": "x-slot",
+            "target_line": 102
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 111,
+            "category": "personal",
+            "value": "mask",
+            "what": "Organization phone number.",
+            "tag": "x-slot",
+            "target_line": 109
+          },
+          {
+            "file": "resources/views/sales/invoices/index.blade.php",
+            "line": 2,
+            "category": "public",
+            "value": "none",
+            "what": "Localized page title for invoices.",
+            "tag": "x-slot"
+          },
+          {
+            "file": "resources/views/sales/invoices/index.blade.php",
+            "line": 21,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Private invoice records passed to the listing component.",
+            "tag": "x-documents.index.content"
+          },
+          {
+            "file": "resources/views/banking/transactions/index.blade.php",
+            "line": 2,
+            "category": "public",
+            "value": "none",
+            "what": "Localized page title for transactions.",
+            "tag": "x-slot"
+          }
+        ]
+      },
+      {
+        "id": "codex-standard-docs",
+        "kind": "model",
+        "method": "Reviewed pinned upstream files independently without scanner results or first-pass labels.",
+        "files": [
+          "resources/views/common/companies/index.blade.php",
+          "resources/views/sales/invoices/index.blade.php"
+        ],
+        "rows": [
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 40,
+            "category": "public",
+            "value": "none",
+            "what": "Translated company name column heading"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 43,
+            "category": "public",
+            "value": "none",
+            "what": "Translated tax number column heading"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 49,
+            "category": "public",
+            "value": "none",
+            "what": "Translated email column heading"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 52,
+            "category": "public",
+            "value": "none",
+            "what": "Translated phone column heading"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 84,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Company name in a record row"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 94,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Company tax number in a record row"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 104,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Company email address in a record row"
+          },
+          {
+            "file": "resources/views/common/companies/index.blade.php",
+            "line": 111,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Company phone number in a record row"
+          },
+          {
+            "file": "resources/views/sales/invoices/index.blade.php",
+            "line": 3,
+            "category": "public",
+            "value": "none",
+            "what": "Translated invoices page heading"
+          },
+          {
+            "file": "resources/views/sales/invoices/index.blade.php",
+            "line": 21,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Invoice records passed to the shared index content component"
+          }
+        ]
+      }
+    ],
+    "adjudications": [
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 14,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "public",
+          "value": "none"
+        },
+        "reason": "Verified in the pinned source. Public create-company navigation caption and route."
+      },
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 69,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "third-party",
+          "value": "block"
+        },
+        "reason": "The table includes companies outside the active workspace, so the record can expose data about another organization."
+      },
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 78,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "third-party",
+          "value": "mask"
+        },
+        "reason": "The table includes companies outside the active workspace, so the record can expose data about another organization."
+      },
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 84,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "third-party",
+          "value": "mask"
+        },
+        "reason": "The table includes companies outside the active workspace, so the record can expose data about another organization."
+      },
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 94,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "third-party",
+          "value": "mask"
+        },
+        "reason": "The table includes companies outside the active workspace, so the record can expose data about another organization."
+      },
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 104,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "third-party",
+          "value": "mask"
+        },
+        "reason": "The table includes companies outside the active workspace, so the record can expose data about another organization."
+      },
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 111,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "third-party",
+          "value": "mask"
+        },
+        "reason": "The table includes companies outside the active workspace, so the record can expose data about another organization."
+      },
+      {
+        "file": "resources/views/sales/invoices/index.blade.php",
+        "line": 2,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "public",
+          "value": "none"
+        },
+        "reason": "Use the opening slot as the single anchor for the translated title emitted on line 3."
+      },
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 43,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "public",
+          "value": "none"
+        },
+        "reason": "Verified in the pinned source. Translated tax number column heading"
+      },
+      {
+        "file": "resources/views/common/companies/index.blade.php",
+        "line": 52,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "public",
+          "value": "none"
+        },
+        "reason": "Verified in the pinned source. Translated phone column heading"
+      },
+      {
+        "file": "resources/views/sales/invoices/index.blade.php",
+        "line": 3,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": null,
+        "reason": "This expression emits the same translated title as the opening slot label on line 2."
+      }
+    ]
+  },
+  "files": {
+    "resources/views/common/companies/index.blade.php": [
+      {
+        "line": 14,
+        "category": "public",
+        "value": "none",
+        "what": "Public create-company navigation caption and route.",
+        "tag": "x-link"
+      },
+      {
+        "line": 40,
+        "category": "public",
+        "value": "none",
+        "what": "Localized column heading for the company name.",
+        "tag": "x-sortablelink"
+      },
+      {
+        "line": 43,
+        "category": "public",
+        "value": "none",
+        "what": "Translated tax number column heading",
+        "tag": "x-sortablelink"
+      },
+      {
+        "line": 49,
+        "category": "public",
+        "value": "none",
+        "what": "Localized column heading for company email.",
+        "tag": "x-sortablelink"
+      },
+      {
+        "line": 52,
+        "category": "public",
+        "value": "none",
+        "what": "Translated phone column heading",
+        "tag": "x-sortablelink"
+      },
+      {
+        "line": 69,
+        "category": "third-party",
+        "value": "block",
+        "what": "Organization-specific company identifier in the edit link.",
+        "tag": "x-table.tr"
+      },
+      {
+        "line": 78,
+        "category": "third-party",
+        "value": "mask",
+        "what": "Company record identifier.",
+        "tag": "x-table.td"
+      },
+      {
+        "line": 84,
+        "category": "third-party",
+        "value": "mask",
+        "what": "Organization name.",
+        "tag": "div"
+      },
+      {
+        "line": 94,
+        "category": "third-party",
+        "value": "mask",
+        "what": "Organization tax number.",
+        "tag": "x-slot",
+        "target_line": 92
+      },
+      {
+        "line": 104,
+        "category": "third-party",
+        "value": "mask",
+        "what": "Organization email address.",
+        "tag": "x-slot",
+        "target_line": 102
+      },
+      {
+        "line": 111,
+        "category": "third-party",
+        "value": "mask",
+        "what": "Organization phone number.",
+        "tag": "x-slot",
+        "target_line": 109
+      }
+    ],
+    "resources/views/sales/invoices/index.blade.php": [
+      {
+        "line": 2,
+        "category": "public",
+        "value": "none",
+        "what": "Localized page title for invoices.",
+        "tag": "x-slot"
+      },
+      {
+        "line": 21,
+        "category": "third-party",
+        "value": "mask",
+        "what": "Private invoice records passed to the listing component.",
+        "tag": "x-documents.index.content"
+      }
+    ],
+    "resources/views/banking/transactions/index.blade.php": [
+      {
+        "line": 2,
+        "category": "public",
+        "value": "none",
+        "what": "Localized page title for transactions.",
+        "tag": "x-slot"
+      }
+    ]
+  }
+}

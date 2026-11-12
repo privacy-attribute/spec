@@ -2,7 +2,8 @@
 // privacy-audit: deterministic differential runner for the capture SDK privacy audit.
 //
 //   privacy-audit run    --adapter rrweb --sdk <path> [options]   run fixtures, write results.json and summary.md
-//   privacy-audit report <fixture.mjs> --adapter rrweb --sdk <path> [options]   run one fixture, write a feedback issue
+//   privacy-audit report <fixture.mjs> --adapter rrweb --sdk <path> [options]   run one fixture, draft a local report
+//   privacy-audit conformance --adapter rrweb --sdk <path>       check the draft data-privacy core in Chrome
 //   privacy-audit coverage                                        list patterns without a fixture journey
 //   privacy-audit merge  --out <dir>                              merge the agent's traces.json into privacy-audit.json
 //   privacy-audit agent  --sdk <path> [--agent claude|codex|<command>] [--headless] [--model <m>]
@@ -18,6 +19,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import yaml from 'js-yaml';
 import { startServer, launch } from './lib/browser.mjs';
 import { runAll } from './lib/run.mjs';
+import { checkPrivacyAttribute } from './lib/conformance.mjs';
 import { summaryMarkdown, auditVersion, feedbackIssue } from './lib/report.mjs';
 import { chooseAgent, writeSession, launch as launchAgent, launchPrompt } from './lib/agent.mjs';
 import { playbook } from './lib/playbook.mjs';
@@ -261,8 +263,14 @@ if (cmd === 'run') {
   fs.writeFileSync(reportFile, issue.body);
   fs.writeFileSync(path.join(outDir, `feedback-${path.basename(file, '.mjs')}.json`), JSON.stringify(out, null, 1));
   console.log(`Report: ${reportFile}`);
-  console.log('Check that the fixture holds made-up values only, then open this link to file it:');
+  console.log('Review the local draft before sharing it. For an SDK weakness, use the private route in SECURITY.md. Feedback form:');
   console.log(issue.url);
+} else if (cmd === 'conformance') {
+  const adapter = await loadAdapter(args.adapter || 'rrweb');
+  const { target, checks } = await checkPrivacyAttribute({ adapter, sdk: args.sdk, bundle: args.bundle, chrome: args.chrome });
+  console.log(`Privacy Attribute Standard core on ${target.repo || adapter.name}@${target.commit || 'unknown'}`);
+  for (const { name, passed } of checks) console.log(`${passed ? 'PASS' : 'FAIL'} ${name}`);
+  if (checks.some(({ passed }) => !passed)) process.exitCode = 1;
 } else if (cmd === 'coverage') {
   const patterns = loadPatterns();
   const fixtures = await loadFixtures([path.join(HERE, 'fixtures')]);

@@ -35,7 +35,7 @@ If you see a leak that no draft covers, do these steps:
 
 1. Write a fixture in ${sessionDir}/fixtures/ (the format is in ${auditDir}/runner/README.md).
 2. Run \`${run} report <fixture> ${common} --what "<what you found and expected>"\`.
-3. In traces.json, add the finding to \`extra_findings\` and the report to \`feedback_sent\`.
+3. In traces.json, add the finding to \`extra_findings\`. Include only submitted reports in \`feedback_sent\`.
 4. Merge again.
 
 Do this only for leaks that you find during the trace. Do not search for new leaks outside the plan.
@@ -46,7 +46,7 @@ Do this only for leaks that you find during the trace. Do not search for new lea
 - Use made-up values in each fixture and each report.
 ${headless
     ? '- No person is at the terminal. Do not ask questions. Do not file issues. Leave the reports in the session folder.'
-    : '- Tell the person what you do. Ask before you file an issue, install anything, or run anything outside the session folder. Show pre-filled links, and let the person submit them.'}
-- End with a short summary. Start it with the disclaimer from the Responsibility section of AGENTS.md, word for word. Then give counts by severity, the findings that leak under \`targeted\` or \`strictest\`, and the report files that the implementer must file.
+    : '- Tell the person what you do. Ask before you file an issue, install anything, or run anything outside the session folder. Show the local drafts so the person can choose whether to share them.'}
+- End with a short summary. Start it with the disclaimer from the Responsibility section of AGENTS.md, word for word. Then give counts by severity, the findings that leak under \`targeted\` or \`strictest\`, and the paths of the local feedback drafts.
 `;
 }

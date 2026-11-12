@@ -1,0 +1,375 @@
+{
+  "app": "immich",
+  "repo": "https://github.com/immich-app/immich",
+  "commit": "bc0c9bb1c076a9ecdfd745a437e7d97ec4d5dbeb",
+  "held_out": [
+    "web/src/routes/(user)/sharing/+page.svelte"
+  ],
+  "review": {
+    "status": "model-reviewed",
+    "submissions": [
+      {
+        "id": "codex-measurement",
+        "kind": "model",
+        "method": "Reviewed pinned upstream source before inspecting scanner results or the other review.",
+        "files": [
+          "web/src/routes/auth/login/+page.svelte",
+          "web/src/routes/(user)/sharing/+page.svelte",
+          "web/src/lib/components/layouts/AuthPageLayout.svelte"
+        ],
+        "rows": [
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 154,
+            "category": "public",
+            "value": "none",
+            "what": "Static divider between authentication options.",
+            "tag": "hr"
+          },
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 178,
+            "category": "public",
+            "value": "none",
+            "what": "Localized email field label.",
+            "tag": "Field"
+          },
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 179,
+            "category": "personal",
+            "value": "mask",
+            "what": "Email entered by the person signing in.",
+            "tag": "Input"
+          },
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 183,
+            "category": "secret",
+            "value": "block",
+            "what": "Password entered by the person signing in.",
+            "tag": "PasswordInput"
+          },
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 186,
+            "category": "public",
+            "value": "none",
+            "what": "Localized sign-in button caption.",
+            "tag": "Button"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 51,
+            "category": "public",
+            "value": "none",
+            "what": "Localized heading for the partners section.",
+            "tag": "p"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 56,
+            "category": "third-party",
+            "value": "block",
+            "what": "Partner-specific route uses the partner identifier in href.",
+            "tag": "a"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 60,
+            "category": "third-party",
+            "value": "block",
+            "what": "Partner avatar can expose a profile image or its URL.",
+            "tag": "UserAvatar"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 62,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Sharing partner name.",
+            "tag": "p"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 65,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Sharing partner email address.",
+            "tag": "p"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 79,
+            "category": "public",
+            "value": "none",
+            "what": "Localized heading for the albums section.",
+            "tag": "p"
+          },
+          {
+            "file": "web/src/lib/components/layouts/AuthPageLayout.svelte",
+            "line": 33,
+            "category": "public",
+            "value": "none",
+            "what": "Public Immich logo.",
+            "tag": "Logo"
+          }
+        ]
+      },
+      {
+        "id": "codex-standard-docs",
+        "kind": "model",
+        "method": "Reviewed pinned upstream files independently without scanner results or first-pass labels.",
+        "files": [
+          "web/src/routes/auth/login/+page.svelte",
+          "web/src/routes/(user)/sharing/+page.svelte"
+        ],
+        "rows": [
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 155,
+            "category": "public",
+            "value": "none",
+            "what": "Translated divider label"
+          },
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 179,
+            "category": "personal",
+            "value": "mask",
+            "what": "Email entered in the login input"
+          },
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 183,
+            "category": "secret",
+            "value": "block",
+            "what": "Password entered in the login input"
+          },
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 186,
+            "category": "public",
+            "value": "none",
+            "what": "Translated login button caption"
+          },
+          {
+            "file": "web/src/routes/auth/login/+page.svelte",
+            "line": 197,
+            "category": "public",
+            "value": "none",
+            "what": "Translated passkey login button caption"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 51,
+            "category": "public",
+            "value": "none",
+            "what": "Translated partners section heading"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 56,
+            "category": "third-party",
+            "value": "block",
+            "what": "Partner-specific link URL"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 62,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Sharing partner name in paragraph text"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 65,
+            "category": "third-party",
+            "value": "mask",
+            "what": "Sharing partner email in paragraph text"
+          },
+          {
+            "file": "web/src/routes/(user)/sharing/+page.svelte",
+            "line": 79,
+            "category": "public",
+            "value": "none",
+            "what": "Translated albums section heading"
+          }
+        ]
+      }
+    ],
+    "adjudications": [
+      {
+        "file": "web/src/routes/auth/login/+page.svelte",
+        "line": 154,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "public",
+          "value": "none"
+        },
+        "reason": "Verified in the pinned source. Static divider between authentication options."
+      },
+      {
+        "file": "web/src/routes/auth/login/+page.svelte",
+        "line": 178,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "public",
+          "value": "none"
+        },
+        "reason": "Verified in the pinned source. Localized email field label."
+      },
+      {
+        "file": "web/src/routes/(user)/sharing/+page.svelte",
+        "line": 60,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "third-party",
+          "value": "block"
+        },
+        "reason": "Verified in the pinned source. Partner avatar can expose a profile image or its URL."
+      },
+      {
+        "file": "web/src/routes/auth/login/+page.svelte",
+        "line": 155,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "public",
+          "value": "none"
+        },
+        "reason": "Verified in the pinned source. Translated divider label"
+      },
+      {
+        "file": "web/src/routes/auth/login/+page.svelte",
+        "line": 197,
+        "reviewer": {
+          "id": "codex-measurement",
+          "kind": "model"
+        },
+        "chosen": {
+          "category": "public",
+          "value": "none"
+        },
+        "reason": "Verified in the pinned source. Translated passkey login button caption"
+      }
+    ]
+  },
+  "files": {
+    "web/src/routes/auth/login/+page.svelte": [
+      {
+        "line": 154,
+        "category": "public",
+        "value": "none",
+        "what": "Static divider between authentication options.",
+        "tag": "hr"
+      },
+      {
+        "line": 155,
+        "category": "public",
+        "value": "none",
+        "what": "Translated divider label",
+        "tag": "span"
+      },
+      {
+        "line": 178,
+        "category": "public",
+        "value": "none",
+        "what": "Localized email field label.",
+        "tag": "Field"
+      },
+      {
+        "line": 179,
+        "category": "personal",
+        "value": "mask",
+        "what": "Email entered by the person signing in.",
+        "tag": "Input"
+      },
+      {
+        "line": 183,
+        "category": "secret",
+        "value": "block",
+        "what": "Password entered by the person signing in.",
+        "tag": "PasswordInput"
+      },
+      {
+        "line": 186,
+        "category": "public",
+        "value": "none",
+        "what": "Localized sign-in button caption.",
+        "tag": "Button"
+      },
+      {
+        "line": 197,
+        "category": "public",
+        "value": "none",
+        "what": "Translated passkey login button caption",
+        "tag": "Button"
+      }
+    ],
+    "web/src/routes/(user)/sharing/+page.svelte": [
+      {
+        "line": 51,
+        "category": "public",
+        "value": "none",
+        "what": "Localized heading for the partners section.",
+        "tag": "p"
+      },
+      {
+        "line": 56,
+        "category": "third-party",
+        "value": "block",
+        "what": "Partner-specific route uses the partner identifier in href.",
+        "tag": "a"
+      },
+      {
+        "line": 60,
+        "category": "third-party",
+        "value": "block",
+        "what": "Partner avatar can expose a profile image or its URL.",
+        "tag": "UserAvatar"
+      },
+      {
+        "line": 62,
+        "category": "third-party",
+        "value": "mask",
+        "what": "Sharing partner name.",
+        "tag": "p"
+      },
+      {
+        "line": 65,
+        "category": "third-party",
+        "value": "mask",
+        "what": "Sharing partner email address.",
+        "tag": "p"
+      },
+      {
+        "line": 79,
+        "category": "public",
+        "value": "none",
+        "what": "Localized heading for the albums section.",
+        "tag": "p"
+      }
+    ],
+    "web/src/lib/components/layouts/AuthPageLayout.svelte": [
+      {
+        "line": 33,
+        "category": "public",
+        "value": "none",
+        "what": "Public Immich logo.",
+        "tag": "Logo"
+      }
+    ]
+  }
+}
