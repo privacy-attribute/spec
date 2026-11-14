@@ -4,6 +4,7 @@ These documents record how the Scan, the SDK Audit and the draft specification w
 
 | Document | What it covers |
 | --- | --- |
+| [Live skill review](live-skill-review-2026-11-14.md) | Three independent reviews of the dashboard handoff, full-codebase discovery, recorder protection and workflow; bounded reproductions and local corrections. |
 | [Recording results](recording-results.md) | Patches produced by the review skill, recorded in a browser on Chatwoot, Twenty and Documenso components and searched for seeded private values. |
 | [Skill-led review results](skill-led-review-results.md) | The first source reviews on five open source applications and their comparison with labelled samples. |
 | [Twenty runtime results](twenty-runtime-results.md) | Component recordings for a reviewed Twenty patch, including a leak through a hidden sizing copy and its fix. |

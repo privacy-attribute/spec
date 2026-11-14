@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { TextDecoder } from 'node:util';
 import { parse } from '@babel/parser';
-import { walk } from '../components.mjs';
+import { componentImports, walk } from '../components.mjs';
 import { templateSpans } from '../templates.mjs';
 
 const SCRIPT = /\.(?:[cm]?[jt]s|[jt]sx)$/i;
@@ -123,6 +123,7 @@ function sourceContext(root, file, source) {
   const sites = [];
   const failures = [];
   const imports = new Set();
+  const componentUses = [];
   const target = (tag, start, end, open_end, native) => ({ tag, native, start, end, open_end });
   const fail = (error, start, end, channel, status = 'unsupported') => {
     failures.push({ file: relative, status, ...(start == null ? {} : { ...position(start), start, end, channel }), error });
@@ -149,7 +150,7 @@ function sourceContext(root, file, source) {
     const resolved = localImport(root, file, specifier);
     if (resolved) imports.add(resolved);
   };
-  return { source, target, sites, failures, imports, fail, add, trimmed, importPath };
+  return { source, target, sites, failures, imports, componentUses, position, fail, add, trimmed, importPath };
 }
 
 function attributeChannel(owner, name) {
@@ -181,7 +182,7 @@ function staticValue(node) {
 }
 
 function scriptInventory(context, start, end, { typescript, jsx }) {
-  const { source, target, add, trimmed, fail, importPath } = context;
+  const { source, target, add, trimmed, fail, importPath, componentUses, position } = context;
   let ast;
   try {
     const plugins = ['decorators-legacy'];
@@ -200,13 +201,16 @@ function scriptInventory(context, start, end, { typescript, jsx }) {
   const owners = new WeakMap();
   const createElementImports = new Set();
   const reactImports = new Set(['React']);
+  const bindings = componentImports(ast.program);
   walk(ast, (node, parent) => {
     nodes.push(node);
     parents.set(node, parent);
     if (node.type === 'JSXElement') {
       const open = node.openingElement;
       const tag = name(open.name);
-      owners.set(node, target(tag, start + open.start, start + node.end, start + open.end, HTML_TAGS.has(tag)));
+      const native = HTML_TAGS.has(tag);
+      owners.set(node, target(tag, start + open.start, start + node.end, start + open.end, native));
+      if (!native) componentUses.push({ tag, ...position(start + open.start) });
     }
     if (/^(?:ImportDeclaration|ExportAllDeclaration|ExportNamedDeclaration)$/.test(node.type) && node.source?.value) {
       importPath(node.source.value);
@@ -229,6 +233,7 @@ function scriptInventory(context, start, end, { typescript, jsx }) {
     node = unwrap(node);
     if (!node || /^(?:JSXEmptyExpression|JSXElement|JSXFragment|NullLiteral|BooleanLiteral)$/.test(node.type)) return;
     if (node.type === 'StringLiteral' && !node.value.trim()) return;
+    if (isPortalCall(node)) return;
     if (node.type === 'ConditionalExpression' || node.type === 'LogicalExpression') {
       const valueFallback = node.operator === '||' || node.operator === '??';
       const branches = valueFallback || !owner ? branchOwners(node) : [];
@@ -307,6 +312,33 @@ function scriptInventory(context, start, end, { typescript, jsx }) {
     return node.computed ? node.property.value : node.property.name;
   }
 
+  function isPortalCall(node) {
+    if (!/^(?:Optional)?CallExpression$/.test(node.type)) return false;
+    const { callee } = node;
+    const [moduleName, binding] = bindings.get(callee.name ?? callee.object?.name) ?? [];
+    if (moduleName !== 'react-dom') return false;
+    return callee.type === 'Identifier'
+      ? binding === 'createPortal'
+      : (binding === '*' || binding === 'default') && member(callee) === 'createPortal';
+  }
+
+  function inspectPortalChild(child) {
+    const node = unwrap(child);
+    if (!node || /^(?:JSXElement|JSXFragment|NullLiteral|BooleanLiteral)$/.test(node.type)) return;
+    if (node.type === 'StringLiteral' && !node.value.trim()) return;
+    if (node.type === 'ArrayExpression') {
+      for (const element of node.elements) inspectPortalChild(element);
+    } else if (node.type === 'ConditionalExpression') {
+      inspectPortalChild(node.consequent);
+      inspectPortalChild(node.alternate);
+    } else if (node.type === 'LogicalExpression') {
+      if (node.operator !== '&&') inspectPortalChild(node.left);
+      inspectPortalChild(node.right);
+    } else if (!isPortalCall(node)) {
+      fail('Portal child has no exact opening element. Follow its destination in source.', start + node.start, start + node.end, 'portal-child');
+    }
+  }
+
   function markUnbound(node, channel) {
     fail('Script destination has no exact opening element.', start + node.start, start + node.end, channel);
   }
@@ -330,6 +362,7 @@ function scriptInventory(context, start, end, { typescript, jsx }) {
       const key = member(callee);
       const object = callee.object?.name;
       if ((callee.type === 'Import' || callee.name === 'require') && args[0]?.type === 'StringLiteral') importPath(args[0].value);
+      if (isPortalCall(node)) inspectPortalChild(args[0]);
       if (createElementImports.has(callee.name) || (reactImports.has(object) && /^(?:createElement|h)$/.test(key))) markUnbound(node, 'render-call');
       if ((object === 'document' && /^(?:write|writeln|createElement)$/.test(key)) || key === 'insertAdjacentHTML') markUnbound(node, 'dom-write');
       if ((object === 'location' && /^(?:assign|replace)$/.test(key))
@@ -739,6 +772,7 @@ export function inventory(root, { include } = {}) {
       failures.push(...context.failures);
     }
     if (context.imports.size) entry.imports = [...context.imports].sort(compare);
+    if (context.componentUses.length) entry.component_uses = context.componentUses.sort((a, b) => a.line - b.line || a.column - b.column);
     sites.push(...context.sites);
   }
   const sourceOrder = (a, b) => compare(a.file, b.file) || (a.start ?? -1) - (b.start ?? -1) || (a.end ?? -1) - (b.end ?? -1)

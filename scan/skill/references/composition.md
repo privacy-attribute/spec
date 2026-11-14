@@ -10,7 +10,7 @@ Do not infer private meaning solely from a variable name or infer public meaning
 
 ## Build a destination worklist
 
-For each fact, follow this sequence until no new supported destination appears within the declared feature scope:
+For each fact, follow this sequence until no new supported destination appears. A feature scope bounds the requested outcome, not access to dependencies: follow producers and renderers across the full available codebase. For application-wide work, reconcile closed feature worklists with a ledger of routes, entry points and capture integrations:
 
 1. **Producer:** props, query, context, store, schema, user entry or server markup. Establish the subject and audience independently of the producer mechanism.
 2. **Derivation:** shortened text, formatting, fallback, URL construction, aggregate, selected state or identity-bearing transformation. Carry the meaning through derivations; do not assume shortening or hashing makes it public.

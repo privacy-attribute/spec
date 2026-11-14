@@ -23,6 +23,8 @@ Read the source before filling in these fields. Scripts may attach IDs, line num
 
 For an omitted destination, add `additional_findings` records with file, line, quote, channel, meaning and reason. The inventory must be corrected or the destination must stay unresolved; it cannot silently count as reviewed.
 
+Exact `proposed_changes` currently require reviewed inventory site IDs. If an omitted destination or recorder configuration has none, do not borrow an unrelated ID. Retain the finding and provide a supplemental exact patch with original source hashes, evidence and rationale. Verify application and relevant syntax in an isolated copy and identify this edit as outside scanner proposal validation. Keep the tool's unresolved result separate from the source fix and any observed recording result. Reconcile supplemental and tool-generated edits into the final `privacy-review.patch`.
+
 Treat evidence validity and semantic correctness as separate checks. A valid quote can still support an incorrect interpretation. Independent review and executable examples test that interpretation.
 
 Use `groups` for sites that share one reviewed meaning, audience and treatment. Each group has a unique `id`, an explicit `site_ids` list and the same decision fields except `site_id`. Cite representative source evidence and any producer or caller required to establish that shared meaning. Groups cannot overlap other groups or individual decisions. Do not group unrelated expressions because their names resemble each other.

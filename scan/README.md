@@ -4,11 +4,11 @@ A review that a coding agent runs on your application's source. It finds the inf
 
 ## How it works
 
-1. **Inventory.** A structural tool lists every place the selected source renders a value. It assigns no privacy meaning.
+1. **Inventory.** The agent maps routes, feature entry points and recorder integrations across the available codebase. A structural tool lists supported rendering sites to help track the work; it can miss destinations and assigns no privacy meaning.
 2. **Review.** The agent follows the [review skill](skill/SKILL.md). It traces each value from where it is produced to the element that shows it, decides what it means and whom it concerns, and cites the source lines for every decision.
-3. **Questions.** The agent asks you at most three questions about things the source cannot show: who uses the application, what is published on purpose, and what you worry about.
-4. **Patch.** Supporting tools validate the evidence and write the proposed `data-privacy` annotations as a patch. Nothing in your application is changed.
-5. **Verify.** You apply the patch in a copy, record the changed pages with synthetic data, and check that private values are absent and public content survives.
+3. **Questions.** After research, the agent asks up to three initial questions only where your knowledge or decision is needed. Follow-ups are reserved for consequential ambiguity it cannot resolve itself.
+4. **Patch.** Supporting tools validate evidence and propose annotations. The agent reconciles these with the deployed recorder: native `review-patch` output uses `data-privacy` only, while rrweb classes or configuration changes require exact source proposals. An ignored attribute is not protection.
+5. **Verify.** The agent tests the reconciled patch in an isolated copy, with synthetic private values and public controls. It reports source validation separately from observed recording protection, and applies changes only within your authorization.
 
 ## Quick start
 
@@ -18,8 +18,9 @@ Use Node.js 18 or later. In a checkout of this repository, run `npm ci`. Then gi
 Find the data in this application that a session recorder must mask or block.
 
 1. Read <scanner checkout>/scan/skill/SKILL.md.
-2. Create a scoped structural inventory:
-   node <scanner checkout>/scan/cli.mjs inventory <application root> --include <feature paths> --out <new session folder>
+2. Map routes, feature entry points and all recorder integrations across the
+   available codebase. Create a structural inventory:
+   node <scanner checkout>/scan/cli.mjs inventory <application root> --out <new session folder>
 3. Follow the skill. Read producers and component definitions, then write
    source-evidenced decisions in the session's review.json.
 4. Run review-patch and review-proposals with --out <session folder>.
@@ -30,12 +31,14 @@ Find the data in this application that a session recorder must mask or block.
 
 The [implementation prompt](PROMPT.md) is a longer version. The [rrweb guide](recorders/rrweb.md) explains the recorder settings the annotations need.
 
+For a dashboard handoff that supplies this directory URL, open `skill/SKILL.md` and its linked references first. Use a local checkout for the CLI; the directory URL is not an install command. If tools cannot be installed or run, continue the source review and exact patch preparation, reporting tool validation as unavailable. For large applications, inventory in feature batches with `--include`, while keeping a whole-application coverage ledger and following dependencies outside each batch.
+
 ## What to know before you rely on it
 
 - A coding agent sends the source it reads to its model provider.
 - A scan can miss private data and can propose a wrong annotation. Review the patch.
 - A validated patch is a static result. Only a recording of the patched application shows what a recorder captures.
-- The annotations need a recorder that honours `data-privacy`, natively or through selectors.
+- `data-privacy` annotations need a recorder that honours them, natively or through selectors. For rrweb without that support, use verified `rr-mask`/`rr-block` class proposals. `maskAllInputs: true` alone does not enable the attributes.
 
 ## Reference
 
@@ -46,7 +49,7 @@ The [implementation prompt](PROMPT.md) is a longer version. The [rrweb guide](re
 
 ## Skill-led review
 
-Choose a bounded feature scope and a new session folder outside the application source. Keep the source read-only during inspection.
+Use a new session folder outside the application source. For an application-wide request, keep a ledger of all entry points and review in bounded feature batches as necessary. Keep the source read-only during inspection, and follow producers, shared components and capture integrations outside batch boundaries.
 
 ```bash
 node scan/cli.mjs inventory /path/to/app --include src/account,src/contacts --out /tmp/privacy-review

@@ -1,4 +1,4 @@
-# Questions: three per review
+# Questions after research
 
 Use this after an initial source investigation reveals missing business context. Do not open a new review with a generic questionnaire. First inspect the user's instructions, available policy and product documentation, routes and access rules, data producers, representative rendering components and recorder configuration. Follow relevant definitions rather than inferring meaning from names. Build a provisional project profile with source references and explicit uncertainties.
 
@@ -6,7 +6,7 @@ Ask only about uncertainties that materially change a classification, protection
 
 ## Resolve genuine user-dependent ambiguities
 
-These families cover the ambiguities the review has found and cannot settle. They feed the third question below. Include as few as necessary, and none when the evidence is sufficient. Phrase questions using concrete features found in the app and briefly state what the answer changes. Bundle shared uncertainty across related destinations instead of asking per field, and keep each batch manageable.
+These families organize ambiguities the review has found and cannot settle. Include as few as necessary, and none when the evidence is sufficient. Phrase questions using concrete features found in the app and briefly state what the answer changes. Bundle shared uncertainty across related destinations instead of asking per field, and keep each batch manageable.
 
 | Question | Answer to retain | How it changes the review |
 | --- | --- | --- |
@@ -20,15 +20,15 @@ For example, after tracing a monitor picker to an account-scoped API, ask whethe
 
 Where an ambiguous family matters, use it as a concrete example within the relevant question: for example, whether monitor names are published service labels or confidential operational labels. Do not append another routine intake question. Apply the answer only to the supported data type and scope, then check exceptions. Preserve a policy assumption and unresolved status when an answer is unavailable; do not turn silence into permission to retain private content.
 
-## Three questions per review
+## At most three questions in the first batch
 
-The three families in the table above are the only questions that go to the user. Each one carries the unresolved decisions that hinge on it and ends with one probe for information the source could not show.
+Use the three families above for the first batch, skipping answered or immaterial questions. A probe is useful only when there is a concrete uncertainty that user knowledge can resolve. Do not invent unknown unknowns to require a question. A later consequential ambiguity can justify a concise follow-up after available evidence has been exhausted; state what was investigated and what the answer changes.
 
 1. **Who uses this, and whose information do they see or enter?** Probe: summarize the kinds of private information found in one line, then name up to three features seen in the source whose content could not be traced, and ask what they hold and what else is missing. Generic examples anchor the answer on the example, so use features from this application. For example: "Your support staff use these screens and see a customer's contact details, subscription and device information. Is that right? I saw conversation labels and custom attributes and could not see what they hold. What goes in them, and is any other private information missing?" An answer that names new information adds destinations to the trace worklist.
 2. **Which of this is published on purpose?** Carry the public-or-private decisions, then name the two or three visible items most likely to be confidential. For example: "Integration names are hidden for now. Are they only your built-in list, which could stay visible? Plan names and prices are hidden too. I am keeping page headings and help text visible. Is any of that confidential?"
 3. **Is there specific data you worry about showing up in a recording?** Ask about worry, since a question about rules or policy gets a vague answer. Offer up to three unresolved handling decisions as candidates so the user has something to react to. For example: "Is there specific data you worry about showing up in a recording? Candidates: whether a user has two-step verification on, and the page a customer came from. Both hidden for now. Anything a customer, contract or regulator has told you must never be captured?"
 
-Keep the message short. Each question carries at most three groups of decisions, and a decision appears under one question only. For every group give the feature in the user's words, the default applied and what the other answer would change. The whole message stays under 250 words. Groups that do not fit stay unresolved in the report, lowest impact first.
+Keep the message short. Each question carries at most three groups of decisions, and a decision appears under one question only. For every group give the feature in the user's words, the default applied and what the other answer would change. Keep each batch under 250 words. Continue investigating groups that do not fit; do not abandon a material user-dependent ambiguity solely to meet a question count. Report unanswered dependencies without treating silence as approval.
 
 Recorder version, options, plugins and recorded pages are investigated from configuration and the recorder guide. They are never asked. When they are absent from the inputs, the report states the assumption used.
 

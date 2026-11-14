@@ -25,6 +25,7 @@ const SHA256 = /^[a-f0-9]{64}$/;
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const portable = (file) => file.split(path.sep).join('/');
 const inside = (rel) => rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
+const shellQuote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
 export const responsibility = 'The recorder operator is responsible for recording contents. This review does not establish legal compliance.';
 
@@ -103,7 +104,34 @@ export function createReviewSession(root, out, { include } = {}) {
   for (const name of GENERATED_ARTIFACTS) fs.rmSync(path.join(out, name), { force: true });
   writeJSON(out, 'inventory.json', current);
   writeJSON(out, 'tasks.json', reviewTasks(current));
-  writeArtifact(out, 'REVIEW.md', `# Review session\n\nUse ${path.resolve(HERE, '../skill/SKILL.md')}. Review source at ${root}.\n\nRead one file task at a time from tasks.json. Retrieve bounded source context with privacy-scan review-context --out ${out} --file <path> --start <line> --end <line>. Follow definitions when needed. Fill review.json with evidence-backed semantic decisions. Do not use benchmark labels. Run privacy-scan review-patch --out ${out} to validate and propose changes.\n\n${responsibility}\n`);
+  const cli = `${shellQuote(process.execPath)} ${shellQuote(path.resolve(HERE, '../cli.mjs'))}`;
+  const sessionOption = `--out ${shellQuote(out)}`;
+  writeArtifact(out, 'REVIEW.md', [
+    '# Review session',
+    '',
+    `Use ${path.resolve(HERE, '../skill/SKILL.md')}. Review source at ${root}.`,
+    '',
+    'Read one file task at a time from tasks.json. Replace the file path and line numbers below to retrieve bounded source context.',
+    '',
+    '```sh',
+    `${cli} review-context ${sessionOption} --file 'path/to/source' --start 1 --end 10`,
+    '```',
+    '',
+    'Follow definitions when needed. Fill review.json with evidence-backed semantic decisions. Do not use benchmark labels.',
+    '',
+    '```sh',
+    `${cli} review-patch ${sessionOption}`,
+    '```',
+    '',
+    'If review.json includes proposed_changes, validate them before reconciling the patches.',
+    '',
+    '```sh',
+    `${cli} review-proposals ${sessionOption}`,
+    '```',
+    '',
+    responsibility,
+    '',
+  ].join('\n'));
   writeJSON(out, 'session.json', session);
   writeJSON(out, 'review.json', {
     schema_version: 1,

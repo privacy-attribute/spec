@@ -59,6 +59,7 @@ test('inventories exact JSX slots without classifying privacy or including stati
     language: 'tsx',
     status: 'parsed',
     imports: ['data.ts', 'ui/parts/index.tsx'],
+    component_uses: [{ tag: 'Display', line: 9, column: 4 }],
   }]);
   assert.deepEqual(result, inventory(root, { include: ['./ui/App.tsx', 'ui/App.tsx'] }));
   assert.equal(new Set(result.sites.map(({ id }) => id)).size, result.sites.length);
@@ -86,6 +87,58 @@ test('inventories exact JSX slots without classifying privacy or including stati
   assert.equal(at('input', 'attribute:className')[0].expression, 'status ? "ok" : "warning"');
   assert.equal(at('textarea', 'input').length, 1);
   assert.ok(result.sites.every(({ channel }) => !/:(?:key|ref|style|onClick|onChange)$/.test(channel)));
+});
+
+test('lists component uses without treating the tag names as rendered values', (t) => {
+  const root = fixture(t, {
+    'App.tsx': [
+      'import { Dialog } from "./dialog";',
+      'export const App = () => <main>',
+      '  <Dialog />',
+      '  <Dialog.Content><Help onDismiss={() => {}} /></Dialog.Content>',
+      '  <span>Continue</span>',
+      '</main>;',
+    ].join('\n'),
+    'dialog.tsx': 'export const Dialog = () => null;',
+  });
+  const { files, sites, failures } = inventory(root, { include: ['App.tsx'] });
+  assert.deepEqual(failures, []);
+  assert.deepEqual(files[0].imports, ['dialog.tsx']);
+  assert.deepEqual(files[0].component_uses, [
+    { tag: 'Dialog', line: 3, column: 2 },
+    { tag: 'Dialog.Content', line: 4, column: 2 },
+    { tag: 'Help', line: 4, column: 18 },
+  ]);
+  assert.deepEqual(sites.map(({ expression }) => expression), ['Continue']);
+});
+
+test('flags scalar and opaque React portal children without using the caller as their owner', (t) => {
+  const source = [
+    'import { createPortal as mount } from "react-dom";',
+    'import * as ReactDOM from "react-dom";',
+    'import { createPortal } from "./unrelated";',
+    'export const Popup = ({ shown, email, label, body }) => <main>',
+    '  {mount(shown ? email : <span>{label}</span>, document.body)}',
+    '  {ReactDOM.createPortal(body, document.body)}',
+    '  {ReactDOM.createPortal([null, <span>Help</span>], document.body)}',
+    '</main>;',
+    'export const other = (email) => createPortal(email);',
+  ].join('\n');
+  const root = fixture(t, {
+    'Overlay.tsx': source,
+    'unrelated.ts': 'export const createPortal = (email) => email;',
+  });
+  const { files, sites, failures } = inventory(root);
+  assert.equal(files[0].status, 'unsupported');
+  assert.deepEqual(failures.map(({ status, channel, start, end }) => [status, channel, source.slice(start, end)]), [
+    ['unsupported', 'portal-child', 'email'],
+    ['unsupported', 'portal-child', 'body'],
+  ]);
+  assert.deepEqual(sites.map(({ tag, channel, expression }) => [tag, channel, expression]), [
+    ['span', 'conditional', 'shown'],
+    ['span', 'text', 'label'],
+    ['span', 'text', 'Help'],
+  ]);
 });
 
 test('preserves all supported template targets and source intervals across markup formats', (t) => {

@@ -122,6 +122,27 @@ test('CLI inventories scoped sites, cites exact out-of-scope source bytes, and p
   assert.equal(fs.readFileSync(app.app, 'utf8'), APP_SOURCE);
 });
 
+test('generated review commands work from a checkout without a scanner on PATH', (t) => {
+  const app = fixture(t);
+  const out = path.join(app.temp, "review session's $(exit 9)");
+  assert.equal(run('inventory', app.root, '--include', APP, '--out', out).status, 0);
+  const instructions = fs.readFileSync(path.join(out, 'REVIEW.md'), 'utf8');
+  const commands = [...instructions.matchAll(/```sh\n([^\n]+)\n```/g)].map(([, command]) => command);
+  const [context, patch, proposals] = commands.map((command) => spawnSync('/bin/sh', ['-c', command
+    .replace("'path/to/source' --start 1 --end 10", "'data.ts' --start 2 --end 2")], {
+    cwd: app.root,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: '/usr/bin:/bin' },
+    timeout: 5000,
+  }));
+  assert.equal(context.status, 0, context.stderr);
+  assert.equal(JSON.parse(context.stdout).file, 'data.ts');
+  assert.equal(patch.status, 2, patch.stderr);
+  assert.equal(JSON.parse(patch.stdout).missing, 3);
+  assert.equal(proposals.status, 0, proposals.stderr);
+  assert.equal(JSON.parse(proposals.stdout).patch_application, 'empty');
+});
+
 test('an incomplete review exposes only a partial proposal and clears obsolete artifacts after an invalid review', (t) => {
   const app = fixture(t);
   app.start(`${APP},Other.tsx`);
