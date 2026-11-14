@@ -9,6 +9,7 @@ A review that a coding agent runs on your application's source. It finds the inf
 3. **Questions.** After research, the agent asks up to three initial questions only where your knowledge or decision is needed. Follow-ups are reserved for consequential ambiguity it cannot resolve itself.
 4. **Patch.** Supporting tools validate evidence and propose annotations. The agent reconciles these with the deployed recorder: native `review-patch` output uses `data-privacy` only, while rrweb classes or configuration changes require exact source proposals. An ignored attribute is not protection.
 5. **Verify.** The agent tests the reconciled patch in an isolated copy, with synthetic private values and public controls. It reports source validation separately from observed recording protection, and applies changes only within your authorization.
+6. **Feedback.** When the review finds a reusable gap, the agent prepares a synthetic issue draft and suggests reporting it to this repository. Recorder weaknesses use the private security route. Nothing is posted without your authorization. See [feedback instructions](skill/references/feedback.md).
 
 ## Quick start
 

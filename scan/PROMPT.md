@@ -53,6 +53,10 @@ when native support is absent. Do not enable production capture to run a scan.
 Return the concrete patch, semantic disagreements, public-content losses,
 remaining gaps, and checks actually executed. Separate source evidence from
 runtime protection. Do not publish or change the original application.
+For reusable scanner or guidance gaps, follow the skill's feedback instructions:
+prepare a local synthetic issue draft and suggest reporting it to the repo.
+Keep recorder weaknesses on the private security route. Do not post feedback
+without the user's explicit authorization for its content and destination.
 ```
 
 See [the workflow and outputs](README.md#skill-led-review). For rrweb, read [the recorder guide](recorders/rrweb.md) and verify the exact deployed build before relying on attribute behavior.

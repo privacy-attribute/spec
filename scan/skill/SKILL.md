@@ -19,6 +19,7 @@ Write these into the session folder. Artifacts document progress; their existenc
 | Validated proposal | Output of `privacy-scan review-patch` and, for framework edits, `privacy-scan review-proposals`.                                                   |
 | `privacy-review.patch` | One reconciled patch compatible with the deployed recorder; identify any supplemental edits outside tool validation. |
 | `report.md`        | The fields listed under [Report](#7-report).                                                                                                       |
+| `feedback/`       | When a reusable gap is found: local synthetic issue drafts, with recorder weaknesses kept in a separate private draft. See [feedback](references/feedback.md). |
 
 ## Ground rules
 
@@ -191,6 +192,9 @@ State each of these, and keep the six stages separate: discovery, semantic decis
 - Questions actually needed, their answers, known facts reused and defaults pending an answer
 - Intentional public losses
 - Destinations added through `additional_findings`
+- Feedback-worthy gaps, local draft paths and the suggested public or private reporting route, when applicable
+
+**Suggest reporting reusable gaps.** When you find missed rendering patterns, false positives, wrong guidance, unclear instructions or reproducible tool failures, prepare a local draft and explicitly suggest reporting it to this repository. Follow [feedback instructions](references/feedback.md) for the issue link, required evidence, synthetic examples and private security routing. Do this even when a workaround fixes the application. Ordinary missing business context is not a scanner bug. Keep investigating and protecting the application; an issue draft does not close a finding. Never publish or send a report without the user's explicit authorization for the content and destination.
 
 The recorder operator remains responsible for recording contents. This process does not establish legal compliance.
 
