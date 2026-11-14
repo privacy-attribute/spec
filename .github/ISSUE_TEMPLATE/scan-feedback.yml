@@ -7,7 +7,8 @@ body:
     attributes:
       value: |
         Use made-up names and values in this issue. Do not paste code or data from your application.
-        Do not report weaknesses in a recorder here: see SECURITY.md.
+        Do not report recorder protection bypasses or scanner/audit vulnerabilities here.
+        Use the private routes in [SECURITY.md](https://github.com/privacy-attribute/spec/blob/main/SECURITY.md).
   - type: dropdown
     id: kind
     attributes:
@@ -22,8 +23,8 @@ body:
   - type: input
     id: scan-version
     attributes:
-      label: Scan version
-      placeholder: "0.1.0"
+      label: Scan / skill version or revision
+      placeholder: "Package version or commit; unknown if unavailable"
   - type: textarea
     id: what
     attributes:
@@ -36,7 +37,22 @@ body:
       description: A short snippet that shows the pattern, written new with made-up values.
       render: html
   - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Framework and tool versions, relevant non-secret options, and whether checks were static, in a DOM emulator, in a browser, or in the full app. Omit application details.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps and checks
+      description: Give portable steps and a summary of actual results. State whether the newly written example reproduces the same gap, was not run, or did not reproduce it. Do not paste application logs or recordings.
+  - type: textarea
     id: expected
     attributes:
       label: Expected
       description: The candidate, annotation or guidance you expected.
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: What you tried, what you verified, and what remains unresolved. Leave blank if none.

@@ -18,6 +18,8 @@ For each distinct public feedback item, write `feedback/scan-gap-<short-name>.md
 
 Write a new minimal example using invented components and values. Preserve the mechanism needed to reproduce the gap, such as prop forwarding, an aliased portal or an asynchronous copy. Do not copy application source, proprietary identifiers, customer data, paths, hostnames, screenshots, recordings, logs, configuration secrets or links to private resources. Never attach the application's `review.json`, coverage ledger or raw session artifacts to a public draft. If a useful synthetic reproduction is not yet possible, explain that limit locally; do not replace it with application material.
 
+Check the newly written example itself. When feasible, run it in an isolated fixture with the relevant tool revision, options and capture setup, and confirm that the same gap remains. Simplification must not remove the mechanism being reported. Separate what was observed in the application from what was reproduced synthetically. If the example was not run or does not reproduce the gap, say so explicitly and keep it labelled as an unverified illustration; do not call its steps a confirmed reproduction. Preserve the original finding while refining the example. Do not fabricate a command, output or missing version to complete the draft.
+
 Use this structure, mapping it into the issue form when shared:
 
 ```markdown
@@ -35,6 +37,7 @@ Example (made-up):
 
 Steps and checks:
 <Reproduction commands, actual output summary, and checks not run.>
+Synthetic reproduction status: <confirmed same gap | not run | did not reproduce>
 
 Expected:
 <Required discovery, annotation, guidance or tool behavior; public content to preserve.>
@@ -44,6 +47,8 @@ Workaround:
 ```
 
 Use `scan-report` for a tool failure that does not fit a more specific form option. For a private recorder report, describe the supported protection and exact captured channel. Claim a runtime leak only when an executed recording demonstrates it; distinguish a suspected source-level weakness. Record baseline positives and the relevant event phase when tested. A proposed workaround or passing source check is not observed recording protection.
+
+The form has fields for Kind, Recorder, Scan / skill version or revision, What happened, Example (made-up), Environment, Steps and checks, Expected and Workaround. Put the synthetic reproduction status in Steps and checks. If a destination uses an older form without a dedicated field, put that information under What happened rather than dropping it. Use portable relative fixture paths and invented URLs in commands; unknown values and unexecuted checks remain explicit.
 
 ## Offer the report to the user
 
