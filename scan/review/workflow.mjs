@@ -281,12 +281,16 @@ export function applyProposalInCopy(root, patch, files) {
         fs.mkdirSync(path.dirname(destination), { recursive: true });
         fs.writeFileSync(destination, readRegularFile(source), { flag: 'wx', mode: 0o600 });
       }
+      const gitHome = fs.mkdtempSync(path.join(temporary, '.git-home-'));
+      const gitConfig = path.join(gitHome, 'config');
+      fs.writeFileSync(gitConfig, '', { flag: 'wx', mode: 0o600 });
       const env = {
         PATH: process.env.PATH,
-        HOME: temporary,
-        XDG_CONFIG_HOME: temporary,
+        HOME: gitHome,
+        USERPROFILE: gitHome,
+        XDG_CONFIG_HOME: gitHome,
         GIT_CONFIG_NOSYSTEM: '1',
-        GIT_CONFIG_GLOBAL: os.devNull,
+        GIT_CONFIG_GLOBAL: gitConfig,
         GIT_CEILING_DIRECTORIES: path.dirname(temporary),
       };
       const gitApply = (...args) => execFileSync('git', ['--no-optional-locks', 'apply', '--whitespace=nowarn', ...args, '-'], {
@@ -294,6 +298,7 @@ export function applyProposalInCopy(root, patch, files) {
       });
       gitApply('--check');
       gitApply();
+      fs.rmSync(gitHome, { recursive: true, force: true });
     }
     return {
       root: temporary,
