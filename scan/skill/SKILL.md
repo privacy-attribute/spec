@@ -1,11 +1,17 @@
 ---
 name: annotate-session-privacy
-description: Use when reviewing a web application's source for private information that a session recorder would capture, or when proposing or checking mask/block annotations. Triggers include privacy scans, rrweb onboarding, data-privacy or rr-mask/rr-block annotations, private-data exposure reviews, replay leaks, and questions about whether an existing privacy patch protects the right UI.
+description: Use for source-level privacy reviews of session recordings, including focused rrweb onboarding, replay leaks, and mask/block annotation checks. Start with the flow the user wants to record; use the full inventory and coverage workflow for explicitly broader reviews.
 ---
 
 # Annotate session privacy
 
 Produce a reviewable patch that protects private information and keeps useful public content. Every decision rests on source evidence about what a value means, whom it concerns and where it is recorded. Names, samples and passing checks establish none of these.
+
+## Choose the scope
+
+Use the user's requested scope. For general onboarding without a named feature, pick one representative flow the recorder captures or is intended to capture. State the choice and check its recorder setup, data producers, and actual render and capture destinations. Trace shared dependencies only as far as that flow needs. Expand to multiple flows or the whole application when the user requests wider coverage.
+
+For a focused pass, finish when the flow has an evidence-backed patch or a concrete blocker. Give the user a short summary of the flow, the proposed change, the checks that ran, and any unresolved risk. Skip the coverage ledger and review map for a simple single flow. For a question answerable from the recorder guide or specific source, answer it directly.
 
 ## Deliverables
 
@@ -18,7 +24,7 @@ Write these into the session folder. Artifacts document progress; their existenc
 | `coverage.md`      | For application-wide or batched work: scope, entry points, capture integrations, completed traces, exclusions, blockers and the next trace. |
 | Validated proposal | Output of `privacy-scan review-patch` and, for framework edits, `privacy-scan review-proposals`.                                                   |
 | `privacy-review.patch` | One reconciled patch compatible with the deployed recorder; identify any supplemental edits outside tool validation. |
-| `report.md`        | The fields listed under [Report](#7-report).                                                                                                       |
+| `report.md`        | A short result for a focused pass, or a coverage report for a wider review. See [Report](#7-report). |
 | `feedback/`       | When a reusable gap is found: local synthetic issue drafts, with recorder weaknesses kept in a separate private draft. See [feedback](references/feedback.md). |
 
 ## Ground rules
@@ -61,7 +67,7 @@ Research first. Source, product documentation and existing policy can answer aud
 - Summarize what was found in one line of kinds, such as "contact details, subscription and device information". Do not list every field.
 - The whole message stays under 250 words, in plain language, with no file names or component names the user would not recognize.
 
-**Start with at most three questions.** Send only necessary questions together after investigation. Continue independent work. A later question is appropriate only for a consequential ambiguity that still requires the user's knowledge or decision; explain what you investigated and what the answer changes. An answer naming new information reopens its trace.
+**Ask only what the current review needs.** For focused onboarding, start with at most one question and ask it only if the answer changes a protection decision you cannot settle yourself. For wider reviews, send up to three necessary questions together after investigation. Continue independent work. A later question is appropriate only for consequential ambiguity that still requires the user's knowledge or decision. An answer naming new information reopens its trace.
 
 **When nobody answers.** Keep the defaults, keep the dependent decisions unresolved, and state each unanswered question in `report.md` as a limit of the review.
 
@@ -85,7 +91,7 @@ Run `privacy-scan inventory <source> --out <session>` when available. In Git, in
 
 Commands below use `privacy-scan` as shorthand. In a checkout installed with `npm ci`, invoke `node <scanner checkout>/scan/cli.mjs <command>`; a global command is not installed by `npm ci`.
 
-Reconcile the tool output with the coverage ledger and a source search for render and capture mechanisms. Unsupported frameworks, dynamically selected components, scalar component returns, portal payloads and imperative DOM writes can escape structural inventory. Inspect them directly and record omitted destinations or parser limitations. If the tool cannot run, continue a source review with the same ledger and evidence; explicitly report that tool validation was not run.
+Reconcile the tool output with a source search for render and capture mechanisms in scope. Update the coverage ledger if the review spans batches or the whole application. Unsupported frameworks, dynamically selected components, scalar component returns, portal payloads and imperative DOM writes can escape structural inventory. Inspect them directly and record omitted destinations or parser limitations. If the tool cannot run, continue with source evidence and report that tool validation was not run.
 
 ### 3. Map content
 
@@ -182,7 +188,9 @@ An unexecuted recording test has no privacy result. Marker absence applies only 
 
 ### 7. Report
 
-State each of these, and keep the six stages separate: discovery, semantic decision, proposed edit, applied edit, static verification, observed recording protection.
+For a focused pass, report the flow and recorder configuration, what private data you found, the proposed patch or blocker, and which checks ran. Name any unresolved exposure or public content the proposal would remove. Make clear whether the patch was applied and whether recording protection was observed.
+
+For a wider review, include the following details. Keep discovery, semantic decisions, proposed edits, applied edits, static verification, and observed recording protection distinct.
 
 - Source scope and revision
 - Coverage ledger: total entry points, traced and excluded paths, and remaining dependencies; inventory counts are not application coverage

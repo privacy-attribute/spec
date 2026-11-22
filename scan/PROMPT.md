@@ -1,10 +1,11 @@
 # Implementation prompt
 
-Use the skill-led review for new work. Replace the paths and feature scope in this prompt:
+Use the [quick start](README.md#quick-start) for onboarding one flow. For wider reviews, replace the paths and scope in this prompt:
 
 ```text
-Review the session-recording privacy of <application root>, or the features
-explicitly scoped by the user. Map relevant routes, feature entry points,
+Review the session-recording privacy of <requested features or application>.
+Use one representative recorded flow if the user did not request wider
+coverage. Map relevant routes, feature entry points,
 shared components and recorder integrations in a coverage ledger. Between
 batches record the original deliverable, current scope, user corrections and
 next unresolved trace. Follow dependencies as needed for in-scope callers.

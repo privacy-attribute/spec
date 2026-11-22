@@ -4,7 +4,7 @@ A review that a coding agent runs on your application's source. It finds the inf
 
 ## How it works
 
-1. **Inventory.** The agent maps routes, feature entry points and recorder integrations across the available codebase. A structural tool lists supported rendering sites to help track the work; it can miss destinations and assigns no privacy meaning.
+1. **Inventory.** The agent identifies the flow and its recorder setup. For an application-wide review, it maps all entry points and recorder integrations. The structural inventory lists rendering sites for review.
 2. **Review.** The agent follows the [review skill](skill/SKILL.md). It traces each value from where it is produced to the element that shows it, decides what it means and whom it concerns, and cites the source lines for every decision.
 3. **Questions.** After research, the agent asks up to three initial questions only where your knowledge or decision is needed. Follow-ups are reserved for consequential ambiguity it cannot resolve itself.
 4. **Patch.** Supporting tools validate evidence and propose annotations. The agent reconciles these with the deployed recorder: native `review-patch` output uses `data-privacy` only, while rrweb classes or configuration changes require exact source proposals. An ignored attribute is not protection.
@@ -16,22 +16,23 @@ A review that a coding agent runs on your application's source. It finds the inf
 Use Node.js 18 or later. In a checkout of this repository, run `npm ci`. Then give this prompt to a coding agent in your application's repository, with the paths replaced:
 
 ```text
-Find the data in this application that a session recorder must mask or block.
+Find the data that a session recorder must mask or block in this flow:
+<first flow to record>. If no flow is named, pick one representative flow.
 
 1. Read <scanner checkout>/scan/skill/SKILL.md.
-2. Map routes, feature entry points and all recorder integrations across the
-   available codebase. Create a structural inventory:
-   node <scanner checkout>/scan/cli.mjs inventory <application root> --out <new session folder>
+2. Find the relevant files and recorder setup. Create a scoped inventory:
+   node <scanner checkout>/scan/cli.mjs inventory <application root> --include <flow paths> --out <new session folder>
 3. Follow the skill. Read producers and component definitions, then write
    source-evidenced decisions in the session's review.json.
-4. Run review-patch and review-proposals with --out <session folder>.
+4. Run review-patch with --out <session folder>. Run review-proposals if the
+   patch needs exact framework or configuration edits.
 5. Validate the patch statically. Run recording checks only in an authorized,
    credential-free synthetic fixture with outbound network access blocked.
    Report unresolved work, public-content losses and checks actually executed.
    Leave the original application unchanged and provide the patch for review.
 ```
 
-The [implementation prompt](PROMPT.md) is a longer version. The [rrweb guide](recorders/rrweb.md) explains the recorder settings the annotations need.
+Use the [implementation prompt](PROMPT.md) for a wider review. The [rrweb guide](recorders/rrweb.md) explains the recorder settings the annotations need.
 
 For a dashboard handoff that supplies this directory URL, open `skill/SKILL.md` first. Open individual references only when the current trace calls for them. Use a local checkout for the CLI. If the tool is unavailable, continue the source review and record which checks could not run. For large applications, use `--include` for each feature batch and keep the original deliverable, current scope, user corrections, and next unresolved trace in the coverage ledger.
 
