@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { TextDecoder } from 'node:util';
 import { parse } from '@babel/parser';
@@ -10,7 +11,8 @@ const SCRIPT = /\.(?:[cm]?[jt]s|[jt]sx)$/i;
 const TEMPLATE = /\.(?:vue|svelte|blade\.php|html?)$/i;
 const OTHER_VIEW = /\.(?:astro|hbs|handlebars|erb|cshtml|razor|php|twig|liquid|ejs|eta|pug|jade|njk|nunjucks|mustache|haml|slim|mdx|jsp|jspx|xhtml)$/i;
 const IMPORT_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts', '.vue', '.svelte', '.json', '.html'];
-const EXCLUDED_DIRECTORIES = new Set(['.git', 'node_modules', 'vendor', 'dist', 'build', '.next', '.nuxt', '.output', '.svelte-kit', 'coverage']);
+const METADATA_DIRECTORIES = new Set(['.git', '.claude', '.codex', '.agents', '.cursor']);
+const EXCLUDED_DIRECTORIES = new Set(['node_modules', 'vendor', 'dist', 'build', '.next', '.nuxt', '.output', '.svelte-kit', 'coverage']);
 const NATIVE_CONTROLS = new Set(['input', 'textarea', 'select']);
 const LAYOUT_ATTRIBUTE = /^(?:class|className|style)$/i;
 const RAW_TEXT = /^(?:textarea|title|xmp|iframe|noembed|noframes)$/i;
@@ -63,13 +65,38 @@ function scopePaths(root, include) {
   }
   const prefixes = [...new Set(include.map((file) => path.relative(root, path.resolve(root, file))))];
   if (prefixes.some((file) => !inside(file))) throw new Error('Included paths must be inside the source root.');
+  if (prefixes.some((file) => file.split(path.sep).some((part) => METADATA_DIRECTORIES.has(part)))) {
+    throw new Error('Included paths cannot target Git or agent metadata.');
+  }
   return prefixes.includes('') ? [] : prefixes;
+}
+
+function trackedFiles(root) {
+  let dir = root;
+  while (!fs.existsSync(path.join(dir, '.git'))) {
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+  // Use the selected worktree's index, even when the caller has Git overrides.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+  const output = execFileSync('git', [
+    '--no-optional-locks', '-c', 'core.fsmonitor=false', '-C', root, 'ls-files', '--cached', '-z', '--', '.',
+  ], { encoding: 'utf8', env, maxBuffer: 32 * 1024 * 1024 });
+  return new Set(output.split('\0').filter(Boolean).map((file) => path.normalize(file)));
 }
 
 function sourceFiles(root, prefixes) {
   const files = [];
   const failures = [];
   const seenPrefixes = new Set();
+  const tracked = trackedFiles(root);
+  const trackedDirectories = new Set();
+  for (const file of tracked ?? []) {
+    for (let dir = path.dirname(file); dir !== '.' && !trackedDirectories.has(dir); dir = path.dirname(dir)) {
+      trackedDirectories.add(dir);
+    }
+  }
   function visit(dir) {
     let entries;
     try {
@@ -82,10 +109,16 @@ function sourceFiles(root, prefixes) {
       const file = path.join(dir, entry.name);
       const explicit = prefixes.some((prefix) => below(prefix, file));
       if (prefixes.length && !explicit && !prefixes.some((prefix) => below(file, prefix))) continue;
-      if (prefixes.includes(file)) seenPrefixes.add(file);
+      const named = prefixes.includes(file);
+      if (named) seenPrefixes.add(file);
       if (entry.isDirectory()) {
-        if (entry.name !== '.git' && (explicit || !EXCLUDED_DIRECTORIES.has(entry.name))) visit(file);
-      } else if (entry.isFile() && (SCRIPT.test(file) || TEMPLATE.test(file) || OTHER_VIEW.test(file) || prefixes.includes(file))) {
+        const namedDescendant = prefixes.some((prefix) => prefix !== file && below(prefix, file));
+        if (METADATA_DIRECTORIES.has(entry.name) || (!explicit && !namedDescendant && EXCLUDED_DIRECTORIES.has(entry.name))) continue;
+        if (tracked && !trackedDirectories.has(file) && !namedDescendant) continue;
+        if (!fs.existsSync(path.join(root, file, '.git'))) visit(file);
+      } else if (tracked && !tracked.has(file) && !named) {
+        continue;
+      } else if (entry.isFile() && (SCRIPT.test(file) || TEMPLATE.test(file) || OTHER_VIEW.test(file) || named)) {
         files.push(file);
       } else if (entry.isSymbolicLink() && (explicit || SCRIPT.test(file) || TEMPLATE.test(file) || OTHER_VIEW.test(file))) {
         failures.push({ file: slash(file), status: 'unsupported', error: 'Symbolic link has no reviewed source.' });

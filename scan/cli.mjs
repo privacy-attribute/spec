@@ -369,7 +369,7 @@ if (['inventory', 'review-context', 'review-patch', 'review-proposals'].includes
     const review = workflow.readReviewDecisions(out);
     const { after, patch, ...result } = proposeSourceChanges(state.session.root, state.inventory, review);
     if (!result.errors.length) {
-      const applied = workflow.applyProposalInCopy(state.session.root, patch);
+      const applied = workflow.applyProposalInCopy(state.session.root, patch, Object.keys(after));
       result.patch_application = applied.application;
       fs.rmSync(applied.root, { recursive: true, force: true });
       if (patch) writeSessionFile(out, 'source-proposals.patch', patch);

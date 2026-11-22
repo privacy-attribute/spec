@@ -264,40 +264,31 @@ export function reviewSessionPatch(out) {
   return { report, patch, after };
 }
 
-function copyableLink(root, file) {
-  const link = fs.readlinkSync(file);
-  if (path.isAbsolute(link) || !inside(path.relative(root, path.resolve(path.dirname(file), link)))) return false;
-  try {
-    const target = path.relative(root, fs.realpathSync(file));
-    return inside(target) && !target.split(path.sep).includes('.git');
-  } catch {
-    return false;
-  }
-}
-
-export function applyProposalInCopy(root, patch) {
+export function applyProposalInCopy(root, patch, files) {
   root = sourceRoot(root);
   const temporary = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'privacy-reviewed-patch-')));
-  const skippedLinks = [];
   try {
-    fs.cpSync(root, temporary, {
-      recursive: true,
-      verbatimSymlinks: true,
-      filter: (file) => {
-        if (path.basename(file) === '.git') return false;
-        if (!fs.lstatSync(file).isSymbolicLink()) return true;
-        const relative = path.relative(root, file);
-        if (copyableLink(root, file)) return true;
-        skippedLinks.push(portable(relative));
-        return false;
-      },
-    });
     const applied = Boolean(patch.trim());
     if (applied) {
-      const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
-      env.GIT_CONFIG_NOSYSTEM = '1';
-      env.GIT_CONFIG_GLOBAL = os.devNull;
-      env.GIT_CEILING_DIRECTORIES = path.dirname(temporary);
+      // This is a static patch check. Copy only proposal targets, never the application.
+      for (const file of files) {
+        const source = path.resolve(root, file);
+        const relative = path.relative(root, source);
+        if (!relative || !inside(relative) || relative.split(path.sep).includes('.git') || fs.realpathSync(source) !== source) {
+          throw new Error('Proposal targets must be regular in-root source files without symbolic links.');
+        }
+        const destination = path.join(temporary, relative);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.writeFileSync(destination, readRegularFile(source), { flag: 'wx', mode: 0o600 });
+      }
+      const env = {
+        PATH: process.env.PATH,
+        HOME: temporary,
+        XDG_CONFIG_HOME: temporary,
+        GIT_CONFIG_NOSYSTEM: '1',
+        GIT_CONFIG_GLOBAL: os.devNull,
+        GIT_CEILING_DIRECTORIES: path.dirname(temporary),
+      };
       const gitApply = (...args) => execFileSync('git', ['--no-optional-locks', 'apply', '--whitespace=nowarn', ...args, '-'], {
         cwd: temporary, env, input: patch, stdio: 'pipe',
       });
@@ -307,7 +298,6 @@ export function applyProposalInCopy(root, patch) {
     return {
       root: temporary,
       application: applied ? 'applied' : 'empty',
-      ...(skippedLinks.length ? { skipped_links: skippedLinks.sort() } : {}),
     };
   } catch (error) {
     fs.rmSync(temporary, { recursive: true, force: true });

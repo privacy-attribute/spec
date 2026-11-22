@@ -8,7 +8,7 @@ A review that a coding agent runs on your application's source. It finds the inf
 2. **Review.** The agent follows the [review skill](skill/SKILL.md). It traces each value from where it is produced to the element that shows it, decides what it means and whom it concerns, and cites the source lines for every decision.
 3. **Questions.** After research, the agent asks up to three initial questions only where your knowledge or decision is needed. Follow-ups are reserved for consequential ambiguity it cannot resolve itself.
 4. **Patch.** Supporting tools validate evidence and propose annotations. The agent reconciles these with the deployed recorder: native `review-patch` output uses `data-privacy` only, while rrweb classes or configuration changes require exact source proposals. An ignored attribute is not protection.
-5. **Verify.** The agent tests the reconciled patch in an isolated copy, with synthetic private values and public controls. It reports source validation separately from observed recording protection, and applies changes only within your authorization.
+5. **Verify.** The agent checks the patch against copies of the edited files. If a credential-free, network-restricted synthetic fixture is available, the agent can also check what the recorder captures. The agent applies changes only within your authorization.
 6. **Feedback.** When the review finds a reusable gap, the agent prepares a synthetic issue draft and suggests reporting it to this repository. Recorder weaknesses use the private security route. Nothing is posted without your authorization. See [feedback instructions](skill/references/feedback.md).
 
 ## Quick start
@@ -25,14 +25,15 @@ Find the data in this application that a session recorder must mask or block.
 3. Follow the skill. Read producers and component definitions, then write
    source-evidenced decisions in the session's review.json.
 4. Run review-patch and review-proposals with --out <session folder>.
-5. Test the reconciled patch in an isolated copy. Report unresolved work,
-   public-content losses and checks actually executed. Keep the original
-   application unchanged and leave the patch for review.
+5. Validate the patch statically. Run recording checks only in an authorized,
+   credential-free synthetic fixture with outbound network access blocked.
+   Report unresolved work, public-content losses and checks actually executed.
+   Leave the original application unchanged and provide the patch for review.
 ```
 
 The [implementation prompt](PROMPT.md) is a longer version. The [rrweb guide](recorders/rrweb.md) explains the recorder settings the annotations need.
 
-For a dashboard handoff that supplies this directory URL, open `skill/SKILL.md` and its linked references first. Use a local checkout for the CLI; the directory URL is not an install command. If tools cannot be installed or run, continue the source review and exact patch preparation, reporting tool validation as unavailable. For large applications, inventory in feature batches with `--include`, while keeping a whole-application coverage ledger and following dependencies outside each batch.
+For a dashboard handoff that supplies this directory URL, open `skill/SKILL.md` first. Open individual references only when the current trace calls for them. Use a local checkout for the CLI. If the tool is unavailable, continue the source review and record which checks could not run. For large applications, use `--include` for each feature batch and keep the original deliverable, current scope, user corrections, and next unresolved trace in the coverage ledger.
 
 ## What to know before you rely on it
 
@@ -50,7 +51,7 @@ For a dashboard handoff that supplies this directory URL, open `skill/SKILL.md` 
 
 ## Skill-led review
 
-Use a new session folder outside the application source. For an application-wide request, keep a ledger of all entry points and review in bounded feature batches as necessary. Keep the source read-only during inspection, and follow producers, shared components and capture integrations outside batch boundaries.
+Use a new session folder outside the application source. Git inventory uses tracked files from the working tree. Use `--include` to narrow the review to named files or directories. To add an untracked file, name the file itself. For projects without Git metadata, start from a source-only export. Keep the source read-only, and trace dependencies outside a batch only as needed to understand the in-scope behavior.
 
 ```bash
 node scan/cli.mjs inventory /path/to/app --include src/account,src/contacts --out /tmp/privacy-review
@@ -71,7 +72,7 @@ node scan/cli.mjs review-proposals --out /tmp/privacy-review
 | `review-report.json` | Decision validation, native placements, missing work and known public-content loss. |
 | `proposal.patch` | Partial native edits while unresolved work remains. Exit code 2 signals an incomplete review. |
 | `privacy.patch` | Native proposals when the inventoried review has no reported gaps. Runtime verification still required. |
-| `source-proposals.patch`, `source-proposals.json` | Exact source-supported framework edits, checked in an isolated copy. They are separate from native coverage and may overlap native proposals. |
+| `source-proposals.patch`, `source-proposals.json` | Exact source-supported framework edits, checked against copies of the edited files. They may overlap native proposals. |
 
 The tool does not launch an agent for this workflow. Load the skill in the coding agent you already use. It is a repository skill draft, with no automatic personal installation. An exact quote establishes provenance, not semantic correctness. Independent review tests the meaning. Framework compilation, runtime forwarding and emitted recorder payloads require separate tests with synthetic data. The recorder operator remains responsible for recording contents; the review does not establish legal compliance.
 
