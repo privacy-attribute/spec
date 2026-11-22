@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -24,6 +25,31 @@ function assertExact(site, source) {
   assert.equal(site.column, lines.at(-1).length);
   assert.ok(source.slice(site.target.start, site.target.open_end).startsWith(`<${site.tag}`));
 }
+
+test('Git inventory excludes ignored and sibling-worktree files unless an eligible file is named explicitly', (t) => {
+  const source = 'export const Panel = () => <p>Panel</p>;\n';
+  const root = fixture(t, {
+    '.gitignore': 'local/\n.claude/\n',
+    'feature/Tracked.tsx': source,
+    'feature/New.tsx': source,
+    'outside/Tracked.tsx': source,
+    'local/Fixture.tsx': source,
+    'local/Neighbor.tsx': source,
+    '.claude/worktrees/sibling/Panel.tsx': source,
+  });
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  execFileSync('git', ['add', '--', 'feature/Tracked.tsx', 'outside/Tracked.tsx'], { cwd: root });
+  fs.appendFileSync(path.join(root, 'feature/Tracked.tsx'), 'export const Edit = () => <span>Working edit</span>;\n');
+
+  const all = inventory(root);
+  assert.deepEqual(all.files.map(({ file }) => file), ['feature/Tracked.tsx', 'outside/Tracked.tsx']);
+  assert.ok(all.sites.some(({ expression }) => expression === 'Working edit'));
+  const scoped = inventory(root, { include: ['feature', 'local/Fixture.tsx'] });
+  assert.deepEqual(scoped.failures, []);
+  assert.deepEqual(scoped.files.map(({ file }) => file), ['feature/Tracked.tsx', 'local/Fixture.tsx']);
+  assert.deepEqual(inventory(path.join(root, 'feature')).files.map(({ file }) => file), ['Tracked.tsx']);
+  assert.throws(() => inventory(root, { include: ['.claude/worktrees/sibling'] }), /cannot target Git or agent metadata/);
+});
 
 test('inventories exact JSX slots without classifying privacy or including static layout and handlers', (t) => {
   const app = [

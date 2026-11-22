@@ -114,7 +114,7 @@ test('CLI inventories scoped sites, cites exact out-of-scope source bytes, and p
   const patch = fs.readFileSync(app.artifact('privacy.patch'), 'utf8');
   assert.equal(fs.existsSync(app.artifact('proposal.patch')), false);
   assert.equal(fs.readFileSync(app.app, 'utf8'), APP_SOURCE);
-  const copy = applyProposalInCopy(app.root, patch);
+  const copy = applyProposalInCopy(app.root, patch, [APP]);
   t.after(() => fs.rmSync(copy.root, { recursive: true, force: true }));
   assert.equal(copy.application, 'applied');
   const expected = APP_SOURCE.replace('<p>{marker}', '<p data-privacy="mask">{marker}');
@@ -286,11 +286,16 @@ test('discarding artifacts validates all names and ownership before removing any
   assert.ok(fs.existsSync(app.artifact('review.json')));
 });
 
-test('isolated application preserves local relative links without retaining links to the original or outside tree', (t) => {
+test('static proposal validation copies only the edited files, without credentials, scripts, or links', (t) => {
   const app = fixture(t);
   const outside = path.join(app.temp, 'outside.ts');
   fs.writeFileSync(outside, 'export const outside = "synthetic";\n');
-  fs.mkdirSync(path.join(app.root, '.git'));
+  fs.writeFileSync(path.join(app.root, '.env.local'), 'TEST_TOKEN=synthetic-secret\n');
+  fs.writeFileSync(path.join(app.root, '.npmrc'), '//example.invalid/:_authToken=synthetic-secret\n');
+  fs.writeFileSync(path.join(app.root, 'package.json'), JSON.stringify({
+    scripts: { build: 'node build.mjs' },
+  }));
+  fs.writeFileSync(path.join(app.root, 'build.mjs'), 'throw new Error("Application code must stay unexecuted");\n');
   fs.symlinkSync(APP, path.join(app.root, 'local.ts'));
   fs.symlinkSync(app.app, path.join(app.root, 'absolute.ts'));
   fs.symlinkSync('../outside.ts', path.join(app.root, 'outside.ts'));
@@ -303,18 +308,17 @@ test('isolated application preserves local relative links without retaining link
   process.env.GIT_DIR = path.join(app.root, '.git');
   let copy;
   try {
-    copy = applyProposalInCopy(app.root, patch);
+    copy = applyProposalInCopy(app.root, patch, [APP]);
   } finally {
     if (originalGitDir === undefined) delete process.env.GIT_DIR;
     else process.env.GIT_DIR = originalGitDir;
   }
   t.after(() => fs.rmSync(copy.root, { recursive: true, force: true }));
-  assert.deepEqual(copy.skipped_links, ['absolute.ts', 'outside.ts']);
-  assert.equal(fs.existsSync(path.join(copy.root, '.git')), false);
-  assert.equal(fs.existsSync(path.join(copy.root, 'absolute.ts')), false);
-  assert.equal(fs.existsSync(path.join(copy.root, 'outside.ts')), false);
-  assert.equal(fs.realpathSync(path.join(copy.root, 'local.ts')), path.join(copy.root, APP));
-  assert.match(fs.readFileSync(path.join(copy.root, 'local.ts'), 'utf8'), /data-privacy="mask"/);
+  assert.deepEqual(fs.readdirSync(copy.root), ['routes']);
+  assert.deepEqual(fs.readdirSync(path.join(copy.root, 'routes')), ['App.tsx']);
+  assert.match(fs.readFileSync(path.join(copy.root, APP), 'utf8'), /data-privacy="mask"/);
+  assert.throws(() => applyProposalInCopy(app.root, patch, ['local.ts']), /without symbolic links/);
+  assert.throws(() => applyProposalInCopy(app.root, patch, ['../outside.ts']), /in-root source files/);
   assert.equal(fs.readFileSync(app.app, 'utf8'), APP_SOURCE);
   assert.equal(fs.readFileSync(outside, 'utf8'), 'export const outside = "synthetic";\n');
 });

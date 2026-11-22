@@ -24,7 +24,7 @@ test('source proposal checks exact evidence, parses and applies without changing
   const result=proposeSourceChanges(root,snapshot,review);
   assert.deepEqual(result.errors,[]);assert.equal(result.status,'source-supported-proposal');assert.equal(result.runtime,'not-run');
   assert.equal(result.syntax[0].status,'parsed');
-  const applied=applyProposalInCopy(root,result.patch);t.after(()=>fs.rmSync(applied.root,{recursive:true,force:true}));
+  const applied=applyProposalInCopy(root,result.patch,Object.keys(result.after));t.after(()=>fs.rmSync(applied.root,{recursive:true,force:true}));
   assert.equal(fs.readFileSync(path.join(applied.root,'View.tsx'),'utf8'),result.after['View.tsx']);
   assert.equal(fs.readFileSync(path.join(root,'View.tsx'),'utf8'),source);
 });
